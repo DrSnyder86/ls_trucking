@@ -31,10 +31,10 @@ files {
     'html/style.css',
     'html/app.js',
     'html/sounds/*.wav',
-    'images/.gitkeep',
-    'images/*.png',
-    'images/*.jpg',
-    'images/*.jpeg',
-    'images/*.webp',
-    'inventory_images/*.png'
+    -- 'images/.gitkeep',
+    -- 'images/*.png',
+    -- 'images/*.jpg',
+    -- 'images/*.jpeg',
+    -- 'images/*.webp',
+    -- 'inventory_images/*.png'
 }
