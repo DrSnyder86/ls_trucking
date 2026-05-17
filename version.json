@@ -1,7 +1,8 @@
 {
   "version": "1.0.0",
-  "download": "https://github.com/DrSnyder86/ls_trucking",
-  "changelog": "Main v1.0 base with default config/contracts, tablet animation, inventory images, and config-specific version checks.",
+  "download": "https://github.com/DrSnyder86/ls_trucking/releases/latest",
+  "repository": "https://github.com/DrSnyder86/ls_trucking",
+  "changelog": "Main v1.0 base with QB/Qbox, ox/qb target support, compatibility bridges, tablet UI, inventory images, and config-specific version checks.",
   "config_version": "1.0.0",
   "contracts_version": "1.0.0"
 }
