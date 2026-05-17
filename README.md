@@ -11,25 +11,19 @@ Los Santos Freight Trucking is a full delivery and trucking job resource for Fiv
 
 ---
 
-## Screenshot Slideshow
-
-Paste your screenshot URLs below. GitHub will display them as a simple horizontal screenshot strip.
+## Screenshots
 
 <p align="center">
-  <img src="PASTE_SCREENSHOT_URL_1_HERE" width="32%" alt="Freight Dispatch UI" />
-  <img src="PASTE_SCREENSHOT_URL_2_HERE" width="32%" alt="Contract Selection" />
-  <img src="PASTE_SCREENSHOT_URL_3_HERE" width="32%" alt="Mini UI" />
+  <img src="https://r2.fivemanage.com/image/V7AInPUQnHJm.jpg" width="32%" alt="Freight Dispatch UI" />
+  <img src="https://r2.fivemanage.com/image/koGBHenopjcv.jpg" width="32%" alt="Company Progress" />
+  <img src="https://r2.fivemanage.com/image/H1FOGuz7QLEq.png" width="32%" alt="Mini UI" />
 </p>
 
 <p align="center">
-  <img src="PASTE_SCREENSHOT_URL_4_HERE" width="32%" alt="Company Garage" />
-  <img src="PASTE_SCREENSHOT_URL_5_HERE" width="32%" alt="Manifest UI" />
-  <img src="PASTE_SCREENSHOT_URL_6_HERE" width="32%" alt="Route Summary" />
+  <img src="https://r2.fivemanage.com/image/O4QPR3R8rJdm.jpg" width="32%" alt="Company Garage" />
+  <img src="https://r2.fivemanage.com/image/eKPJOxQE8hJe.png" width="32%" alt="Manifest UI" />
+  <img src="https://r2.fivemanage.com/image/HDWrtpGdzsfQ.png" width="32%" alt="Route Summary" />
 </p>
-
-For a single large preview, replace this image URL:
-
-![Los Santos Freight Trucking Preview](PASTE_MAIN_SCREENSHOT_URL_HERE)
 
 ---
 
