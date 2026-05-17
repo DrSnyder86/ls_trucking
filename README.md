@@ -1,7 +1,5 @@
 # Los Santos Freight Trucking
-
-**Resource:** `ls_trucking`  
-**Version:** `1.0.0`  
+ 
 **Author:** Drsnyder  
 **Frameworks:** QB-Core / Qbox compatible  
 **Inventory:** ox_inventory, qb-inventory, lj-inventory, ps-inventory, qs-inventory  
