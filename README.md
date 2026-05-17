@@ -4,10 +4,11 @@
 **Version:** `1.0.0`  
 **Author:** Drsnyder  
 **Frameworks:** QB-Core / Qbox compatible  
-**Inventory:** ox_inventory  
-**Target:** ox_target or qb-target
+**Inventory:** ox_inventory, qb-inventory, lj-inventory, ps-inventory, qs-inventory  
+**Fuel:** ox_fuel, LegacyFuel, ps-fuel, cdn-fuel, lj-fuel, qb-fuel  
+**Keys:** qb-vehiclekeys, qbx_vehiclekeys, Renewed-Vehiclekeys, MrNewbVehicleKeys, wasabi_carlock, cd_garage
 
-Los Santos Freight Trucking is a full delivery and trucking job resource for FiveM. It includes van package routes, box truck crate routes, trailer hauling, rank progression, company garage vehicles, saved vehicle modifications, manifest paperwork, route summaries, trailer checklists, timed deliveries, damage penalties, random dispatch events, and a polished Freight Dispatch tablet UI.
+Los Santos Freight Trucking is a full delivery and trucking job resource for FiveM. It includes van package routes, box truck crate routes, trailer hauling, rank progression, company garage vehicles, saved vehicle modifications, manifest paperwork, route summaries, trailer checklists, timed deliveries, damage penalties, random dispatch events, and a polished Freight Dispatch tablet UI. Most delivery routes are local and logistically efficient. No more driving all over the map to complete a route. Config is highly and easily configurable for server owners to add more depot locations, delivery routes and custom vehicles and trailers. Most all delivery locations provided support the vanilla gta map.
 
 ---
 
@@ -97,6 +98,37 @@ Los Santos Freight Trucking is a full delivery and trucking job resource for Fiv
   - Route completion summary.
   - Cancel route confirmation.
 
+## Gameplay Instructions
+### Package/Crate Delivery
+- Visit the Dispatch Ped at the Depot Terminal or open the ui.
+- Choose a contract type or spawn a vehicle from the garage.
+- Once a contract is selected, choose to either use your available garage vehicle or a contract specific job vehicle.
+- After a contract is started you will be provided with a Delivery Manifest and pickup location.
+- Drive to the pickup location and speak to the clerk. PostOps or GoPostal
+- Load packages or crates into your vehicle - Cargo doors or trunk must be open.
+- After load is complete, target the vehicle to verify.
+- Once verified, player will receive dispatch and delivery location data.
+- Visit each location, pickup package when targeting the vehicle if the specified doors are open, deliver to drop location.
+- When a contract is completed, players will receive payment and a detailed summary of the contract.
+- Return your vehicle to the Depot or open the ui and start another contract.
+
+### Trailer Delivery
+- Visit the Dispatch Ped at the Depot Terminal or open the ui.
+- Choose a contract type or spawn a vehicle from the garage.
+- Once a contract is selected, choose to either use your available garage vehicle or a contract specific job vehicle.
+- After a contract is started you will be provided with a Trailer Manifest and pickup location.
+- Drive to the pickup location and locate your trailer.
+- Attach the specified trailer to your tractor.
+- Hop out and target the rear of the tractor. You can view Checklist, Complete Checklist and Secure Trailer Attached here.
+- Step 1 - Secure Trailer Attached - when targeting the rear of the tractor.
+- Step 2 - Verify Trailer Load Secure - when targeting the rear of the trailer.
+- Step 3 - Complete Checklist - when targeting rear of the tractor again.
+- When the player verifies checklist complete, you will be provided with a delivery location.
+- Head on over to the drop location and detach your trailer.
+- Jump out and target the trailer to verify detached.
+- Once verified, Speak to the receiver ped to complete the contract.
+- When a contract is completed, players will receive payment and a detailed summary of the contract.
+- Return your vehicle to the Depot or open the ui and start another contract.
 ---
 ### Download
 https://github.com/DrSnyder86/ls_trucking/archive/refs/heads/main.zip
@@ -122,6 +154,40 @@ https://github.com/DrSnyder86/ls_trucking/archive/refs/heads/main.zip
 
 - qbx radial menu snippets included.
 - qb radial menu snippets included.
+
+### Supported Inventories
+
+```text
+ox_inventory       Full item metadata + trunk inventory support
+qb-inventory       Player item support + internal route cargo trunk fallback
+lj-inventory       Player item support + internal route cargo trunk fallback
+ps-inventory       Player item support + internal route cargo trunk fallback
+qs-inventory       Player item support + internal route cargo trunk fallback
+```
+
+`ox_inventory` is still the recommended inventory because it has the cleanest item metadata and trunk inventory behavior. Other inventories are supported through compatibility wrappers. Because trunk APIs vary heavily between inventory scripts, non-ox inventories use an internal job-trunk fallback for route cargo so the job loop still works.
+
+### Supported Fuel Scripts
+
+```text
+ox_fuel
+LegacyFuel
+ps-fuel
+cdn-fuel
+lj-fuel
+qb-fuel
+```
+
+### Supported Key Scripts
+
+```text
+qb-vehiclekeys
+qbx_vehiclekeys
+Renewed-Vehiclekeys
+MrNewbVehicleKeys
+wasabi_carlock
+cd_garage
+```
 
 ---
 
@@ -358,22 +424,14 @@ Use the matching snippets in your radial menu config to open the trucking UI or 
 
 ---
 
-## Notes
+## Notes and Tips
 
-- The resource uses manual destination blips instead of forced mission GPS routes.
-- Van and box truck cargo must be loaded, verified, retrieved, and delivered.
-- Trailer hauling starts after the trailer is attached and the load checklist is completed.
-- Package carrying uses looped carry animations and props.
-- The dispatch ped can open the UI and return company vehicles.
-- Main UI uses a tablet animation and tablet prop while open.
-
----
-
-## Support / Editing Tips
-
-- If a cargo prop does not appear, confirm the prop exists in your GTA build or change the `prop` in `Config.CargoTypes`.
-- If local vehicle images do not show, check `fxmanifest.lua`, filename casing, file extension, and resource restart/cache.
-- If target options do not appear, confirm `Config.TargetSystem` and that either `ox_target` or `qb-target` is running before `ls_trucking`.
+- `ox_inventory` is recommended for the most complete item metadata and trunk support.
+- Non-ox inventories use an internal route cargo fallback for vehicle cargo storage because every inventory handles trunks differently.
+- If item metadata does not display in your inventory, the job will still work, but item descriptions may be less detailed.
+- If a fuel/key script does not work with your specific fork, edit `client/compat.lua` for fuel/key support.
+- If target options do not appear, confirm `Config.TargetSystem` and that your target resource starts before `ls_trucking`.
+- If local images do not show, check `fxmanifest.lua`, filename casing, file extension, and restart/cache.
 
 ### License
 For an updated license, check the ``License`` file. That file will always overrule anything mentioned in the ``readme.md``
