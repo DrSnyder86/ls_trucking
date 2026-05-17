@@ -2,7 +2,7 @@ Config = {}
 
 Config.ConfigVersion = '1.0.0'
 Config.Debug = false
-Config.Framework = 'auto' -- auto, qb, qbox
+Config.Framework = 'auto' -- auto, qb, qbox, standalone
 Config.Command = 'trucking'
 Config.MiniUIToggleCommand = 'truckui'
 Config.CancelCommand = 'canceltrucking'
@@ -11,9 +11,34 @@ Config.JobName = 'trucker'
 Config.UsePed = true
 Config.UseBlip = true
 Config.UseTerminalTargetZone = false
+Config.RadioFrequency = 'CH. 68.9' -- Radio frequency displayed in ui
+Config.MiniUIEnabled = true
 
 -- Target system: 'auto', 'ox', or 'qb'
+-- auto will prefer ox_target when started, then qb-target.
 Config.TargetSystem = 'auto'
+
+-- Inventory System: 'auto', 'ox_inventory', 'qb-inventory', 'lj-inventory', 'ps-inventory', 'qs-inventory', or 'custom'.
+-- ox_inventory has full metadata/trunk support. Other inventories use player items plus an internal job-trunk fallback for route cargo.
+Config.Inventory = {
+    System = 'auto',
+    Debug = false,
+    UseInternalTrunkFallback = true,
+    TrunkPrefix = 'trunk'
+}
+
+-- Fuel System: 'auto', 'ox_fuel', 'LegacyFuel', 'ps-fuel', 'cdn-fuel', 'lj-fuel', 'qb-fuel', or 'none'.
+Config.Fuel = {
+    System = 'auto',
+    DefaultFuel = 100.0
+}
+
+-- Key System: 'auto', 'qb-vehiclekeys', 'qbx_vehiclekeys', 'Renewed-Vehiclekeys', 'MrNewbVehicleKeys', 'wasabi_carlock', 'cd_garage', or 'none'.
+Config.Keys = {
+    System = 'auto',
+    GiveOnSpawn = true,
+    RemoveOnReturn = false
+}
 
 -- Locations, depots, and dispatch
 Config.DispatchPed = {
@@ -39,8 +64,8 @@ Config.Depot = {
 
 Config.TrailerDepots = {
     docks = {
-        label = 'Docks Trailer Yard',
-        pickup = vector3(1244.30, -3184.92, 5.90),
+        label = 'LS Docks Trailer Yard',
+        pickup = vector3(1269.42, -3218.28, 5.9),
         spawns = {
             vector4(1271.85, -3224.09, 5.90, 90.42),
             vector4(1271.36, -3202.27, 5.90, 90.51),
@@ -126,10 +151,6 @@ Config.RouteTrailers = {
 }
 
 -- Cargo, inventory, and manifests
-Config.GetTrunkInventoryId = function(plate)
-    return ('trunk%s'):format(plate)
-end
-
 Config.CargoItems = {
     van = {
         item = 'ls_package',
@@ -268,7 +289,7 @@ Config.DeleteOldVehicleOnNewContract = true
 Config.PayWhenRouteComplete = true
 Config.ReturnVehicleBonusEnabled = true
 Config.ReturnVehicleBonus = 250
-Config.PayToBank = true
+Config.PayToBank = false
 Config.TargetDistance = 2.5
 Config.TrailerAutoDetectInterval = 750
 Config.TrailerDespawnAfterDelivery = 10000 -- milliseconds after receiver signoff
@@ -423,15 +444,12 @@ Config.Blips = {
     Default = { sprite = 1, color = 5, scale = 0.85 }
 }
 
-Config.RadioFrequency = 'CH. 68.9'
-
-Config.MiniUIEnabled = true
 
 Config.VersionCheck = {
-    Enabled = false,
-    GitHubRawVersionUrl = '', 
-    ConfigRawVersionUrl = '', 
-    ContractsRawVersionUrl = '', 
+    Enabled = true,
+    GitHubRawVersionUrl = 'https://raw.githubusercontent.com/DrSnyder86/ls_trucking/main/version.json', -- resource version.json or plain-text version
+    ConfigRawVersionUrl = 'https://raw.githubusercontent.com/DrSnyder86/ls_trucking/main/version.json', -- optional raw config/config.lua or config_version JSON
+    ContractsRawVersionUrl = 'https://raw.githubusercontent.com/DrSnyder86/ls_trucking/main/version.json', -- optional raw config/contracts.lua or contracts_version JSON
     PrintUpToDate = true,
     CheckDelay = 5000
 }
