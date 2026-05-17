@@ -373,12 +373,197 @@ local function AddCancelledRoute(citizenid, repLoss)
     })
 end
 
-local function GetTrunkId(plate) return Config.GetTrunkInventoryId(plate) end
-local function GetInventoryItemCount(inventory, item) return exports.ox_inventory:GetItemCount(inventory, item) or 0 end
-local function AddPlayerItem(src, item, amount, metadata) return exports.ox_inventory:AddItem(src, item, amount or 1, metadata or {}) end
-local function RemovePlayerItem(src, item, amount) return exports.ox_inventory:RemoveItem(src, item, amount or 1) end
-local function AddTrunkItem(plate, item, amount, metadata) return exports.ox_inventory:AddItem(GetTrunkId(plate), item, amount or 1, metadata or {}) end
-local function RemoveTrunkItem(plate, item, amount) return exports.ox_inventory:RemoveItem(GetTrunkId(plate), item, amount or 1) end
+local function GetTrunkId(plate)
+    if Config.GetTrunkInventoryId then return Config.GetTrunkInventoryId(plate) end
+    local prefix = (Config.Inventory and Config.Inventory.TrunkPrefix) or 'trunk'
+    return ('%s%s'):format(prefix, plate)
+end
+
+local VirtualTrunks = {}
+
+local function ResolveInventorySystem()
+    local configured = (Config.Inventory and Config.Inventory.System) or Config.InventorySystem or 'auto'
+    if configured and configured ~= 'auto' then return configured end
+    local candidates = { 'ox_inventory', 'qb-inventory', 'lj-inventory', 'ps-inventory', 'qs-inventory' }
+    for _, resource in ipairs(candidates) do
+        if GetResourceState(resource) == 'started' then return resource end
+    end
+    return 'ox_inventory'
+end
+
+local InventorySystem = ResolveInventorySystem()
+
+local function InventoryDebug(message)
+    if Config.Inventory and Config.Inventory.Debug then
+        print(('^3[ls_trucking:inventory]^7 %s'):format(message))
+    end
+end
+
+local function SafeExport(resource, exportName, ...)
+    if GetResourceState(resource) ~= 'started' then return false, nil end
+    local args = { ... }
+    local ok, result = pcall(function()
+        return exports[resource][exportName](exports[resource], table.unpack(args))
+    end)
+    if ok then return true, result end
+
+    ok, result = pcall(function()
+        return exports[resource][exportName](table.unpack(args))
+    end)
+    return ok, result
+end
+
+local function GetVirtualTrunkCount(plate, item)
+    local trunk = VirtualTrunks[plate]
+    if not trunk then return 0 end
+    return trunk[item] or 0
+end
+
+local function AddVirtualTrunkItem(plate, item, amount)
+    amount = tonumber(amount) or 1
+    VirtualTrunks[plate] = VirtualTrunks[plate] or {}
+    VirtualTrunks[plate][item] = (VirtualTrunks[plate][item] or 0) + amount
+    return true
+end
+
+local function RemoveVirtualTrunkItem(plate, item, amount)
+    amount = tonumber(amount) or 1
+    local trunk = VirtualTrunks[plate]
+    if not trunk or (trunk[item] or 0) < amount then return false end
+    trunk[item] = trunk[item] - amount
+    if trunk[item] <= 0 then trunk[item] = nil end
+    return true
+end
+
+local function ClearVirtualTrunk(plate)
+    if plate then VirtualTrunks[plate] = nil end
+end
+
+local function GetInventoryItemCount(inventory, item)
+    if not item then return 0 end
+
+    if InventorySystem == 'ox_inventory' and GetResourceState('ox_inventory') == 'started' then
+        local ok, count = SafeExport('ox_inventory', 'GetItemCount', inventory, item)
+        if ok then return tonumber(count) or 0 end
+    end
+
+    local resource = InventorySystem
+
+    if resource == 'qs-inventory' then
+        local ok, count = SafeExport(resource, 'GetItemTotalAmount', inventory, item)
+        if ok and count ~= nil then return tonumber(count) or 0 end
+        ok, count = SafeExport(resource, 'GetItemCount', inventory, item)
+        if ok and count ~= nil then return tonumber(count) or 0 end
+    else
+        local ok, count = SafeExport(resource, 'GetItemCount', inventory, item)
+        if ok and count ~= nil then return tonumber(count) or 0 end
+        ok, count = SafeExport(resource, 'GetItemByName', inventory, item)
+        if ok and type(count) == 'table' then return tonumber(count.amount or count.count) or 0 end
+    end
+
+    -- Internal fallback only applies to vehicle job trunks. Player counts cannot be safely guessed.
+    if type(inventory) == 'string' and Config.Inventory and Config.Inventory.UseInternalTrunkFallback ~= false then
+        for plate in pairs(VirtualTrunks) do
+            if inventory == GetTrunkId(plate) then return GetVirtualTrunkCount(plate, item) end
+        end
+    end
+
+    return 0
+end
+
+local function AddPlayerItem(src, item, amount, metadata)
+    amount = tonumber(amount) or 1
+    metadata = metadata or {}
+
+    if InventorySystem == 'ox_inventory' and GetResourceState('ox_inventory') == 'started' then
+        local ok, result = SafeExport('ox_inventory', 'AddItem', src, item, amount, metadata)
+        if ok then return result ~= false end
+    end
+
+    local resource = InventorySystem
+    local info = metadata
+
+    local attempts = {
+        { resource, 'AddItem', src, item, amount, false, info, 'ls-trucking' },
+        { resource, 'AddItem', src, item, amount, nil, info, 'ls-trucking' },
+        { resource, 'AddItem', src, item, amount, info },
+    }
+
+    for _, attempt in ipairs(attempts) do
+        local res, exportName = attempt[1], attempt[2]
+        table.remove(attempt, 1)
+        table.remove(attempt, 1)
+        local ok, result = SafeExport(res, exportName, table.unpack(attempt))
+        if ok then return result ~= false end
+    end
+
+    InventoryDebug(('Failed to add player item %s x%s using %s'):format(item, amount, resource))
+    return false
+end
+
+local function RemovePlayerItem(src, item, amount)
+    amount = tonumber(amount) or 1
+
+    if InventorySystem == 'ox_inventory' and GetResourceState('ox_inventory') == 'started' then
+        local ok, result = SafeExport('ox_inventory', 'RemoveItem', src, item, amount)
+        if ok then return result ~= false end
+    end
+
+    local resource = InventorySystem
+    local attempts = {
+        { resource, 'RemoveItem', src, item, amount, false, 'ls-trucking' },
+        { resource, 'RemoveItem', src, item, amount, nil, 'ls-trucking' },
+        { resource, 'RemoveItem', src, item, amount },
+    }
+
+    for _, attempt in ipairs(attempts) do
+        local res, exportName = attempt[1], attempt[2]
+        table.remove(attempt, 1)
+        table.remove(attempt, 1)
+        local ok, result = SafeExport(res, exportName, table.unpack(attempt))
+        if ok then return result ~= false end
+    end
+
+    InventoryDebug(('Failed to remove player item %s x%s using %s'):format(item, amount, resource))
+    return false
+end
+
+local function AddTrunkItem(plate, item, amount, metadata)
+    amount = tonumber(amount) or 1
+    metadata = metadata or {}
+
+    if InventorySystem == 'ox_inventory' and GetResourceState('ox_inventory') == 'started' then
+        local ok, result = SafeExport('ox_inventory', 'AddItem', GetTrunkId(plate), item, amount, metadata)
+        if ok then return result ~= false end
+    end
+
+    if Config.Inventory and Config.Inventory.UseInternalTrunkFallback ~= false then
+        return AddVirtualTrunkItem(plate, item, amount)
+    end
+
+    local resource = InventorySystem
+    local ok, result = SafeExport(resource, 'AddItem', GetTrunkId(plate), item, amount, false, metadata, 'ls-trucking')
+    if ok then return result ~= false end
+    return false
+end
+
+local function RemoveTrunkItem(plate, item, amount)
+    amount = tonumber(amount) or 1
+
+    if InventorySystem == 'ox_inventory' and GetResourceState('ox_inventory') == 'started' then
+        local ok, result = SafeExport('ox_inventory', 'RemoveItem', GetTrunkId(plate), item, amount)
+        if ok then return result ~= false end
+    end
+
+    if Config.Inventory and Config.Inventory.UseInternalTrunkFallback ~= false then
+        return RemoveVirtualTrunkItem(plate, item, amount)
+    end
+
+    local resource = InventorySystem
+    local ok, result = SafeExport(resource, 'RemoveItem', GetTrunkId(plate), item, amount, false, 'ls-trucking')
+    if ok then return result ~= false end
+    return false
+end
 
 local function GetCargoConfig(contractType, cargoType)
     cargoType = cargoType or (Config.DefaultCargoType and Config.DefaultCargoType[contractType])
@@ -626,6 +811,7 @@ local function CleanupContractCargo(src)
     RemoveAllPlayerCargo(src, active.type, active.cargoType, active.cargoManifest)
     RemoveAllTrunkCargo(active.plate, active.type, active.cargoType, active.cargoManifest)
     RemoveContractManifests(src)
+    if active.plate then ClearVirtualTrunk(active.plate) end
 end
 
 local function GetPriorityConfig(contractType, priorityKey)
