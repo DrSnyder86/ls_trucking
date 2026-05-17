@@ -431,7 +431,7 @@ Config.VersionCheck = {
     Enabled = true,
     GitHubRawVersionUrl = 'https://github.com/DrSnyder86/ls_trucking/blob/main/version.json', 
     ConfigRawVersionUrl = 'https://github.com/DrSnyder86/ls_trucking/blob/main/config/contracts.lua', 
-    ContractsRawVersionUrl = '', 
+    ContractsRawVersionUrl = 'https://github.com/DrSnyder86/ls_trucking/blob/main/config/config.lua', 
     PrintUpToDate = true,
     CheckDelay = 5000
 }
