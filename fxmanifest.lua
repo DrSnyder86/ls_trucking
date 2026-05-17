@@ -5,7 +5,7 @@ author 'Drsnyder'
 name 'ls_trucking'
 description 'Los Santos Freight Trucking for QB/Qbox'
 version '1.0.0'
-repository ''
+repository 'https://github.com/DrSnyder86/ls_trucking'
 
 lua54 'yes'
 
