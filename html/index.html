@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LS Trucking</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app" class="hidden">
+        <div class="dashboard">
+            <aside class="sidebar">
+                <div class="brand"><div class="logo"><i class="fas fa-truck-fast"></i></div><div><div class="brand-small">LOS SANTOS</div><div class="brand-title">FREIGHT CO.</div><div class="brand-sub">DISPATCH</div></div></div>
+                <div class="nav active" data-tab="dispatch"><i class="fas fa-truck-fast"></i><div><strong>DISPATCH</strong><small>Contracts</small></div></div>
+                <div class="nav" data-tab="current"><i class="fas fa-clipboard-list"></i><div><strong>CURRENT</strong><small>Route Status</small></div></div>
+                <div class="nav" data-tab="garage"><i class="fas fa-warehouse"></i><div><strong>GARAGE</strong><small>Company Fleet</small></div></div>
+                <div class="nav" data-tab="company"><i class="fas fa-building"></i><div><strong>COMPANY</strong><small>Stats</small></div></div>
+                <div class="radio"><small>LOS SANTOS</small><strong>FREIGHT CHANNEL</strong><span id="radioFrequency">CH. 68.9</span></div>
+                <div class="online">✅ Dispatch Online</div>
+            </aside>
+            <main class="main">
+                <header class="topbar">
+                    <div class="stat"><small>RANK</small><strong id="rankText">RANK 1</strong><span id="rankLabel">New Hire</span></div>
+                    <div class="stat"><small>JOBS</small><strong id="jobsText">0</strong><span>Total Routes</span></div>
+                    <div class="stat"><small>REP</small><strong id="repText">0</strong><span class="green">Company</span></div>
+                    <div class="stat"><small>EARNED</small><strong id="walletText">$0</strong><span class="green">Career</span></div>
+                    <div class="user"><strong id="playerName">Driver</strong><span id="citizenId">Citizen ID</span><span id="playerJob">Job Grade</span></div>
+                </header>
+                <section class="content">
+                    <section class="left-panel">
+                        <div id="page-dispatch" class="tab-page"><h1>CONTRACTS</h1><p>Select a route type and company vehicle.</p><div id="contractList"></div></div>
+                        <div id="page-current" class="tab-page hidden"><h1>CURRENT JOB</h1><p>View your active route, cancel it, or review your last completed job.</p><div id="currentJobBox" class="current-job current-job-large hidden"><div><small>CURRENT JOB</small><h2 id="currentJobTitle">No Active Job</h2><p id="currentJobStage">No route assigned.</p></div><div class="current-grid"><div><small>PAYOUT</small><strong id="currentJobPayout">$0</strong></div><div><small>CARGO</small><strong id="currentJobCargo">0 / 0</strong></div><div><small>STOPS</small><strong id="currentJobStops">0 / 0</strong></div></div><button id="cancelJobBtn" class="cancel-btn">Cancel Job</button></div><div id="noCurrentJob" class="empty-card">No active job.</div><div id="lastRouteSummaryBox" class="last-route-summary hidden"><div class="last-summary-head"><div><small>LAST COMPLETED JOB</small><h2 id="lastSummaryTitle">No Route Summary</h2></div><span id="lastSummaryPayout">$0</span></div><div id="lastSummaryGrid" class="last-summary-grid"></div></div></div>
+                        <div id="page-garage" class="tab-page hidden"><h1>COMPANY GARAGE</h1><p>Spawn company vehicles, customize them, use them for jobs, and return them to save mods.</p><div class="garage-actions"><button id="returnGarageBtn">Return Current Company Vehicle</button></div><div id="garageList" class="garage-list"></div></div>
+                        <div id="page-company" class="tab-page hidden"><h1>COMPANY</h1><p>Your trucking career stats.</p><div class="company-grid"><div class="company-card"><small>RANK</small><strong id="companyRank">Rank 1</strong><span id="companyRankLabel">New Hire</span></div><div class="company-card"><small>XP</small><strong id="companyXp">0</strong><span id="companyNextXp">Next rank: 0 XP</span></div><div class="company-card"><small>REP</small><strong id="companyRep">0</strong><span>Standing</span></div><div class="company-card"><small>JOBS</small><strong id="companyJobs">0</strong><span>Completed</span></div><div class="company-card"><small>EARNED</small><strong id="companyEarned">$0</strong><span>Payouts</span></div><div class="company-card"><small>CANCELLED</small><strong id="companyCancelled">0</strong><span>Routes</span></div></div><h2 class="subheading">Ranks</h2><div id="rankList" class="rank-list"></div></div>
+                    </section>
+                    <section class="preview">
+                        <div class="route-box"><div class="route-box-head"><h2>ROUTE PREVIEW</h2><span id="routeTypeBadge">LOCAL</span></div><div id="routePreviewList" class="route-preview-list"></div></div>
+                        <div class="selected"><div class="selected-head"><strong>SELECTED</strong><span id="selectedType">Van Delivery</span></div><div id="reuseBox" class="reuse-box hidden"><label><input id="reuseVehicleCheck" type="checkbox">Use current vehicle</label><small id="reuseVehicleText">Current vehicle available</small></div><div id="vehiclePreview" class="vehicle-preview"><img id="vehiclePhoto" src="" alt="Vehicle"><div><small>VEHICLE</small><strong id="selectedVehicleName">Company Vehicle</strong></div></div><div id="vehicleSelectWrap" class="vehicle-select-wrap"><small>COMPANY VEHICLE</small><select id="vehicleSelect"></select></div><div id="prioritySelectWrap" class="vehicle-select-wrap priority-select-wrap"><small>LOAD PRIORITY</small><select id="prioritySelect"></select><div id="priorityInfo" class="priority-info">Standard route</div></div><div class="info-row"><span>🟢</span><div><small>PICKUP</small><strong id="pickupText">Pickup Location</strong></div></div><div class="info-row"><span>📍</span><div><small>DESTINATION</small><strong id="dropoffText">Selected Route</strong></div></div><div class="info-row"><span>📦</span><div><small>CARGO</small><strong id="cargoText">Packages</strong></div></div><div class="info-row"><span>🛣️</span><div><small>ROUTE LENGTH</small><strong id="routeLengthText">Calculating...</strong></div></div><div class="info-row"><span>⏱️</span><div><small>ESTIMATED TIME</small><strong id="routeTimeText">Calculating...</strong></div></div><button id="startBtn">START CONTRACT</button><div class="note">Open the trunk or rear cargo door before loading or grabbing packages.</div></div>
+                    </section>
+                </section>
+            </main>
+        </div>
+    </div>
+    <div id="mini" class="mini hidden"><div class="mini-header"><strong id="miniTitle">Delivery</strong><div class="mini-header-right"><span id="miniSignal" class="mini-signal" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="miniPayout">$0</span></div></div><div class="mini-body"><div><small>NOTICE</small><strong id="miniNotice">Follow route instructions.</strong></div><div><small>STAGE</small><strong id="miniStage">Waiting</strong></div><div id="miniExpected" class="mini-expected hidden"><small>EXPECTED COMPLETION</small><strong id="miniExpectedText">N/A</strong></div><div><small>DESTINATION</small><strong id="miniDestination">N/A</strong><span id="miniDestinationAddress" class="mini-destination-address hidden">N/A</span></div><div class="mini-grid"><div><small>LOAD</small><strong id="miniCargoLoaded">0 / 0</strong></div><div><small>STOPS</small><strong id="miniProgress">0 / 0</strong></div></div><div><small>CARGO</small><strong id="miniCargo">Packages</strong></div><div id="miniAlert" class="mini-alert hidden"><small>CONTRACT ALERT</small><strong id="miniAlertText">Dispatch update active</strong></div></div></div>
+
+    <div id="freightDialog" class="freight-dialog hidden">
+        <div class="freight-dialog-panel">
+            <div class="freight-dialog-header">
+                <div class="freight-dialog-brand">
+                    <div class="freight-dialog-logo"><i class="fas fa-truck-fast"></i></div>
+                    <div class="freight-dialog-brand-text">
+                        <small>LOS SANTOS</small>
+                        <strong>FREIGHT CO.</strong>
+                        <span id="freightDialogTitle">Freight Dispatch</span>
+                    </div>
+                </div>
+                <span class="freight-dialog-status">ONLINE</span>
+            </div>
+            <div id="freightDialogContent" class="freight-dialog-content"></div>
+            <div id="freightDialogActions" class="freight-dialog-actions">
+                <button id="freightDialogClose">Close</button>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

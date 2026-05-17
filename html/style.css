@@ -1,0 +1,1601 @@
+*{box-sizing:border-box;user-select:none}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:transparent;color:#f3f3f3}.hidden{display:none!important}.dashboard{position:absolute;width:1420px;height:900px;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;grid-template-columns:240px 1fr;background:rgba(5,10,13,.97);border:1px solid rgba(255,190,0,.25);border-radius:16px;box-shadow:0 0 42px rgba(0,0,0,.85);overflow:hidden}.sidebar{background:linear-gradient(180deg,rgba(9,17,22,.98),rgba(3,7,10,.98));border-right:1px solid rgba(255,255,255,.08);padding:20px 14px;position:relative}.brand{display:flex;gap:12px;align-items:center;margin-bottom:28px}.logo{width:48px;height:48px;border:2px solid #d6a51a;color:#d6a51a;display:grid;place-items:center;font-weight:900;border-radius:9px;font-size:16px}.brand-small{font-size:10px;letter-spacing:5px}.brand-title{font-size:23px;font-weight:900}.brand-sub{font-size:11px;color:#ccc}.nav{display:flex;gap:14px;align-items:center;padding:14px 12px;border-radius:9px;margin-bottom:8px;color:#bbb;cursor:pointer}.nav i,.nav span{font-size:24px;width:30px;text-align:center;color:inherit;line-height:1}.nav strong{display:block;font-size:13px}.nav small{color:#999;font-size:11px}.nav.active{background:linear-gradient(90deg,rgba(230,171,0,.25),rgba(230,171,0,.04));border-left:4px solid #e6ab00;color:#ffd15b}.radio{position:absolute;left:22px;bottom:78px;display:flex;flex-direction:column;gap:3px;color:#bfc7c9;font-size:13px}.radio span{color:#67e05c}.online{position:absolute;bottom:30px;color:#d9ffd7;font-size:13px}.main{display:flex;flex-direction:column;min-width:0}.topbar{height:88px;display:grid;grid-template-columns:repeat(4,1fr) 190px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.32)}.stat,.user{padding:16px 20px;border-right:1px solid rgba(255,255,255,.08)}.stat small{display:block;color:#aaa;font-size:11px}.stat strong{display:block;margin-top:4px;font-size:22px}.stat span,.user span,.user small{display:block;margin-top:2px;color:#bbb;font-size:12px}.green{color:#68e45f!important}.content{flex:1;display:grid;grid-template-columns:1fr 410px;gap:18px;padding:20px;overflow:hidden}.left-panel{overflow-y:auto;padding-right:6px}.left-panel h1{margin:0;font-size:25px}.left-panel p{margin:6px 0 14px;color:#b8b8b8;font-size:14px}.contract-card{display:grid;grid-template-columns:175px 1fr 150px;align-items:center;gap:14px;min-height:150px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(90deg,rgba(255,255,255,.035),rgba(255,255,255,.01));border-radius:11px;margin-bottom:12px;padding:14px;cursor:pointer;transition:.15s}.contract-card:hover,.contract-card.selected{border-color:var(--accent);box-shadow:0 0 18px color-mix(in srgb,var(--accent) 25%,transparent)}.contract-number{font-size:32px;color:var(--accent);font-weight:900}.vehicle-photo-card{width:100%;height:96px;border-radius:10px;object-fit:contain;background:radial-gradient(circle,rgba(255,255,255,.14),rgba(255,255,255,.03));padding:7px}.card-title{color:var(--accent);font-size:21px;font-weight:900}.card-desc{margin-top:6px;color:#d6d6d6;line-height:1.35;font-size:13px}.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.tags span{background:rgba(255,255,255,.10);color:#ddd;padding:5px 8px;border-radius:4px;font-size:11px}.card-stats small{color:#aaa;display:block;margin-bottom:4px;font-size:11px}.payout{color:#5bea63;font-size:18px;font-weight:900;margin-bottom:16px}.difficulty{color:var(--accent);font-weight:900;font-size:14px}.businesses{margin-top:8px;color:#aaa;font-size:12px}.current-job{display:grid;gap:14px;padding:16px;margin-bottom:16px;background:rgba(230,171,0,.10);border:1px solid rgba(230,171,0,.35);border-radius:11px}.current-job small{color:#aaa;display:block;font-size:11px}.current-job h2{margin:4px 0;color:#ffd15b;font-size:23px}.current-job p{margin:0;color:#d6d6d6;font-size:14px}.current-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.current-grid strong{display:block;margin-top:5px}.cancel-btn{height:48px;border:0;border-radius:9px;background:#b93d3d;color:white;font-weight:900;cursor:pointer}.empty-card,.company-card,.garage-card,.rank-row,.route-box,.selected{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.10);border-radius:11px;padding:15px}.garage-actions{margin-bottom:14px}.garage-actions button{height:42px;padding:0 18px;border:0;border-radius:8px;background:#2f7d39;color:white;font-weight:900;cursor:pointer}.garage-list{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.garage-card{display:flex;flex-direction:column;gap:7px}.garage-card img{width:100%;height:90px;object-fit:contain;background:rgba(255,255,255,.05);border-radius:9px}.garage-card strong{display:block;color:#ffd15b;font-size:14px}.garage-card small{color:#aaa;font-size:12px}.garage-card button{margin-top:5px;height:36px;border:0;border-radius:7px;background:linear-gradient(180deg,#ffc928,#c98a00);color:#151515;font-weight:900;cursor:pointer}.company-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.company-card small{color:#aaa;display:block;font-size:11px}.company-card strong{display:block;font-size:24px;margin-top:6px;color:#ffd15b}.company-card span{color:#bbb;font-size:12px}.subheading{margin-top:18px;color:#ffd15b;font-size:19px}.rank-list{display:grid;gap:8px}.rank-row{display:flex;justify-content:space-between;font-size:13px}.preview{display:flex;flex-direction:column;gap:14px}.route-box-head{display:flex;justify-content:space-between;align-items:center}.route-box h2{margin:0;font-size:18px}#routeTypeBadge{font-size:11px;color:#121212;background:#ffd15b;padding:5px 9px;border-radius:999px;font-weight:900}.route-preview-list{margin-top:12px;display:grid;gap:8px}.route-step{display:grid;grid-template-columns:26px 1fr;gap:9px;align-items:center;font-size:13px;color:#ddd}.route-step span{width:23px;height:23px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.10);color:#ffd15b;font-size:11px;font-weight:900}.selected-head{display:flex;justify-content:space-between;color:#e6ab00;margin-bottom:12px;font-size:14px}.reuse-box{padding:10px;border-radius:9px;background:rgba(104,228,95,.10);border:1px solid rgba(104,228,95,.35);margin-bottom:10px}.reuse-box label{display:flex;gap:9px;align-items:center;font-weight:800;color:#d9ffd7;font-size:13px}.reuse-box small{display:block;color:#a8d9a4;margin-top:5px;font-size:11px}.vehicle-preview{display:grid;grid-template-columns:115px 1fr;gap:12px;align-items:center;padding:10px;border-radius:9px;background:rgba(255,255,255,.045);margin-bottom:10px}.vehicle-preview img{width:115px;height:74px;object-fit:contain}.vehicle-preview small,.vehicle-select-wrap small{display:block;color:#aaa;font-size:11px;margin-bottom:5px}.vehicle-preview strong{font-size:14px}.vehicle-select-wrap{margin-bottom:10px}.vehicle-select-wrap select{width:100%;height:38px;background:rgba(0,0,0,.5);color:white;border:1px solid rgba(255,255,255,.14);border-radius:7px;padding:0 11px;outline:none;font-size:13px}.info-row{display:grid;grid-template-columns:30px 1fr;gap:9px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}.info-row small{display:block;color:#aaa;font-size:11px}.info-row strong{display:block;margin-top:3px;font-size:13px}#startBtn{width:100%;height:54px;margin-top:14px;border:0;border-radius:10px;background:linear-gradient(180deg,#ffc928,#c98a00);color:#141414;font-weight:900;font-size:18px;cursor:pointer}.note{color:#9c9c9c;font-size:12px;margin-top:12px}.mini{position:absolute;right:2vw;top:18vh;width:330px;background:rgba(5,10,13,.92);border:1px solid rgba(230,171,0,.55);border-radius:10px;overflow:hidden;box-shadow:0 0 25px rgba(0,0,0,.75)}.mini-header{display:flex;justify-content:space-between;padding:12px 14px;background:linear-gradient(90deg,rgba(230,171,0,.35),rgba(230,171,0,.05));color:#ffd15b;font-size:14px}.mini-body{padding:12px 14px;display:grid;gap:10px}.mini-body small{display:block;color:#999;font-size:10px}.mini-body strong{display:block;color:#fff;font-size:14px}.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}#miniNotice{color:#ffd15b;line-height:1.25}
+
+
+/* LS Trucking layout fixes */
+.brand-title{white-space:nowrap;font-size:21px;line-height:1.05}.brand-small{letter-spacing:3px}.brand{gap:9px}.sidebar{padding-left:12px;padding-right:10px}.left-panel{padding-bottom:90px}.tab-page{padding-bottom:80px}.garage-list{padding-bottom:110px}.garage-card:last-child{margin-bottom:80px}
+
+/* LS Trucking UI polish v2 */
+.dashboard{
+    width:min(1420px,96vw);
+    height:min(900px,92vh);
+    max-height:92vh;
+}
+.sidebar{
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    overflow:hidden;
+    padding-bottom:18px;
+}
+.brand{flex:0 0 auto;margin-bottom:22px;}
+.brand-title{white-space:nowrap;font-size:20px;line-height:1;}
+.brand-small{letter-spacing:2px;}
+.brand-sub{white-space:nowrap;}
+.nav{flex:0 0 auto;}
+.radio{
+    position:static;
+    margin-top:auto;
+    padding:14px 10px 0;
+    left:auto;
+    bottom:auto;
+}
+.online{
+    position:static;
+    margin-top:10px;
+    padding-left:10px;
+    bottom:auto;
+}
+.main,.content{min-height:0;}
+.left-panel{
+    height:100%;
+    min-height:0;
+    overflow-y:auto;
+    padding-bottom:180px;
+}
+.tab-page{padding-bottom:180px;}
+.garage-list{
+    padding-bottom:240px;
+}
+.garage-card:last-child{margin-bottom:160px;}
+.garage-card strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vehicle-preview img,.vehicle-photo-card{object-fit:contain;}
+@media (max-height: 820px){
+    .dashboard{height:92vh;}
+    .topbar{height:74px;}
+    .brand{margin-bottom:16px;}
+    .nav{padding:10px 10px;margin-bottom:5px;}
+    .radio{font-size:12px;padding-top:10px;}
+    .online{font-size:12px;margin-top:8px;}
+    .left-panel{padding-bottom:230px;}
+    .tab-page{padding-bottom:230px;}
+    .garage-list{padding-bottom:280px;}
+}
+
+/* LS Trucking UI fix - matching scrollbar + equal garage card heights */
+.left-panel,
+.route-preview-list,
+.garage-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(230, 171, 0, 0.75) rgba(255, 255, 255, 0.06);
+    scrollbar-gutter: stable;
+}
+
+.left-panel::-webkit-scrollbar,
+.route-preview-list::-webkit-scrollbar,
+.garage-list::-webkit-scrollbar {
+    width: 10px;
+}
+
+.left-panel::-webkit-scrollbar-track,
+.route-preview-list::-webkit-scrollbar-track,
+.garage-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.055);
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.left-panel::-webkit-scrollbar-thumb,
+.route-preview-list::-webkit-scrollbar-thumb,
+.garage-list::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(255, 201, 40, 0.95), rgba(201, 138, 0, 0.95));
+    border-radius: 999px;
+    border: 2px solid rgba(5, 10, 13, 0.95);
+}
+
+.left-panel::-webkit-scrollbar-thumb:hover,
+.route-preview-list::-webkit-scrollbar-thumb:hover,
+.garage-list::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(255, 220, 85, 1), rgba(230, 171, 0, 1));
+}
+
+.garage-list {
+    align-items: stretch;
+    grid-auto-rows: 210px;
+    padding-bottom: 240px;
+}
+
+.garage-card {
+    height: 210px;
+    min-height: 210px;
+    max-height: 210px;
+    margin-bottom: 0 !important;
+}
+
+.garage-card:last-child,
+.garage-card:nth-last-child(-n+3) {
+    height: 210px !important;
+    min-height: 210px !important;
+    max-height: 210px !important;
+    margin-bottom: 0 !important;
+}
+
+.garage-card button {
+    margin-top: auto;
+}
+
+/* Rank / priority load additions */
+.priority-select-wrap {
+    margin-top: 8px;
+}
+
+.priority-info {
+    margin-top: 6px;
+    padding: 7px 9px;
+    border-radius: 7px;
+    background: rgba(230, 171, 0, 0.08);
+    border: 1px solid rgba(230, 171, 0, 0.22);
+    color: #d8c88a;
+    font-size: 11px;
+    line-height: 1.3;
+}
+
+.rank-tag {
+    display: inline-block;
+    width: fit-content;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(104, 228, 95, 0.12);
+    border: 1px solid rgba(104, 228, 95, 0.35);
+    color: #aef0a9 !important;
+    font-size: 11px !important;
+}
+
+.rank-tag.locked {
+    background: rgba(185, 61, 61, 0.14);
+    border-color: rgba(185, 61, 61, 0.45);
+    color: #ffb5b5 !important;
+}
+
+.garage-card button:disabled,
+.vehicle-select-wrap select option:disabled {
+    opacity: 0.55;
+}
+
+.garage-card button:disabled {
+    background: #555;
+    color: #bbb;
+    cursor: not-allowed;
+}
+
+/* UI fix 2026-05-10: taller equal garage cards, right-panel scrolling, CB radio mini UI */
+.dashboard{
+    width:min(1480px,97vw) !important;
+    height:min(960px,95vh) !important;
+    max-height:95vh !important;
+}
+
+.content{
+    min-height:0 !important;
+}
+
+.preview{
+    min-height:0 !important;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    padding-right:8px !important;
+    padding-bottom:90px !important;
+    scrollbar-width:thin;
+    scrollbar-color:rgba(230,171,0,.75) rgba(255,255,255,.06);
+    scrollbar-gutter:stable;
+}
+
+.preview::-webkit-scrollbar{width:10px;}
+.preview::-webkit-scrollbar-track{
+    background:rgba(255,255,255,.055);
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.045);
+}
+.preview::-webkit-scrollbar-thumb{
+    background:linear-gradient(180deg,rgba(255,201,40,.95),rgba(201,138,0,.95));
+    border-radius:999px;
+    border:2px solid rgba(5,10,13,.95);
+}
+.preview::-webkit-scrollbar-thumb:hover{
+    background:linear-gradient(180deg,rgba(255,220,85,1),rgba(230,171,0,1));
+}
+
+.selected{
+    flex:0 0 auto !important;
+    margin-bottom:70px !important;
+}
+
+.garage-list{
+    grid-auto-rows:270px !important;
+    padding-bottom:280px !important;
+}
+
+.garage-card,
+.garage-card:last-child,
+.garage-card:nth-last-child(-n+3){
+    height:270px !important;
+    min-height:270px !important;
+    max-height:270px !important;
+    padding:16px !important;
+    gap:10px !important;
+    display:flex !important;
+    flex-direction:column !important;
+}
+
+.garage-card img{
+    height:118px !important;
+    min-height:118px !important;
+    flex:0 0 118px !important;
+    padding:7px !important;
+}
+
+.garage-card strong{
+    min-height:36px !important;
+    line-height:18px !important;
+    white-space:normal !important;
+    overflow:visible !important;
+    text-overflow:clip !important;
+    color:#ffd15b !important;
+    text-shadow:0 0 8px rgba(230,171,0,.22) !important;
+}
+
+.garage-card small{
+    min-height:30px !important;
+    line-height:15px !important;
+}
+
+.garage-card button{
+    margin-top:auto !important;
+    height:40px !important;
+    flex:0 0 40px !important;
+}
+
+.mini{
+    width:360px !important;
+    background:linear-gradient(180deg,rgba(18,24,22,.96),rgba(5,8,7,.96)) !important;
+    border:1px solid rgba(77,255,192,.45) !important;
+    border-radius:14px !important;
+    box-shadow:0 0 22px rgba(49,255,188,.18),0 0 34px rgba(0,0,0,.85) !important;
+    overflow:hidden !important;
+}
+
+.mini::before{
+    content:"";
+    display:block;
+    height:8px;
+    background:linear-gradient(90deg,rgba(64,255,188,.55),rgba(255,201,40,.28),rgba(64,255,188,.55));
+    border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+.mini-header{
+    background:linear-gradient(180deg,rgba(21,84,67,.92),rgba(5,33,29,.94)) !important;
+    color:#a8ffe3 !important;
+    text-shadow:0 0 8px rgba(98,255,210,.65) !important;
+    border-bottom:1px solid rgba(111,255,213,.25) !important;
+    font-family:"Courier New",monospace !important;
+    letter-spacing:.7px !important;
+    padding:12px 15px 9px !important;
+}
+
+.mini-header strong::before{
+    content:"LSF-CB  ";
+    color:#ffd15b;
+    text-shadow:0 0 7px rgba(255,201,40,.65);
+}
+
+.mini-body{
+    background:
+        linear-gradient(rgba(255,255,255,.025) 50%,rgba(0,0,0,.05) 50%),
+        radial-gradient(circle at 50% 0%,rgba(71,255,198,.22),rgba(8,33,29,.92) 58%);
+    background-size:100% 4px,auto;
+    padding:14px 15px !important;
+    font-family:"Courier New",monospace !important;
+    gap:11px !important;
+}
+
+.mini-body small{
+    color:rgba(177,255,232,.62) !important;
+    font-size:10px !important;
+    letter-spacing:1.2px !important;
+}
+
+.mini-body strong{
+    color:#b8ffe9 !important;
+    text-shadow:0 0 7px rgba(94,255,207,.62) !important;
+    font-size:14px !important;
+    line-height:1.25 !important;
+}
+
+#miniNotice{
+    color:#ffe486 !important;
+    text-shadow:0 0 8px rgba(255,201,40,.50) !important;
+}
+
+#miniPayout{
+    color:#7cff9e !important;
+}
+
+.mini-grid{
+    padding:8px 9px;
+    border:1px solid rgba(111,255,213,.18);
+    background:rgba(0,0,0,.18);
+    border-radius:8px;
+}
+
+
+/* =========================================================
+   LS Trucking UI Recovery Patch
+   - Equal garage cards without overlap
+   - Stable contract cards when selecting route/load type
+   - Cleaner Freight Co. scrollbar
+   - Rectangular realistic CB radio mini UI
+   ========================================================= */
+
+/* Universal Freight Co. scrollbar */
+.left-panel,
+.preview,
+.route-preview-list,
+.garage-list {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(255, 201, 40, 0.95) rgba(6, 10, 12, 0.88) !important;
+    scrollbar-gutter: stable !important;
+}
+
+.left-panel::-webkit-scrollbar,
+.preview::-webkit-scrollbar,
+.route-preview-list::-webkit-scrollbar,
+.garage-list::-webkit-scrollbar {
+    width: 9px !important;
+    height: 9px !important;
+}
+
+.left-panel::-webkit-scrollbar-track,
+.preview::-webkit-scrollbar-track,
+.route-preview-list::-webkit-scrollbar-track,
+.garage-list::-webkit-scrollbar-track {
+    background: rgba(4, 8, 10, 0.92) !important;
+    border: 1px solid rgba(255, 201, 40, 0.13) !important;
+    border-radius: 999px !important;
+}
+
+.left-panel::-webkit-scrollbar-thumb,
+.preview::-webkit-scrollbar-thumb,
+.route-preview-list::-webkit-scrollbar-thumb,
+.garage-list::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #ffd45a, #c98a00) !important;
+    border: 2px solid rgba(4, 8, 10, 0.98) !important;
+    border-radius: 999px !important;
+    box-shadow: 0 0 8px rgba(230, 171, 0, 0.35) !important;
+}
+
+.left-panel::-webkit-scrollbar-thumb:hover,
+.preview::-webkit-scrollbar-thumb:hover,
+.route-preview-list::-webkit-scrollbar-thumb:hover,
+.garage-list::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #ffe485, #e6ab00) !important;
+}
+
+/* Keep main panels scrollable without cutting off content */
+.main,
+.content,
+.left-panel,
+.preview {
+    min-height: 0 !important;
+}
+
+.left-panel {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-bottom: 110px !important;
+}
+
+.preview {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-right: 8px !important;
+    padding-bottom: 110px !important;
+}
+
+.tab-page {
+    padding-bottom: 110px !important;
+}
+
+/* Stop dispatch contract cards from resizing when selecting routes or priority loads */
+.contract-card {
+    height: 150px !important;
+    min-height: 150px !important;
+    max-height: 150px !important;
+    overflow: hidden !important;
+    align-items: center !important;
+}
+
+.contract-card .card-title,
+.card-title {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+.contract-card .card-desc,
+.card-desc {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    max-height: 36px !important;
+}
+
+.contract-card .tags,
+.tags {
+    max-height: 28px !important;
+    overflow: hidden !important;
+}
+
+.contract-card .businesses,
+.businesses {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* Equal garage card layout: fixed slots, no label/button overlap */
+.garage-list {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-auto-rows: 250px !important;
+    gap: 14px !important;
+    align-items: stretch !important;
+    overflow: visible !important;
+    padding-bottom: 150px !important;
+}
+
+.garage-card,
+.garage-card:last-child,
+.garage-card:nth-last-child(-n+3) {
+    height: 250px !important;
+    min-height: 250px !important;
+    max-height: 250px !important;
+    display: grid !important;
+    grid-template-rows: 92px 42px 32px 24px 38px !important;
+    gap: 7px !important;
+    padding: 14px !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+}
+
+.garage-card img {
+    width: 100% !important;
+    height: 92px !important;
+    min-height: 92px !important;
+    max-height: 92px !important;
+    object-fit: contain !important;
+    padding: 6px !important;
+    background: radial-gradient(circle, rgba(255,255,255,0.13), rgba(255,255,255,0.035)) !important;
+    border-radius: 9px !important;
+}
+
+.garage-card strong {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    white-space: normal !important;
+    text-overflow: clip !important;
+    line-height: 18px !important;
+    max-height: 38px !important;
+    color: #ffd15b !important;
+    font-size: 14px !important;
+    text-shadow: 0 0 7px rgba(230, 171, 0, 0.24) !important;
+}
+
+.garage-card small:not(.rank-tag) {
+    display: block !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
+    line-height: 15px !important;
+    overflow: hidden !important;
+    color: #b9b9b9 !important;
+    font-size: 11px !important;
+}
+
+.garage-card .rank-tag {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 22px !important;
+    min-height: 22px !important;
+    max-height: 22px !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    padding: 0 8px !important;
+    line-height: 20px !important;
+}
+
+.garage-card button {
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    margin: 0 !important;
+    align-self: end !important;
+}
+
+/* Keep selected route/contract right panel readable */
+.selected {
+    flex: 0 0 auto !important;
+    margin-bottom: 80px !important;
+}
+
+/* Rectangular CB radio mini UI */
+.mini {
+    width: 430px !important;
+    min-height: 205px !important;
+    top: 17vh !important;
+    right: 2vw !important;
+    background: linear-gradient(180deg, #171b1b 0%, #080a0a 100%) !important;
+    border: 2px solid rgba(42, 48, 46, 0.95) !important;
+    border-radius: 8px !important;
+    box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.06),
+        inset 0 0 22px rgba(0,0,0,0.85),
+        0 10px 35px rgba(0,0,0,0.85) !important;
+    overflow: hidden !important;
+    font-family: "Courier New", monospace !important;
+}
+
+.mini::before {
+    content: "LSF 68.9  CITIZENS BAND  |  FREIGHT DISPATCH" !important;
+    display: flex !important;
+    align-items: center !important;
+    height: 26px !important;
+    padding: 0 14px !important;
+    background: linear-gradient(180deg, #2b302f, #111414) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+    color: rgba(210, 220, 214, 0.7) !important;
+    font-size: 10px !important;
+    letter-spacing: 1.4px !important;
+}
+
+.mini::after {
+    content: "● PWR   ▂▄▆█ RX" !important;
+    position: absolute !important;
+    right: 13px !important;
+    top: 6px !important;
+    color: #62ff9a !important;
+    font-size: 10px !important;
+    letter-spacing: 1px !important;
+    text-shadow: 0 0 8px rgba(98,255,154,0.75) !important;
+}
+
+.mini-header {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    gap: 12px !important;
+    align-items: center !important;
+    padding: 11px 15px 8px !important;
+    background: #050807 !important;
+    border-bottom: 1px solid rgba(83, 255, 185, 0.18) !important;
+    color: #7cffc0 !important;
+    font-family: "Courier New", monospace !important;
+    text-shadow: 0 0 9px rgba(98,255,190,0.72) !important;
+}
+
+.mini-header strong {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    font-size: 15px !important;
+    letter-spacing: 0.8px !important;
+}
+
+.mini-header strong::before {
+    content: "JOB:" !important;
+    color: #ffd15b !important;
+    margin-right: 8px !important;
+    text-shadow: 0 0 7px rgba(255,209,91,0.55) !important;
+}
+
+#miniPayout {
+    color: #95ff7a !important;
+    font-size: 15px !important;
+    text-shadow: 0 0 8px rgba(149,255,122,0.6) !important;
+}
+
+.mini-body {
+    position: relative !important;
+    margin: 10px 12px 12px !important;
+    padding: 12px 14px !important;
+    display: grid !important;
+    grid-template-columns: 1.25fr 0.85fr !important;
+    gap: 9px 14px !important;
+    background:
+        linear-gradient(rgba(255,255,255,0.035) 50%, rgba(0,0,0,0.08) 50%),
+        radial-gradient(circle at 45% 0%, rgba(85,255,185,0.22), rgba(0,10,8,0.96) 58%) !important;
+    background-size: 100% 4px, auto !important;
+    border: 1px solid rgba(87, 255, 190, 0.24) !important;
+    border-radius: 6px !important;
+    box-shadow:
+        inset 0 0 18px rgba(86,255,190,0.12),
+        inset 0 0 42px rgba(0,0,0,0.95) !important;
+}
+
+.mini-body::before {
+    content: "SIGNAL  ▂▄▆█    MODE AM    SQL 03" !important;
+    position: absolute !important;
+    right: 12px !important;
+    bottom: 6px !important;
+    color: rgba(124,255,192,0.55) !important;
+    font-size: 9px !important;
+    letter-spacing: 0.8px !important;
+}
+
+.mini-body > div:first-child {
+    grid-column: 1 / -1 !important;
+}
+
+.mini-body small {
+    display: block !important;
+    color: rgba(143, 255, 213, 0.62) !important;
+    font-size: 9px !important;
+    letter-spacing: 1.4px !important;
+    margin-bottom: 2px !important;
+}
+
+.mini-body strong {
+    display: block !important;
+    color: #a8ffe2 !important;
+    text-shadow: 0 0 8px rgba(111,255,210,0.65) !important;
+    font-size: 13px !important;
+    line-height: 1.22 !important;
+}
+
+#miniNotice {
+    color: #ffe486 !important;
+    text-shadow: 0 0 8px rgba(255,201,40,0.55) !important;
+    font-size: 13px !important;
+}
+
+.mini-grid {
+    grid-column: 1 / -1 !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    padding: 8px 10px 18px !important;
+    border: 1px solid rgba(111,255,213,0.16) !important;
+    background: rgba(0,0,0,0.22) !important;
+    border-radius: 5px !important;
+}
+
+/* Final UI tuning: compact/taller equal garage cards and movable CB display */
+.garage-list {
+    grid-auto-rows: 300px !important;
+    gap: 14px !important;
+    padding-bottom: 170px !important;
+}
+
+.garage-card,
+.garage-card:last-child,
+.garage-card:nth-last-child(-n+3) {
+    height: 300px !important;
+    min-height: 300px !important;
+    max-height: 300px !important;
+    display: grid !important;
+    grid-template-rows: 115px 36px 20px 24px 40px !important;
+    gap: 5px !important;
+    padding: 15px !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+}
+
+.garage-card img {
+    height: 115px !important;
+    min-height: 115px !important;
+    max-height: 115px !important;
+    margin: 0 !important;
+}
+
+.garage-card strong {
+    min-height: 36px !important;
+    max-height: 36px !important;
+    line-height: 18px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    align-self: start !important;
+}
+
+.garage-card small:not(.rank-tag) {
+    height: 20px !important;
+    min-height: 20px !important;
+    max-height: 20px !important;
+    line-height: 20px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.garage-card .rank-tag {
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+    line-height: 22px !important;
+    margin: 0 !important;
+    align-self: start !important;
+}
+
+.garage-card button {
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    margin: 0 !important;
+    align-self: end !important;
+}
+
+.mini {
+    cursor: grab !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+.mini.dragging {
+    cursor: grabbing !important;
+    opacity: 0.98 !important;
+}
+
+.mini-header {
+    cursor: grab !important;
+}
+
+.mini::after {
+    content: none !important;
+    display: none !important;
+}
+
+.mini-body::before {
+    content: none !important;
+    display: none !important;
+}
+
+.mini-grid {
+    padding-bottom: 8px !important;
+}
+
+/* Drag fix: make the NUI page full-screen and let the CB mini UI move vertically and horizontally. */
+html,
+body {
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+}
+
+.mini {
+    position: fixed !important;
+    right: 2vw;
+    top: 18vh;
+    left: auto;
+    bottom: auto;
+    transform: none !important;
+    touch-action: none !important;
+    pointer-events: auto !important;
+    will-change: left, top !important;
+}
+
+.mini,
+.mini * {
+    -webkit-user-drag: none !important;
+}
+
+/* Mini drag vertical fix + shorter title display */
+.mini {
+    max-width: none !important;
+    max-height: none !important;
+}
+
+.mini-header strong {
+    max-width: 210px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+
+/* Mini drag fix v3: transform-based positioning so vertical movement is not blocked by CEF/CSS top values. */
+.mini {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate3d(var(--mini-x, calc(100vw - 370px)), var(--mini-y, 18vh), 0) !important;
+    margin: 0 !important;
+    touch-action: none !important;
+    cursor: grab !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+.mini.dragging {
+    cursor: grabbing !important;
+}
+
+.mini-header,
+.mini-body {
+    touch-action: none !important;
+}
+
+
+/* Final mini CB signal icon */
+.mini-header {
+    align-items: center !important;
+    gap: 10px !important;
+}
+
+.mini-header-right {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    flex-shrink: 0 !important;
+}
+
+.mini-signal {
+    width: 28px !important;
+    height: 18px !important;
+    display: inline-flex !important;
+    align-items: flex-end !important;
+    gap: 3px !important;
+    padding: 2px 3px !important;
+    border: 1px solid rgba(112, 255, 126, 0.45) !important;
+    border-radius: 4px !important;
+    background: rgba(0, 0, 0, 0.32) !important;
+    box-shadow: inset 0 0 8px rgba(103, 224, 92, 0.12), 0 0 8px rgba(103, 224, 92, 0.10) !important;
+}
+
+.mini-signal i {
+    display: block !important;
+    width: 4px !important;
+    background: #67e05c !important;
+    border-radius: 2px 2px 0 0 !important;
+    box-shadow: 0 0 5px rgba(103, 224, 92, 0.7) !important;
+}
+
+.mini-signal i:nth-child(1) { height: 4px !important; opacity: 0.65 !important; }
+.mini-signal i:nth-child(2) { height: 7px !important; opacity: 0.8 !important; }
+.mini-signal i:nth-child(3) { height: 10px !important; opacity: 0.95 !important; }
+.mini-signal i:nth-child(4) { height: 13px !important; opacity: 1 !important; }
+
+#miniPayout {
+    white-space: nowrap !important;
+}
+
+/* Signal icon placement fix: move RX bars into the upper Freight Dispatch strip */
+.mini::before {
+    padding-right: 58px !important;
+}
+
+.mini-header-right {
+    position: static !important;
+}
+
+.mini-signal {
+    position: absolute !important;
+    top: 4px !important;
+    right: 13px !important;
+    z-index: 5 !important;
+    width: 31px !important;
+    height: 18px !important;
+    pointer-events: none !important;
+    border-color: rgba(103, 224, 92, 0.55) !important;
+    background: rgba(2, 8, 6, 0.72) !important;
+}
+
+#miniPayout {
+    margin-left: 0 !important;
+}
+
+
+/* Player job/grade display in top bar */
+.topbar{
+    grid-template-columns: repeat(4, 1fr) 245px !important;
+}
+.user{
+    padding: 13px 16px !important;
+    overflow: hidden !important;
+}
+.user strong,
+.user span{
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+#playerJob{
+    color: #ffd15b !important;
+    font-size: 11px !important;
+    margin-top: 3px !important;
+}
+
+
+.last-route-summary {
+    margin-top: 16px;
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(230, 171, 0, 0.28);
+    border-radius: 11px;
+    padding: 16px;
+}
+
+.last-summary-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: flex-start;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+}
+
+.last-summary-head small {
+    color: #aaa;
+    font-size: 11px;
+    display: block;
+}
+
+.last-summary-head h2 {
+    margin: 4px 0 0;
+    color: #ffd15b;
+    font-size: 21px;
+}
+
+#lastSummaryPayout {
+    color: #5bea63;
+    font-weight: 900;
+    font-size: 22px;
+    white-space: nowrap;
+}
+
+.last-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.summary-field {
+    background: rgba(0,0,0,0.18);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+    padding: 10px;
+    min-width: 0;
+}
+
+.summary-field small {
+    color: #aaa;
+    display: block;
+    font-size: 10px;
+    margin-bottom: 4px;
+}
+
+.summary-field strong {
+    color: #fff;
+    display: block;
+    font-size: 13px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.contract-number{display:none!important}
+
+.route-trailer-preview{margin-top:-2px;margin-bottom:10px;border:1px solid rgba(166,99,255,.28)}
+.route-trailer-preview small{color:#b79cff!important}
+
+/* Contract card stability fix
+   The right-side selected-route panel also uses the class name .selected.
+   Older global .selected rules were adding panel spacing/flex styles to the selected
+   contract card, which caused a visible gap under the selected delivery type card.
+   These overrides keep all contract cards the same size and spacing. */
+#contractList {
+    display: block !important;
+}
+
+#contractList .contract-card,
+#contractList .contract-card.selected,
+#contractList .contract-card:hover {
+    display: grid !important;
+    grid-template-columns: 175px 1fr 150px !important;
+    align-items: center !important;
+    gap: 14px !important;
+    height: 150px !important;
+    min-height: 150px !important;
+    max-height: 150px !important;
+    padding: 14px !important;
+    margin: 0 0 12px 0 !important;
+    flex: none !important;
+    overflow: hidden !important;
+    border-radius: 11px !important;
+}
+
+#contractList .contract-card.selected {
+    background: linear-gradient(90deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01)) !important;
+}
+
+#contractList .contract-card .vehicle-photo-card {
+    width: 100% !important;
+    height: 96px !important;
+    min-height: 96px !important;
+    max-height: 96px !important;
+    object-fit: contain !important;
+    flex: none !important;
+}
+
+#contractList .contract-card .tags {
+    max-height: 30px !important;
+    overflow: hidden !important;
+}
+
+/* Keep the selected-route panel behavior scoped to the right preview column only. */
+.preview > .selected {
+    flex: 0 0 auto !important;
+    margin-bottom: 80px !important;
+}
+
+
+.freight-dialog {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.38);
+    z-index: 9999;
+}
+
+.freight-dialog-panel {
+    width: 620px;
+    max-height: 78vh;
+    background: rgba(5, 10, 13, 0.98);
+    border: 1px solid rgba(230, 171, 0, 0.62);
+    border-radius: 12px;
+    box-shadow: 0 0 32px rgba(0, 0, 0, 0.85), inset 0 0 28px rgba(230, 171, 0, 0.04);
+    overflow: hidden;
+}
+
+.freight-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: linear-gradient(90deg, rgba(230, 171, 0, 0.28), rgba(230, 171, 0, 0.05));
+    border-bottom: 1px solid rgba(230, 171, 0, 0.28);
+}
+
+.freight-dialog-header small {
+    display: block;
+    color: #b9b9b9;
+    font-size: 10px;
+    letter-spacing: 2px;
+    margin-bottom: 3px;
+}
+
+.freight-dialog-header strong {
+    display: block;
+    color: #ffd15b;
+    font-size: 18px;
+    letter-spacing: 0.4px;
+}
+
+.freight-dialog-status {
+    color: #74ff6b;
+    font-size: 11px;
+    font-weight: 900;
+    padding: 5px 8px;
+    border: 1px solid rgba(116, 255, 107, 0.35);
+    border-radius: 999px;
+    background: rgba(116, 255, 107, 0.08);
+}
+
+.freight-dialog-content {
+    margin: 0;
+    padding: 16px 18px;
+    max-height: 52vh;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    color: #e9e9e9;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    background: radial-gradient(circle at top left, rgba(230, 171, 0, 0.06), transparent 34%), rgba(0, 0, 0, 0.18);
+}
+
+.freight-dialog-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.freight-dialog-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.freight-dialog-content::-webkit-scrollbar-thumb {
+    background: rgba(230, 171, 0, 0.72);
+    border-radius: 999px;
+}
+
+.freight-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 12px 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.freight-dialog-actions button {
+    min-width: 145px;
+    height: 38px;
+    border: 0;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #ffc928, #c98a00);
+    color: #141414;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+
+.freight-dialog-content.with-form {
+    font-family: Arial, Helvetica, sans-serif;
+    white-space: normal;
+}
+
+.freight-form {
+    display: grid;
+    gap: 12px;
+}
+
+.freight-form-warning {
+    padding: 12px;
+    border: 1px solid rgba(230, 171, 0, 0.34);
+    border-radius: 8px;
+    background: rgba(230, 171, 0, 0.10);
+    color: #f4e3b0;
+    line-height: 1.35;
+}
+
+.freight-form-warning strong {
+    color: #ffd15b;
+}
+
+.freight-form-label {
+    color: #b9b9b9;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.freight-form-select {
+    height: 40px;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.55);
+    color: #f3f3f3;
+    border: 1px solid rgba(230, 171, 0, 0.35);
+    border-radius: 8px;
+    padding: 0 10px;
+    outline: none;
+}
+
+.freight-form-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #dfdfdf;
+    line-height: 1.35;
+}
+
+.freight-form-check input {
+    margin-top: 3px;
+    accent-color: #e6ab00;
+}
+
+.freight-form-error {
+    color: #ff8585;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.freight-dialog-actions {
+    gap: 10px;
+}
+
+.freight-dialog-actions button.secondary {
+    background: rgba(255, 255, 255, 0.09);
+    color: #e9e9e9;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.freight-dialog-actions button.danger {
+    background: linear-gradient(180deg, #d65454, #8b2727);
+    color: #fff;
+}
+
+/* Freight Dispatch printout dialog polish */
+.freight-dialog-panel {
+    width: 680px !important;
+    border-radius: 10px !important;
+}
+
+.freight-dialog-content.printout {
+    padding: 14px !important;
+    white-space: normal !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    background: linear-gradient(180deg, rgba(255, 245, 205, 0.045), rgba(255, 255, 255, 0.02)), rgba(3, 7, 9, 0.92) !important;
+}
+
+.printout-paper {
+    border: 1px solid rgba(230, 171, 0, 0.28);
+    background: rgba(255, 255, 255, 0.035);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.025);
+}
+
+.print-section {
+    padding: 8px 10px;
+    background: linear-gradient(90deg, rgba(230, 171, 0, 0.24), rgba(230, 171, 0, 0.055));
+    border-top: 1px solid rgba(230, 171, 0, 0.23);
+    border-bottom: 1px solid rgba(230, 171, 0, 0.18);
+    color: #ffd15b;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+}
+
+.print-section:first-child {
+    border-top: 0;
+}
+
+.print-row {
+    display: grid;
+    grid-template-columns: 190px 1fr;
+    min-height: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.print-row span {
+    display: flex;
+    align-items: center;
+    padding: 7px 10px;
+    color: #aeb6b9;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    background: rgba(0, 0, 0, 0.18);
+    border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.print-row strong {
+    display: flex;
+    align-items: center;
+    padding: 7px 10px;
+    color: #f1f1f1;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.print-note,
+.print-line {
+    padding: 7px 10px;
+    color: #dedede;
+    font-size: 12px;
+    line-height: 1.4;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.print-note {
+    color: #f4e3b0;
+    padding-left: 18px;
+}
+
+.print-spacer {
+    height: 8px;
+    background: rgba(0, 0, 0, 0.16);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+/* Mini CB alert line */
+.mini {
+    width: 390px !important;
+}
+
+.mini-body {
+    gap: 9px !important;
+}
+
+.mini-alert {
+    padding: 8px 9px;
+    border: 1px solid rgba(230, 171, 0, 0.34);
+    border-radius: 7px;
+    background: rgba(230, 171, 0, 0.10);
+}
+
+.mini-alert small {
+    color: #ffd15b !important;
+    letter-spacing: 1px;
+}
+
+.mini-alert strong {
+    color: #f6f0d6 !important;
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+}
+
+
+/* Mini UI layout fix: stack contract alert under cargo instead of beside it */
+.mini-body {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 9px !important;
+}
+
+.mini-body > div {
+    width: 100% !important;
+}
+
+.mini-alert {
+    width: 100% !important;
+    display: block !important;
+    margin-top: 0 !important;
+}
+
+.mini-alert.hidden {
+    display: none !important;
+}
+
+#miniTitle {
+    max-width: 230px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+
+.mini-destination-address {
+    display: block;
+    margin-top: 4px;
+    color: rgba(143, 255, 154, 0.82);
+    font-size: 11px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    line-height: 1.2;
+}
+
+
+/* Freight dialog blue-tone theme override */
+.freight-dialog-panel {
+    border-color: rgba(58, 157, 255, 0.66) !important;
+    box-shadow: 0 0 32px rgba(0, 0, 0, 0.85), inset 0 0 28px rgba(58, 157, 255, 0.045) !important;
+}
+
+.freight-dialog-header {
+    background: linear-gradient(90deg, rgba(36, 132, 230, 0.34), rgba(36, 132, 230, 0.07)) !important;
+    border-bottom-color: rgba(74, 163, 255, 0.34) !important;
+}
+
+.freight-dialog-header strong,
+.print-section,
+.freight-form-warning strong {
+    color: #8fc9ff !important;
+}
+
+.freight-dialog-content {
+    background: radial-gradient(circle at top left, rgba(58, 157, 255, 0.075), transparent 34%), rgba(0, 0, 0, 0.18) !important;
+}
+
+.freight-dialog-content::-webkit-scrollbar-thumb {
+    background: rgba(74, 163, 255, 0.78) !important;
+}
+
+.freight-dialog-actions button {
+    background: linear-gradient(180deg, #7fc3ff, #236fbd) !important;
+    color: #06111c !important;
+}
+
+.freight-dialog-actions button.secondary {
+    background: rgba(255, 255, 255, 0.09) !important;
+    color: #e9e9e9 !important;
+}
+
+.freight-dialog-actions button.danger {
+    background: linear-gradient(180deg, #d65454, #8b2727) !important;
+    color: #fff !important;
+}
+
+.freight-form-warning {
+    border-color: rgba(58, 157, 255, 0.34) !important;
+    background: rgba(58, 157, 255, 0.10) !important;
+    color: #d7ebff !important;
+}
+
+.freight-form-select {
+    border-color: rgba(58, 157, 255, 0.42) !important;
+}
+
+.freight-form-check input {
+    accent-color: #4aa3ff !important;
+}
+
+.freight-dialog-content.printout {
+    background: linear-gradient(180deg, rgba(80, 170, 255, 0.052), rgba(255, 255, 255, 0.018)), rgba(3, 7, 9, 0.92) !important;
+}
+
+.printout-paper {
+    border-color: rgba(58, 157, 255, 0.32) !important;
+}
+
+.print-section {
+    background: linear-gradient(90deg, rgba(36, 132, 230, 0.28), rgba(36, 132, 230, 0.065)) !important;
+    border-top-color: rgba(74, 163, 255, 0.24) !important;
+    border-bottom-color: rgba(74, 163, 255, 0.20) !important;
+}
+
+.print-note {
+    color: #cfe8ff !important;
+}
+
+.mini-expected {
+    padding: 8px 9px;
+    border: 1px solid rgba(230, 171, 0, 0.45);
+    border-radius: 7px;
+    background: linear-gradient(180deg, rgba(230, 171, 0, 0.13), rgba(5, 10, 13, 0.16));
+    box-shadow: inset 0 0 12px rgba(230, 171, 0, 0.08);
+}
+
+.mini-expected small {
+    color: #ffd15b !important;
+    letter-spacing: 1px;
+}
+
+.mini-expected strong {
+    color: #d9ffd7 !important;
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+}
+
+/* Route summary printout layout update */
+.freight-dialog-panel {
+    width: 720px !important;
+}
+
+.freight-dialog-header {
+    padding: 14px 18px !important;
+}
+
+.freight-dialog-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.freight-dialog-logo {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border: 2px solid rgba(143, 201, 255, 0.92);
+    border-radius: 8px;
+    color: #8fc9ff;
+    font-weight: 900;
+    font-size: 15px;
+    letter-spacing: 0.8px;
+    background: rgba(74, 163, 255, 0.09);
+    box-shadow: inset 0 0 14px rgba(74, 163, 255, 0.06);
+}
+
+.freight-dialog-brand-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.05;
+}
+
+.freight-dialog-brand-text small {
+    color: #b9cbd8 !important;
+    font-size: 9px !important;
+    letter-spacing: 4px !important;
+    margin-bottom: 2px !important;
+}
+
+.freight-dialog-brand-text strong {
+    color: #8fc9ff !important;
+    font-size: 20px !important;
+    letter-spacing: 0.8px !important;
+    white-space: nowrap;
+}
+
+.freight-dialog-brand-text span {
+    margin-top: 4px;
+    color: #e8f4ff;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 475px;
+}
+
+.print-row.print-row-right strong {
+    justify-content: flex-end;
+    text-align: right;
+    color: #ffffff;
+}
+
+.print-row.print-row-right span {
+    text-align: left;
+}
+
+.print-note.print-note-right {
+    text-align: right;
+    padding-right: 12px;
+}
+
+.print-section-contract-information,
+.print-section-delivery-time,
+.print-section-payout-summary {
+    display: flex;
+    justify-content: space-between;
+}
+
+.print-section-contract-information::after,
+.print-section-delivery-time::after,
+.print-section-payout-summary::after {
+    content: 'VERIFIED';
+    opacity: 0.65;
+    font-size: 9px;
+    letter-spacing: 1px;
+}
+
+
+/* V1 manifest printout + logo icon cleanup */
+.logo i {
+    font-size: 20px;
+    line-height: 1;
+}
+
+.freight-dialog-logo i {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.print-row.print-row-right strong {
+    justify-content: flex-end !important;
+    text-align: right !important;
+}
+
+.print-row.print-row-right span {
+    justify-content: flex-start !important;
+    text-align: left !important;
+}
+
+.print-stop-row span {
+    color: #8fc9ff !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.8px !important;
+}
+
+.print-stop-row strong {
+    color: #ffffff !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.2px !important;
+}
+
+.print-note.print-note-right {
+    text-align: right !important;
+}
