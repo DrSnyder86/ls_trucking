@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "download": "https://github.com/YourName/ls_trucking/releases/latest",
+  "download": "https://github.com/DrSnyder86/ls_trucking",
   "changelog": "Main v1.0 base with default config/contracts, tablet animation, inventory images, and config-specific version checks.",
   "config_version": "1.0.0",
   "contracts_version": "1.0.0"
