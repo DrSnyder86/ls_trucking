@@ -267,19 +267,20 @@ end
 
 local function SetFuel(vehicle, fuel)
     if not vehicle or vehicle == 0 then return end
-    fuel = fuel or 100
-    if GetResourceState('ox_fuel') == 'started' then Entity(vehicle).state.fuel = fuel
-    elseif GetResourceState('LegacyFuel') == 'started' then exports['LegacyFuel']:SetFuel(vehicle, fuel)
-    elseif GetResourceState('cdn-fuel') == 'started' then exports['cdn-fuel']:SetFuel(vehicle, fuel)
-    else SetVehicleFuelLevel(vehicle, fuel + 0.0) end
+    if Config.SetVehicleFuel then
+        Config.SetVehicleFuel(vehicle, fuel or 100)
+        return
+    end
+    SetVehicleFuelLevel(vehicle, (fuel or 100) + 0.0)
 end
 
 local function GiveKeys(vehicle)
     if not vehicle or vehicle == 0 then return end
     local plate = GetVehicleNumberPlateText(vehicle)
-    if GetResourceState('qb-vehiclekeys') == 'started' then TriggerEvent('vehiclekeys:client:SetOwner', plate)
-    elseif GetResourceState('qbx_vehiclekeys') == 'started' then TriggerServerEvent('qb-vehiclekeys:server:AcquireVehicleKeys', plate)
-    elseif GetResourceState('Renewed-Vehiclekeys') == 'started' then exports['Renewed-Vehiclekeys']:addKey(plate) end
+    if Config.GiveVehicleKeys then
+        Config.GiveVehicleKeys(vehicle, plate)
+        return
+    end
 end
 
 local function GetVehicleProps(vehicle)
