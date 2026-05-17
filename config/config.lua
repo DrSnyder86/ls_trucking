@@ -429,7 +429,7 @@ Config.MiniUIEnabled = true
 
 Config.VersionCheck = {
     Enabled = true,
-    GitHubRawVersionUrl = '', 
+    GitHubRawVersionUrl = 'https://github.com/DrSnyder86/ls_trucking/blob/main/version.json', 
     ConfigRawVersionUrl = '', 
     ContractsRawVersionUrl = '', 
     PrintUpToDate = true,
