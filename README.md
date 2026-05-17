@@ -97,6 +97,8 @@ Los Santos Freight Trucking is a full delivery and trucking job resource for Fiv
   - Cancel route confirmation.
 
 ---
+### Download
+https://github.com/DrSnyder86/ls_trucking/archive/refs/heads/main.zip
 
 ## Compatibility
 
