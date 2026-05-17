@@ -428,10 +428,10 @@ Config.RadioFrequency = 'CH. 68.9'
 Config.MiniUIEnabled = true
 
 Config.VersionCheck = {
-    Enabled = true,
-    GitHubRawVersionUrl = 'https://github.com/DrSnyder86/ls_trucking/blob/main/version.json', 
-    ConfigRawVersionUrl = 'https://github.com/DrSnyder86/ls_trucking/blob/main/config/contracts.lua', 
-    ContractsRawVersionUrl = 'https://github.com/DrSnyder86/ls_trucking/blob/main/config/config.lua', 
+    Enabled = false,
+    GitHubRawVersionUrl = '', 
+    ConfigRawVersionUrl = '', 
+    ContractsRawVersionUrl = '', 
     PrintUpToDate = true,
     CheckDelay = 5000
 }
