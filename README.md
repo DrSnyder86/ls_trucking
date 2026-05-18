@@ -130,6 +130,9 @@ Los Santos Freight Trucking is a full delivery and trucking job resource for Fiv
 ### Download
 https://github.com/DrSnyder86/ls_trucking/archive/refs/heads/main.zip
 
+### Github (Always up-to-date)
+https://github.com/DrSnyder86/ls_trucking/tree/main
+
 ## Compatibility
 
 ### Required
