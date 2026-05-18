@@ -1,7 +1,7 @@
 # Los Santos Freight Trucking
  
 **Author:** Drsnyder  
-**Frameworks:** QB-Core / Qbox compatible  
+**Frameworks:** QB-Core / Qbox compatible / Standalone
 **Inventory:** ox_inventory, qb-inventory, lj-inventory, ps-inventory, qs-inventory  
 **Fuel:** ox_fuel, LegacyFuel, ps-fuel, cdn-fuel, lj-fuel, qb-fuel  
 **Keys:** qb-vehiclekeys, qbx_vehiclekeys, Renewed-Vehiclekeys, MrNewbVehicleKeys, wasabi_carlock, cd_garage
