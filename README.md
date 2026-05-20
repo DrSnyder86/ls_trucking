@@ -140,7 +140,7 @@ https://github.com/DrSnyder86/ls_trucking/tree/main
 
 - `ox_lib`
 - `oxmysql`
-- `ox_inventory`
+- `Compatible Inventory`
 - target resource:
   - `ox_target`, or
   - `qb-target`
