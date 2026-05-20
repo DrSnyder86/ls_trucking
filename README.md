@@ -27,6 +27,9 @@ Los Santos Freight Trucking is a full delivery and trucking job resource for Fiv
 <p align="center">
   <img src="https://r2.fivemanage.com/image/H1FOGuz7QLEq.png" width="32%" alt="Mini UI" />
   <img src="https://r2.fivemanage.com/image/HDWrtpGdzsfQ.png" width="32%" alt="Route Summary" />
+</p>
+<p align="center">
+  <img src="https://r2.fivemanage.com/image/EILDeJYrhYuV.png" width="32%" alt="Cancel UI" />
   <img src="https://r2.fivemanage.com/image/cVjvlsJnxtcL.png" width="32%" alt="Icons" />
 </p>
 
