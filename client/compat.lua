@@ -1,7 +1,3 @@
---[[
-    LS Trucking client compatibility bridge
-    Fuel and key functions live here so config/config.lua only contains simple settings.
-]]
 
 local function resourceStarted(resource)
     return GetResourceState(resource) == 'started'
@@ -50,6 +46,11 @@ Config.SetVehicleFuel = function(vehicle, amount)
 
     if shouldUse(configured, 'qb-fuel') and resourceStarted('qb-fuel') then
         exports['qb-fuel']:SetFuel(vehicle, amount)
+        return
+    end
+
+    if shouldUse(configured, 'BigDaddy-Fuel') and resourceStarted('BigDaddy-Fuel') then
+        exports['BigDaddy-Fuel']:SetFuel(vehicle, amount)
         return
     end
 
