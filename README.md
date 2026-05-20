@@ -88,7 +88,19 @@ Los Santos Freight Trucking is a full delivery and trucking job resource for Fiv
 ### UI Features
 
 - Freight Dispatch tablet UI.
+  - Dispatch Tab - List of Delivery Types and Contract Selection
+  - Current Job Tab - Current Job Status, Cancel Job, Last Completed Contract Info
+  - Garage Tab - Full List of Available Company Owned Vehicles, Spawn Vehicle
+  - Company Tab - Player Company Data, Rank Structure
 - Draggable mini route UI.
+  - Current Job
+  - Job Status
+  - Current Stage
+  - Expected Completion Time
+  - Destination with Address
+  - Load & Stop Info
+  - Cargo Label
+  - Contract Alerts
 - Custom Freight Dispatch dialog UI for:
   - Delivery manifests.
   - Trailer manifests.
