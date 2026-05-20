@@ -1,10 +1,8 @@
 *{box-sizing:border-box;user-select:none}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:transparent;color:#f3f3f3}.hidden{display:none!important}.dashboard{position:absolute;width:1420px;height:900px;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;grid-template-columns:240px 1fr;background:rgba(5,10,13,.97);border:1px solid rgba(255,190,0,.25);border-radius:16px;box-shadow:0 0 42px rgba(0,0,0,.85);overflow:hidden}.sidebar{background:linear-gradient(180deg,rgba(9,17,22,.98),rgba(3,7,10,.98));border-right:1px solid rgba(255,255,255,.08);padding:20px 14px;position:relative}.brand{display:flex;gap:12px;align-items:center;margin-bottom:28px}.logo{width:48px;height:48px;border:2px solid #d6a51a;color:#d6a51a;display:grid;place-items:center;font-weight:900;border-radius:9px;font-size:16px}.brand-small{font-size:10px;letter-spacing:5px}.brand-title{font-size:23px;font-weight:900}.brand-sub{font-size:11px;color:#ccc}.nav{display:flex;gap:14px;align-items:center;padding:14px 12px;border-radius:9px;margin-bottom:8px;color:#bbb;cursor:pointer}.nav i,.nav span{font-size:24px;width:30px;text-align:center;color:inherit;line-height:1}.nav strong{display:block;font-size:13px}.nav small{color:#999;font-size:11px}.nav.active{background:linear-gradient(90deg,rgba(230,171,0,.25),rgba(230,171,0,.04));border-left:4px solid #e6ab00;color:#ffd15b}.radio{position:absolute;left:22px;bottom:78px;display:flex;flex-direction:column;gap:3px;color:#bfc7c9;font-size:13px}.radio span{color:#67e05c}.online{position:absolute;bottom:30px;color:#d9ffd7;font-size:13px}.main{display:flex;flex-direction:column;min-width:0}.topbar{height:88px;display:grid;grid-template-columns:repeat(4,1fr) 190px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.32)}.stat,.user{padding:16px 20px;border-right:1px solid rgba(255,255,255,.08)}.stat small{display:block;color:#aaa;font-size:11px}.stat strong{display:block;margin-top:4px;font-size:22px}.stat span,.user span,.user small{display:block;margin-top:2px;color:#bbb;font-size:12px}.green{color:#68e45f!important}.content{flex:1;display:grid;grid-template-columns:1fr 410px;gap:18px;padding:20px;overflow:hidden}.left-panel{overflow-y:auto;padding-right:6px}.left-panel h1{margin:0;font-size:25px}.left-panel p{margin:6px 0 14px;color:#b8b8b8;font-size:14px}.contract-card{display:grid;grid-template-columns:175px 1fr 150px;align-items:center;gap:14px;min-height:150px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(90deg,rgba(255,255,255,.035),rgba(255,255,255,.01));border-radius:11px;margin-bottom:12px;padding:14px;cursor:pointer;transition:.15s}.contract-card:hover,.contract-card.selected{border-color:var(--accent);box-shadow:0 0 18px color-mix(in srgb,var(--accent) 25%,transparent)}.contract-number{font-size:32px;color:var(--accent);font-weight:900}.vehicle-photo-card{width:100%;height:96px;border-radius:10px;object-fit:contain;background:radial-gradient(circle,rgba(255,255,255,.14),rgba(255,255,255,.03));padding:7px}.card-title{color:var(--accent);font-size:21px;font-weight:900}.card-desc{margin-top:6px;color:#d6d6d6;line-height:1.35;font-size:13px}.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.tags span{background:rgba(255,255,255,.10);color:#ddd;padding:5px 8px;border-radius:4px;font-size:11px}.card-stats small{color:#aaa;display:block;margin-bottom:4px;font-size:11px}.payout{color:#5bea63;font-size:18px;font-weight:900;margin-bottom:16px}.difficulty{color:var(--accent);font-weight:900;font-size:14px}.businesses{margin-top:8px;color:#aaa;font-size:12px}.current-job{display:grid;gap:14px;padding:16px;margin-bottom:16px;background:rgba(230,171,0,.10);border:1px solid rgba(230,171,0,.35);border-radius:11px}.current-job small{color:#aaa;display:block;font-size:11px}.current-job h2{margin:4px 0;color:#ffd15b;font-size:23px}.current-job p{margin:0;color:#d6d6d6;font-size:14px}.current-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.current-grid strong{display:block;margin-top:5px}.cancel-btn{height:48px;border:0;border-radius:9px;background:#b93d3d;color:white;font-weight:900;cursor:pointer}.empty-card,.company-card,.garage-card,.rank-row,.route-box,.selected{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.10);border-radius:11px;padding:15px}.garage-actions{margin-bottom:14px}.garage-actions button{height:42px;padding:0 18px;border:0;border-radius:8px;background:#2f7d39;color:white;font-weight:900;cursor:pointer}.garage-list{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.garage-card{display:flex;flex-direction:column;gap:7px}.garage-card img{width:100%;height:90px;object-fit:contain;background:rgba(255,255,255,.05);border-radius:9px}.garage-card strong{display:block;color:#ffd15b;font-size:14px}.garage-card small{color:#aaa;font-size:12px}.garage-card button{margin-top:5px;height:36px;border:0;border-radius:7px;background:linear-gradient(180deg,#ffc928,#c98a00);color:#151515;font-weight:900;cursor:pointer}.company-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.company-card small{color:#aaa;display:block;font-size:11px}.company-card strong{display:block;font-size:24px;margin-top:6px;color:#ffd15b}.company-card span{color:#bbb;font-size:12px}.subheading{margin-top:18px;color:#ffd15b;font-size:19px}.rank-list{display:grid;gap:8px}.rank-row{display:flex;justify-content:space-between;font-size:13px}.preview{display:flex;flex-direction:column;gap:14px}.route-box-head{display:flex;justify-content:space-between;align-items:center}.route-box h2{margin:0;font-size:18px}#routeTypeBadge{font-size:11px;color:#121212;background:#ffd15b;padding:5px 9px;border-radius:999px;font-weight:900}.route-preview-list{margin-top:12px;display:grid;gap:8px}.route-step{display:grid;grid-template-columns:26px 1fr;gap:9px;align-items:center;font-size:13px;color:#ddd}.route-step span{width:23px;height:23px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.10);color:#ffd15b;font-size:11px;font-weight:900}.selected-head{display:flex;justify-content:space-between;color:#e6ab00;margin-bottom:12px;font-size:14px}.reuse-box{padding:10px;border-radius:9px;background:rgba(104,228,95,.10);border:1px solid rgba(104,228,95,.35);margin-bottom:10px}.reuse-box label{display:flex;gap:9px;align-items:center;font-weight:800;color:#d9ffd7;font-size:13px}.reuse-box small{display:block;color:#a8d9a4;margin-top:5px;font-size:11px}.vehicle-preview{display:grid;grid-template-columns:115px 1fr;gap:12px;align-items:center;padding:10px;border-radius:9px;background:rgba(255,255,255,.045);margin-bottom:10px}.vehicle-preview img{width:115px;height:74px;object-fit:contain}.vehicle-preview small,.vehicle-select-wrap small{display:block;color:#aaa;font-size:11px;margin-bottom:5px}.vehicle-preview strong{font-size:14px}.vehicle-select-wrap{margin-bottom:10px}.vehicle-select-wrap select{width:100%;height:38px;background:rgba(0,0,0,.5);color:white;border:1px solid rgba(255,255,255,.14);border-radius:7px;padding:0 11px;outline:none;font-size:13px}.info-row{display:grid;grid-template-columns:30px 1fr;gap:9px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}.info-row small{display:block;color:#aaa;font-size:11px}.info-row strong{display:block;margin-top:3px;font-size:13px}#startBtn{width:100%;height:54px;margin-top:14px;border:0;border-radius:10px;background:linear-gradient(180deg,#ffc928,#c98a00);color:#141414;font-weight:900;font-size:18px;cursor:pointer}.note{color:#9c9c9c;font-size:12px;margin-top:12px}.mini{position:absolute;right:2vw;top:18vh;width:330px;background:rgba(5,10,13,.92);border:1px solid rgba(230,171,0,.55);border-radius:10px;overflow:hidden;box-shadow:0 0 25px rgba(0,0,0,.75)}.mini-header{display:flex;justify-content:space-between;padding:12px 14px;background:linear-gradient(90deg,rgba(230,171,0,.35),rgba(230,171,0,.05));color:#ffd15b;font-size:14px}.mini-body{padding:12px 14px;display:grid;gap:10px}.mini-body small{display:block;color:#999;font-size:10px}.mini-body strong{display:block;color:#fff;font-size:14px}.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}#miniNotice{color:#ffd15b;line-height:1.25}
 
 
-/* LS Trucking layout fixes */
 .brand-title{white-space:nowrap;font-size:21px;line-height:1.05}.brand-small{letter-spacing:3px}.brand{gap:9px}.sidebar{padding-left:12px;padding-right:10px}.left-panel{padding-bottom:90px}.tab-page{padding-bottom:80px}.garage-list{padding-bottom:110px}.garage-card:last-child{margin-bottom:80px}
 
-/* LS Trucking UI polish v2 */
 .dashboard{
     width:min(1420px,96vw);
     height:min(900px,92vh);
@@ -61,7 +59,6 @@
     .garage-list{padding-bottom:280px;}
 }
 
-/* LS Trucking UI fix - matching scrollbar + equal garage card heights */
 .left-panel,
 .route-preview-list,
 .garage-list {
@@ -167,7 +164,6 @@
     cursor: not-allowed;
 }
 
-/* UI fix 2026-05-10: taller equal garage cards, right-panel scrolling, CB radio mini UI */
 .dashboard{
     width:min(1480px,97vw) !important;
     height:min(960px,95vh) !important;
@@ -327,15 +323,6 @@
 }
 
 
-/* =========================================================
-   LS Trucking UI Recovery Patch
-   - Equal garage cards without overlap
-   - Stable contract cards when selecting route/load type
-   - Cleaner Freight Co. scrollbar
-   - Rectangular realistic CB radio mini UI
-   ========================================================= */
-
-/* Universal Freight Co. scrollbar */
 .left-panel,
 .preview,
 .route-preview-list,
@@ -379,7 +366,6 @@
     background: linear-gradient(180deg, #ffe485, #e6ab00) !important;
 }
 
-/* Keep main panels scrollable without cutting off content */
 .main,
 .content,
 .left-panel,
@@ -404,7 +390,6 @@
     padding-bottom: 110px !important;
 }
 
-/* Stop dispatch contract cards from resizing when selecting routes or priority loads */
 .contract-card {
     height: 150px !important;
     min-height: 150px !important;
@@ -442,7 +427,6 @@
     text-overflow: ellipsis !important;
 }
 
-/* Equal garage card layout: fixed slots, no label/button overlap */
 .garage-list {
     display: grid !important;
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
@@ -525,13 +509,11 @@
     align-self: end !important;
 }
 
-/* Keep selected route/contract right panel readable */
 .selected {
     flex: 0 0 auto !important;
     margin-bottom: 80px !important;
 }
 
-/* Rectangular CB radio mini UI */
 .mini {
     width: 430px !important;
     min-height: 205px !important;
@@ -671,7 +653,6 @@
     border-radius: 5px !important;
 }
 
-/* Final UI tuning: compact/taller equal garage cards and movable CB display */
 .garage-list {
     grid-auto-rows: 300px !important;
     gap: 14px !important;
@@ -763,7 +744,6 @@
     padding-bottom: 8px !important;
 }
 
-/* Drag fix: make the NUI page full-screen and let the CB mini UI move vertically and horizontally. */
 html,
 body {
     width: 100vw !important;
@@ -788,7 +768,6 @@ body {
     -webkit-user-drag: none !important;
 }
 
-/* Mini drag vertical fix + shorter title display */
 .mini {
     max-width: none !important;
     max-height: none !important;
@@ -801,8 +780,6 @@ body {
     white-space: nowrap !important;
 }
 
-
-/* Mini drag fix v3: transform-based positioning so vertical movement is not blocked by CEF/CSS top values. */
 .mini {
     position: fixed !important;
     left: 0 !important;
@@ -827,7 +804,6 @@ body {
 }
 
 
-/* Final mini CB signal icon */
 .mini-header {
     align-items: center !important;
     gap: 10px !important;
@@ -871,7 +847,6 @@ body {
     white-space: nowrap !important;
 }
 
-/* Signal icon placement fix: move RX bars into the upper Freight Dispatch strip */
 .mini::before {
     padding-right: 58px !important;
 }
@@ -897,7 +872,6 @@ body {
 }
 
 
-/* Player job/grade display in top bar */
 .topbar{
     grid-template-columns: repeat(4, 1fr) 245px !important;
 }
@@ -989,11 +963,6 @@ body {
 .route-trailer-preview{margin-top:-2px;margin-bottom:10px;border:1px solid rgba(166,99,255,.28)}
 .route-trailer-preview small{color:#b79cff!important}
 
-/* Contract card stability fix
-   The right-side selected-route panel also uses the class name .selected.
-   Older global .selected rules were adding panel spacing/flex styles to the selected
-   contract card, which caused a visible gap under the selected delivery type card.
-   These overrides keep all contract cards the same size and spacing. */
 #contractList {
     display: block !important;
 }
@@ -1033,7 +1002,6 @@ body {
     overflow: hidden !important;
 }
 
-/* Keep the selected-route panel behavior scoped to the right preview column only. */
 .preview > .selected {
     flex: 0 0 auto !important;
     margin-bottom: 80px !important;
@@ -1219,7 +1187,6 @@ body {
     color: #fff;
 }
 
-/* Freight Dispatch printout dialog polish */
 .freight-dialog-panel {
     width: 680px !important;
     border-radius: 10px !important;
@@ -1304,7 +1271,6 @@ body {
     border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 
-/* Mini CB alert line */
 .mini {
     width: 390px !important;
 }
@@ -1332,7 +1298,6 @@ body {
 }
 
 
-/* Mini UI layout fix: stack contract alert under cargo instead of beside it */
 .mini-body {
     display: flex !important;
     flex-direction: column !important;
@@ -1372,7 +1337,6 @@ body {
 }
 
 
-/* Freight dialog blue-tone theme override */
 .freight-dialog-panel {
     border-color: rgba(58, 157, 255, 0.66) !important;
     box-shadow: 0 0 32px rgba(0, 0, 0, 0.85), inset 0 0 28px rgba(58, 157, 255, 0.045) !important;
@@ -1463,7 +1427,6 @@ body {
     line-height: 1.25 !important;
 }
 
-/* Route summary printout layout update */
 .freight-dialog-panel {
     width: 720px !important;
 }
@@ -1559,7 +1522,6 @@ body {
 }
 
 
-/* V1 manifest printout + logo icon cleanup */
 .logo i {
     font-size: 20px;
     line-height: 1;
@@ -1599,3 +1561,5 @@ body {
 .print-note.print-note-right {
     text-align: right !important;
 }
+
+.freight-dialog-status{display:none!important;}
