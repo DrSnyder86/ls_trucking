@@ -111,6 +111,12 @@ Los Santos Freight Trucking is a full delivery and trucking job resource for Fiv
   - Route completion summary.
   - Cancel route confirmation.
 
+### Additional
+
+- GTA Style Active Mission Blips With No Auto GPS Route - Players Determine Their Own Routes
+- Delivery Package Animations with Full Prop Support
+- Tablet Animations with Prop when the UI is Open
+  
 ## Gameplay Instructions
 ### Package/Crate Delivery
 - Visit the Dispatch Ped at the Depot Terminal or open the ui.
