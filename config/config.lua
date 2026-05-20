@@ -27,7 +27,7 @@ Config.Inventory = {
     TrunkPrefix = 'trunk'
 }
 
--- Fuel System: 'auto', 'ox_fuel', 'LegacyFuel', 'ps-fuel', 'cdn-fuel', 'lj-fuel', 'qb-fuel', or 'none'.
+-- Fuel System: 'auto', 'ox_fuel', 'LegacyFuel', 'ps-fuel', 'cdn-fuel', 'lj-fuel', 'qb-fuel', 'BigDaddy-Fuel', or 'none'.
 Config.Fuel = {
     System = 'auto',
     DefaultFuel = 100.0
