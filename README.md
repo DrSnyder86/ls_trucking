@@ -1,6 +1,6 @@
 # Los Santos Freight Co. Trucker Job
 
-  Los Santos Freight Trucking is a full delivery and trucking job resource for FiveM. It includes van package routes, box truck crate routes, trailer hauling, rank progression, company garage vehicles, saved vehicle modifications, manifest paperwork, route summaries, trailer checklists, timed deliveries, damage penalties, random dispatch events, and a polished Freight Dispatch tablet UI. Most delivery routes are local and logistically efficient. No more driving all over the map to complete a route. Config is highly and easily configurable for server owners to add more depot locations, delivery routes and custom vehicles and trailers. All delivery locations provided support the unmodded vanilla gta map. Replacement for qb_truckerjob and qbx_truckerjob.
+  Los Santos Freight Trucking is a full delivery and trucking job resource for FiveM. It includes van package routes, box truck crate routes, trailer hauling, rank progression, company garage vehicles, saved vehicle modifications, manifest paperwork, route summaries, trailer checklists, timed deliveries, damage penalties, random dispatch events, and a Freight Dispatch tablet UI. Most delivery routes are local and logistically efficient. No more driving all over the map to complete a route. Config is highly and easily configurable for server owners to add more depot locations, delivery routes and custom vehicles and trailers. All delivery locations provided support the unmodded vanilla gta map. Replacement for qb_truckerjob and qbx_truckerjob.
 
 ---
 
