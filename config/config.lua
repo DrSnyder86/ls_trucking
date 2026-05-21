@@ -65,7 +65,7 @@ Config.Depot = {
 Config.TrailerDepots = {
     docks = {
         label = 'LS Docks Trailer Yard',
-        pickup = vector3(1269.42, -3218.28, 5.9),
+        pickup = vector3(1272.37, -3216.8, 6.0),
         spawns = {
             vector4(1271.85, -3224.09, 5.90, 90.42),
             vector4(1271.36, -3202.27, 5.90, 90.51),
