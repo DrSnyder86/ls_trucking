@@ -1,76 +1,256 @@
 Config = {}
 
 Config.ConfigVersion = '1.0.0'
-Config.Debug = false
-Config.Framework = 'auto' -- auto, qb, qbox, standalone
+
+Config.Debug = false  -- Enables debug visuals/logging. Admin commands are available to admins even when this is false.
+Config.Framework = 'auto' -- auto, qb, qbox, esx, nd, standalone
 Config.Command = 'trucking'
+Config.DispatchKey = 'F3'
 Config.MiniUIToggleCommand = 'truckui'
+Config.FullReceiverCommand = 'truckreceiver'
+Config.FullReceiverKey = 'F2'
 Config.CancelCommand = 'canceltrucking'
-Config.RequireJob = false
+Config.RequireJob = true
 Config.JobName = 'trucker'
+Config.RequireDuty = true -- Only applies when RequireJob is true. Framework duty is used when available, otherwise LSFC session duty is used.
 Config.UsePed = true
 Config.UseBlip = true
 Config.UseTerminalTargetZone = false
-Config.RadioFrequency = 'CH. 68.9' -- Radio frequency displayed in ui
+Config.RadioFrequency = '68.9'
 Config.MiniUIEnabled = true
+Config.ReceiverDockEnabled = true
+Config.FullReceiverEnabled = true
+Config.ReceiverRefreshInterval = 15000 -- milliseconds between passive receiver/signal refreshes
+Config.AllowVehicleReuseAfterRoute = true
+Config.RequireSameTypeForVehicleReuse = true
+Config.DeleteOldVehicleOnNewContract = true
+Config.PayWhenRouteComplete = true
+Config.ReturnVehicleBonusEnabled = true
+Config.ReturnVehicleBonus = 250
+Config.PayToBank = false
+Config.TargetDistance = 2.5
+Config.TrailerAutoDetectInterval = 750
+Config.TrailerCoupleNoticeDelay = 500
+Config.TrailerDespawnAfterDelivery = 10000 -- milliseconds after receiver signoff
 
--- Target system: 'auto', 'ox', or 'qb'
--- auto will prefer ox_target when started, then qb-target.
+-- Core integrations and route interaction modes
+-- Target system: 'auto', 'ox', or 'qb'. Auto prefers ox_target, then qb-target.
 Config.TargetSystem = 'auto'
+Config.LoadVerificationMode = 'receiver' -- 'receiver' or 'target'
 
--- Inventory System: 'auto', 'ox_inventory', 'qb-inventory', 'lj-inventory', 'ps-inventory', 'qs-inventory', or 'custom'.
--- ox_inventory has full metadata/trunk support. Other inventories use player items plus an internal job-trunk fallback for route cargo.
 Config.Inventory = {
-    System = 'auto',
+    System = 'auto', -- auto, ox_inventory, qb-inventory, lj-inventory, ps-inventory, qs-inventory, or custom
     Debug = false,
     UseInternalTrunkFallback = true,
     TrunkPrefix = 'trunk'
 }
 
--- Fuel System: 'auto', 'ox_fuel', 'LegacyFuel', 'ps-fuel', 'cdn-fuel', 'lj-fuel', 'qb-fuel', 'BigDaddy-Fuel', or 'none'.
 Config.Fuel = {
-    System = 'auto',
+    System = 'auto', -- auto, ox_fuel, LegacyFuel, ps-fuel, cdn-fuel, lj-fuel, qb-fuel, BigDaddy-Fuel, or none
     DefaultFuel = 100.0
 }
 
--- Key System: 'auto', 'qb-vehiclekeys', 'qbx_vehiclekeys', 'Renewed-Vehiclekeys', 'MrNewbVehicleKeys', 'wasabi_carlock', 'cd_garage', or 'none'.
 Config.Keys = {
-    System = 'auto',
+    System = 'auto', -- auto, qb-vehiclekeys, qbx_vehiclekeys, Renewed-Vehiclekeys, MrNewbVehicleKeys, wasabi_carlock, cd_garage, or none
     GiveOnSpawn = true,
-    RemoveOnReturn = false
+    RemoveOnReturn = false,
+    OwnerOnly = true
 }
 
--- Locations, depots, and dispatch
+-- Primary dispatch, duty, and company vehicle locations
 Config.DispatchPed = {
     model = `s_m_m_dockwork_01`,
-    coords = vector4(1196.75, -3253.85, 7.10, 92.0),
+    coords = vector4(-41.54, -2513.28, 6.16, 311.58),
     scenario = 'WORLD_HUMAN_CLIPBOARD'
 }
 
+Config.DutyTarget = {
+    enabled = true,
+    useDispatchPed = true,
+    coords = nil,
+    radius = 2.0,
+    label = 'Clock In / Out',
+    icon = 'fa-solid fa-clock'
+}
+
 Config.DispatchBlip = {
-    coords = vector3(1196.75, -3253.85, 7.10),
+    coords = vector3(-41.54, -2513.28, 6.16),
     sprite = 477,
     color = 5,
-    scale = 0.75,
+    scale = 0.55,
     label = 'Los Santos Freight Co.'
 }
 
 Config.Depot = {
-    terminal = vector3(1196.75, -3253.85, 7.10),
-    vehicleSpawn = vector4(1185.65, -3246.52, 6.03, 91.5),
-    garageSpawn = vector4(1185.65, -3246.52, 6.03, 91.5),
-    vehicleReturn = vector3(1196.75, -3253.85, 7.10)
+    terminal = vector3(-41.54, -2513.28, 6.16),
+    request = vector3(-41.54, -2513.28, 6.16),
+    requestRadius = 120.0,
+    vehicleSpawn = vector4(-46.58, -2503.58, 6.01, 237.01),
+    garageSpawn = vector4(-46.58, -2503.58, 6.01, 237.01),
+    vehicleReturn = vector3(-41.54, -2513.28, 6.16)
 }
 
+-- Active route world behavior
+Config.ActiveContractPeds = {
+    SpawnDistance = 100.0,
+    DespawnDistance = 130.0,
+    CheckInterval = 750
+}
+
+Config.TrailerDropMarker = {
+    Enabled = true,
+    DrawDistance = 120.0,
+    MarkerType = 1,
+    Size = 6.0,
+    Height = 0.24,
+    ZOffset = -0.65,
+    PositionTolerance = 1.40,
+    ServerTolerance = 0.75,
+    MaxSettleSpeed = 0.15,
+    SettleTime = 2000,
+    Alpha = 115,
+    Colors = {
+        Outside = { r = 220, g = 55, b = 48 },
+        Inside = { r = 242, g = 180, b = 45 },
+        Centered = { r = 76, g = 220, b = 105 },
+        Detached = { r = 235, g = 240, b = 238 }
+    }
+}
+
+Config.SpawnOccupancy = {
+    Enabled = true,
+    VehicleRadius = 4.0,
+    TrailerRadius = 6.0
+}
+
+Config.JobBlips = {
+    enabled = true,
+    updateInterval = 7500,
+    minMoveDistance = 25.0,
+    showSelf = false,
+    requireDuty = true,
+    shortRange = true,
+    label = 'LSFC Unit',
+    scale = 0.72,
+
+    sprites = {
+        foot = 1,
+        van = 67,
+        boxtruck = 477,
+        trailer = 477,
+        unknown = 1
+    },
+
+    colors = {
+        idle = 5,
+        activeRoute = 2,
+        contractor = 46
+    }
+}
+
+-- Server-side hardening and install diagnostics
+Config.Security = {
+    ServerDistanceChecks = true,
+    ValidateConfig = true,
+    PrintStartupSummary = true,
+    AdminAces = { 'ls_trucking.admin', 'ls_trucking.debug' }, -- Optional fallback ACEs. Framework admin/god permissions and common admin ACEs are checked first.
+    MaxSavedPropsLength = 24000,
+
+    Cooldowns = {
+        Dispatch = 500,
+        Contract = 2000,
+        Cargo = 750,
+        Trailer = 1000,
+        ReturnVehicle = 2000,
+        CompleteRoute = 2000,
+        Cancel = 1500
+    },
+
+    DistanceChecks = {
+        Depot = 35.0,
+        Pickup = 12.0,
+        Dropoff = 14.0,
+        LoadVerification = 20.0,
+        TrailerPickup = 120.0,
+        TrailerDrop = 35.0,
+        Duty = 5.0,
+        Receiver = 14.0,
+        VehicleReturn = 35.0,
+        Completion = 35.0
+    }
+}
+
+Config.DispatchExchange = {
+    Enabled = true,
+    RequestDelay = 1250,
+    ResponseDelay = 900,
+    ChecklistStepDelay = 700
+}
+
+Config.FreightHandoff = {
+    Enabled = true,
+    RequirePickupSignature = true,
+    RequireTrailerSignature = true,
+    ResponseDelay = 900,
+    PedGreeting = true,
+    GreetingCooldown = 15000,
+    GreetingSpeech = { 'GENERIC_HI', 'GENERIC_HOWS_IT_GOING' },
+    SpeechParams = 'SPEECH_PARAMS_FORCE_NORMAL_CLEAR'
+}
+
+Config.RadioMessageAudio = {
+    Enabled = true,
+    NativeInJobVehicle = true,
+    DriverOnly = true,
+    StartSound = 'Start_Squelch',
+    EndSound = 'End_Squelch',
+    SoundSet = 'CB_RADIO_SFX',
+    EndDelay = 575,
+    Cooldown = 225
+}
+
+Config.DispatchHome = {
+    -- To use an actual San Andreas map, add your map image to /images and set this to '../images/your-map.png'.
+    -- Markers use GTA world coords against these bounds, so a north-up full-island image will line up best.
+    MapImage = 'https://r2.fivemanage.com/image/Iu0yS8wJpaSY.png',
+    MapBounds = {
+        minX = -6000,
+        maxX = 7000,
+        minY = -4200,
+        maxY = 8800
+    },
+    MapZoom = 1.0,
+    MapZoomMin = 1.0,
+    MapZoomMax = 2.8,
+    MapZoomStep = 0.25,
+    Photos = {
+        -- Use URLs or local NUI paths such as '../images/dispatch_terminal.png'.
+        terminal = 'https://r2.fivemanage.com/image/7SmxlfR3emsi.jpg',
+        vehicleSpawn = 'https://r2.fivemanage.com/image/slqT1q14tFgF.jpg',
+        garageSpawn = 'https://r2.fivemanage.com/image/slqT1q14tFgF.jpg',
+        vanPickup = 'https://r2.fivemanage.com/image/BZD9hbRyLzZZ.png',
+        boxTruckPickup = 'https://r2.fivemanage.com/image/vDXsTbde2TzR.jpg',
+        trailerDepot = 'https://r2.fivemanage.com/image/4qvtjco8avzJ.png',
+        trailerDepots = {
+            docks = 'https://r2.fivemanage.com/image/MfK08Q4VbQer.jpg',
+            harmony = 'https://r2.fivemanage.com/image/S3aOCvBxkjWz.jpg',
+            lsport = 'https://r2.fivemanage.com/image/br539auhQg5P.jpg',
+        }
+    }
+}
+
+-- Assign depots to trailer contracts using depot table names (pickupDepot = 'docks')
 Config.TrailerDepots = {
     docks = {
-        label = 'LS Docks Trailer Yard',
-        pickup = vector3(1272.37, -3216.8, 6.0),
+        label = "Jetsam Terminal",
+        pickup = vector3(1025.9, -3184.63, 5.9),
         spawns = {
-            vector4(1271.85, -3224.09, 5.90, 90.42),
-            vector4(1271.36, -3202.27, 5.90, 90.51),
-            vector4(1271.83, -3202.1, 5.90, 91.49),
-            vector4(1272.41, -3193.0, 5.90, 89.84)
+            vector4(1009.65, -3185.64, 5.9, 359.8),
+            vector4(1017.74, -3184.99, 5.9, 1.66),
+            vector4(1025.9, -3184.63, 5.9, 2.43),
+            vector4(1033.97, -3185.05, 5.9, 355.9),
+            vector4(1046.33, -3186.27, 5.9, 359.48),
+            vector4(1058.22, -3185.82, 5.9, 359.92),
         }
     },
 
@@ -78,9 +258,9 @@ Config.TrailerDepots = {
         label = 'Harmony Freight Depot',
         pickup = vector3(195.43, 2747.35, 43.43),
         spawns = {
-            vector4(205.28, 2749.38, 43.43, 113.86),
-            vector4(159.97, 2762.62, 43.26, 260.48),
-            vector4(161.07, 2752.78, 43.37, 275.82)
+            vector4(205.28, 2749.38, 43.45, 113.86),
+            vector4(159.97, 2762.62, 43.28, 260.48),
+            vector4(161.07, 2752.78, 43.39, 275.82),
         }
     },
 
@@ -92,178 +272,84 @@ Config.TrailerDepots = {
             vector4(-477.69, -2821.69, 6.0, 45.63),
             vector4(-486.43, -2830.37, 6.0, 46.17),
             vector4(-495.9, -2839.4, 6.0, 49.71),
-            vector4(-500.16, -2844.19, 6.0, 42.84)
+            vector4(-500.16, -2844.19, 6.0, 42.84),
         }
     },
     -- add more depots
-}
-
--- Company garage vehicles and route trailers
-Config.JobVehicles = {
-    van = {
-        { label = 'Speedo Cargo Van', minRank = 1, model = 'speedo', photo = 'https://docs.fivem.net/vehicles/speedo.webp', platePrefix = 'LSV', livery = 0, fuel = 100, extras = { [1] = true, [2] = true, [3] = false, [4] = false } },
-        { label = 'Rumpo Delivery Van', minRank = 1, model = 'rumpo', photo = 'https://docs.fivem.net/vehicles/rumpo.webp', platePrefix = 'LSV', livery = 0, fuel = 100, extras = { [1] = true, [2] = false, [3] = false } },
-        { label = 'Burrito Delivery Van', minRank = 1, model = 'burrito', photo = 'https://docs.fivem.net/vehicles/burrito.webp', platePrefix = 'LSV', livery = 0, fuel = 100, extras = { [1] = true, [2] = true } },
-
-        { label = 'Speedo Priority Van', minRank = 2, model = 'speedo4', photo = 'https://docs.fivem.net/vehicles/speedo4.webp', platePrefix = 'LSV', livery = 0, fuel = 100, extras = { [1] = true, [2] = true, [3] = true } },
-        { label = 'Rumpo Priority Van', minRank = 2, model = 'rumpo2', photo = 'https://docs.fivem.net/vehicles/rumpo2.webp', platePrefix = 'LSV', livery = 0, fuel = 100, extras = { [1] = true, [2] = true } },
-        { label = 'Burrito Priority Van', minRank = 2, model = 'burrito3', photo = 'https://docs.fivem.net/vehicles/burrito3.webp', platePrefix = 'LSV', livery = 0, fuel = 100, extras = { [1] = true, [2] = true } }
-    },
-
-    boxtruck = {
-        { label = 'Mule Box Truck', minRank = 1, model = 'mule2', photo = 'https://docs.fivem.net/vehicles/mule.webp', platePrefix = 'LSB', livery = 0, fuel = 100, extras = { [1] = true, [2] = true, [3] = false } },
-        { label = 'Benson Delivery Truck', minRank = 1, model = 'benson', photo = 'https://docs.fivem.net/vehicles/benson.webp', platePrefix = 'LSB', livery = 0, fuel = 100, extras = { [1] = true, [2] = false } },
-        { label = 'Benson Delivery Truck', minRank = 2, model = 'benson2', photo = 'https://docs.fivem.net/vehicles/benson2.webp', platePrefix = 'LSB', livery = 0, fuel = 100, extras = { [1] = true, [2] = false } },
-        { label = 'Pounder Box Truck', minRank = 3, model = 'pounder', photo = 'https://docs.fivem.net/vehicles/pounder.webp', platePrefix = 'LSB', livery = 0, fuel = 100, extras = { [1] = true, [2] = true, [3] = true } },
-        { label = 'Mule Custom Box Truck', minRank = 3, model = 'mule4', photo = 'https://docs.fivem.net/vehicles/mule4.webp', platePrefix = 'LSB', livery = 0, fuel = 100, extras = { [1] = true, [2] = true, [3] = true } },
-        { label = 'Pounder Custom Box Truck', minRank = 4, model = 'pounder2', photo = 'https://docs.fivem.net/vehicles/pounder2.webp', platePrefix = 'LSB', livery = 0, fuel = 100, extras = { [1] = true, [2] = true, [3] = true } }
-    },
-
-    trailer = {
-        { label = 'Phantom Tractor', minRank = 1, model = 'phantom', photo = 'https://docs.fivem.net/vehicles/phantom.webp', platePrefix = 'LST', truckLivery = 0, fuel = 100, truckExtras = { [1] = true, [2] = true } },
-        { label = 'Hauler Tractor', minRank = 3, model = 'hauler', photo = 'https://docs.fivem.net/vehicles/hauler.webp', platePrefix = 'LST', truckLivery = 0, fuel = 100, truckExtras = { [1] = true, [2] = false } },
-        { label = 'Packer Tractor', minRank = 3, model = 'packer', photo = 'https://docs.fivem.net/vehicles/packer.webp', platePrefix = 'LST', truckLivery = 0, fuel = 100, truckExtras = { [1] = true, [2] = true } },
-        { label = 'Phantom Custom Tractor', minRank = 4, model = 'phantom3', photo = 'https://docs.fivem.net/vehicles/phantom3.webp', platePrefix = 'LST', truckLivery = 0, fuel = 100, truckExtras = { [1] = true, [2] = true } },
-        { label = 'Hauler Custom Tractor', minRank = 4, model = 'hauler2', photo = 'https://docs.fivem.net/vehicles/hauler2.webp', platePrefix = 'LST', truckLivery = 0, fuel = 100, truckExtras = { [1] = true, [2] = true } },
-        { label = 'Barracks Tractor', minRank = 3, model = 'barracks2', photo = 'https://docs.fivem.net/vehicles/barracks2.webp', platePrefix = 'LST', truckLivery = 0, fuel = 100, truckExtras = { [1] = true } }
-    }
-}
-
-Config.RouteTrailers = {
-    dryvan = { label = 'Reefer Trailer', model = 'trailers2', photo = 'https://docs.fivem.net/vehicles/trailers2.webp', livery = 0, extras = { [1] = true, [2] = false }, contents = 'General Freight', safeSpeed = 75.0, instructions = { 'Keep load sealed until receiver signoff.', 'Avoid heavy collision damage.' } },
-    freight = { label = 'Freight Trailer', model = 'trailers', photo = 'https://docs.fivem.net/vehicles/trailers.webp', livery = 0, extras = { [1] = true }, contents = 'Retail Freight', safeSpeed = 75.0, instructions = { 'Verify seal number before departure.', 'Receiver must sign off at the yard.' } },
-    long = { label = 'Enclosed Cargo Trailer', model = 'trailers3', photo = 'https://docs.fivem.net/vehicles/trailers3.webp', livery = 0, extras = { [1] = true, [2] = true }, contents = 'Long-Haul Freight', safeSpeed = 72.0, instructions = { 'Maintain extra stopping distance.', 'Check trailer clearance on tight roads.' } },
-    commercial = { label = 'Commercial Freight Trailer', model = 'trailers4', photo = 'https://docs.fivem.net/vehicles/trailers4.webp', livery = 0, extras = { [1] = true }, contents = 'Commercial Freight', safeSpeed = 72.0, instructions = { 'Commercial load. Check seal before departure.', 'Use wide turns and avoid low-clearance roads.' } },
-    container = { label = 'Container Trailer', model = 'docktrailer', photo = 'https://docs.fivem.net/vehicles/docktrailer.webp', livery = 0, extras = { [1] = true }, contents = 'Sealed Shipping Container', safeSpeed = 68.0, instructions = { 'Sealed port container.', 'Do not break the seal.', 'Use freight yard drop zones only.' } },
-    flatbed = { label = 'Flatbed Trailer', model = 'trflat', photo = 'https://docs.fivem.net/vehicles/trflat.webp', livery = 0, extras = { [1] = true }, contents = 'Secured Flatbed Cargo', safeSpeed = 68.0, instructions = { 'Check straps before departure.', 'Avoid sudden lane changes.', 'Report any load shift.' } },
-    logs = { label = 'Logging Trailer', model = 'trailerlogs', photo = 'https://docs.fivem.net/vehicles/trailerlogs.webp', livery = 0, extras = { [1] = true }, contents = 'Timber Logs', safeSpeed = 62.0, instructions = { 'Heavy log load.', 'Keep speed controlled on hills.', 'Avoid sharp high-speed turns.' } },
-    tanker = { label = 'Fuel Tanker', model = 'tanker', photo = 'https://docs.fivem.net/vehicles/tanker.webp', livery = 0, extras = { [1] = true }, contents = 'Diesel Fuel', safeSpeed = 65.0, instructions = { 'Keep speed under 65 MPH.', 'Avoid sudden braking and major impacts.', 'Report leaks immediately.' } },
-    chemical_tanker = { label = 'Chemical Tanker', model = 'tanker2', photo = 'https://docs.fivem.net/vehicles/tanker2.webp', livery = 0, extras = { [1] = true }, contents = 'Industrial Chemicals', safeSpeed = 60.0, instructions = { 'Hazardous contents.', 'Keep speed under 60 MPH.', 'Avoid collisions and report leaks immediately.' } },
-    tv = { label = 'Exhibition Trailer', model = 'tvtrailer', photo = 'https://docs.fivem.net/vehicles/tvtrailer.webp', livery = 0, extras = { [1] = true }, contents = 'Event Equipment', safeSpeed = 70.0, instructions = { 'High-value event equipment.', 'Avoid damage and arrive on schedule.' } },
-    military = { label = 'Military Trailer', model = 'armytrailer', photo = 'https://docs.fivem.net/vehicles/armytrailer.webp', livery = 0, extras = { [1] = true }, contents = 'Restricted Military Equipment', safeSpeed = 70.0, instructions = { 'Restricted cargo. Do not open trailer.', 'Stay within approved route corridors.', 'Military receiver signoff required.' } },
-    heavy_tanker = { label = 'Heavy Military Tanker', model = 'armytanker', photo = 'https://docs.fivem.net/vehicles/armytanker.webp', livery = 0, extras = { [1] = true }, contents = 'Jet Fuel', safeSpeed = 65.0, instructions = { 'Hazardous restricted cargo.', 'Keep speed under 65 MPH.', 'Avoid off-road travel unless ordered.' } },
-    heavy_military = { label = 'Heavy Military Trailer', model = 'armytrailer2', photo = 'https://docs.fivem.net/vehicles/armytrailer2.webp', livery = 0, extras = { [1] = true }, contents = 'Heavy Military Equipment', safeSpeed = 65.0, instructions = { 'Heavy restricted cargo.', 'Keep speed under 65 MPH.', 'Avoid off-road travel unless ordered.' } },
-    cartrailer = { label = 'Car Trailer', model = 'tr2', photo = 'https://docs.fivem.net/vehicles/tr2.webp', livery = 0, extras = { [1] = true }, contents = 'Empty Car Hauler', safeSpeed = 75.0, instructions = { 'Check straps before departure.', 'Avoid sudden lane changes.', 'Report any load shift.' } },
-    cartrailer2 = { label = 'Boat Trailer', model = 'tr3', photo = 'https://docs.fivem.net/vehicles/tr3.webp', livery = 0, extras = { [1] = true }, contents = 'High Value Luxury Sailboat', safeSpeed = 65.0, instructions = { 'Check straps before departure.', 'Avoid sudden lane changes.', 'Report any load shift.' } },
-    cartrailer3 = { label = 'Car Trailer', model = 'tr4', photo = 'https://docs.fivem.net/vehicles/tr4.webp', livery = 0, extras = { [1] = true }, contents = 'High Value Luxury Vehicles', safeSpeed = 68.0, instructions = { 'Check straps before departure.', 'Avoid sudden lane changes.', 'Report any load shift.' } },
-    mobileop = { label = 'Mobile Operations', model = 'trailerlarge', photo = 'https://docs.fivem.net/vehicles/trailerlarge.webp', livery = 0, extras = { [1] = true }, contents = 'Military Mobile Command Center', safeSpeed = 70.0, instructions = { 'Restricted cargo. Do not open trailer.', 'Stay within approved route corridors.', 'Military receiver signoff required.' } },
-    -- add more trailers
-}
-
--- Cargo, inventory, and manifests
-Config.CargoItems = {
-    van = {
-        item = 'ls_package',
-        label = 'Delivery Package',
-        prop = `hei_prop_heist_box`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
-    },
-    boxtruck = {
-        item = 'ls_crate',
-        label = 'Freight Crate',
-        prop = `prop_box_wood02a_pu`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
-    }
-}
-
-Config.DefaultCargoType = {
-    van = 'standard_package',
-    boxtruck = 'freight_crate'
-}
-
-Config.CargoTypes = {
-    standard_package = {
-        item = 'ls_package',
-        label = 'Delivery Package',
-        prop = `hei_prop_heist_box`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
-    },
-
-    standard_package2 = {
-        item = 'ls_package2',
-        label = 'Delivery Package',
-        prop = `prop_cardbordbox_05a`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
-    },
-
-    standard_package3 = {
-        item = 'ls_package3',
-        label = 'Delivery Package',
-        prop = `prop_cs_package_01`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
-    },
-
-    standard_package4 = {
-        item = 'ls_package4',
-        label = 'Delivery Package',
-        prop = `prop_cs_rub_box_02`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
-    },
-
-    gift_package = {
-        item = 'ls_gift_package',
-        label = 'Gift Package',
-        prop = `xm3_prop_xm3_present_01a`,
-        carryOffset = { bone = 28422, pos = vec3(0.00, -0.18, -0.16), rot = vec3(0.00, 0.00, 0.00) }
-    },
-
-    freight_crate = {
-        item = 'ls_crate',
-        label = 'Freight Crate',
-        prop = `prop_box_wood02a`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
-    },
-
-    ammo_crate = {
-        item = 'ls_ammo_crate',
-        label = 'Ammo Crate',
-        prop = `prop_box_ammo03a`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
-    },
-
-    secure_crate = {
-        item = 'ls_secure_crate',
-        label = 'Secure Government Crate',
-        prop = `prop_box_wood02a_pu`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
-    },
-
-    military_crate = {
-        item = 'ls_military_crate',
-        label = 'Merryweather Crate',
-        prop = `prop_box_wood02a_mws`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
-    },
-
-    military_crate2 = {
-        item = 'ls_military_crate2',
-        label = 'Military Crate',
-        prop = `prop_mil_crate_01`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
-    }
-}
-
-Config.Manifest = {
-    Enabled = true,
-    PackageManifestItem = 'ls_delivery_manifest',
-    TrailerManifestItem = 'ls_trailer_manifest',
-    RemoveOnComplete = true
+    -- pickupDepot = {
+    --     label = 'DepotLabel',
+    --     pickup = vector3(0.0, 0.0, 0.0), -- map blip location
+    --     spawns = {
+    --         vector4(00.00, 00.00, 00.00, 00.00),
+    --         vector4(00.00, 00.00, 00.00, 00.00),
+    --         vector4(00.00, 00.00, 00.00, 00.00),
+    --         vector4(00.00, 00.00, 00.00, 00.00),
+    --     }
+    -- },
 }
 
 -- Ranks, payouts, and interaction timing
 Config.Ranks = {
-    { rank = 1, label = 'New Hire', xp = 0 },
-    { rank = 2, label = 'Courier', xp = 5000 },
-    { rank = 3, label = 'Route Driver', xp = 10000 },
-    { rank = 4, label = 'Freight Driver', xp = 25000 },
-    { rank = 5, label = 'Road Captain', xp = 50000 },
-    { rank = 6, label = 'Logistics Veteran', xp = 100000 }
+    { rank = 1, label = 'Probationary Driver', xp = 0 },
+    { rank = 2, label = 'City Courier', xp = 5000 },
+    { rank = 3, label = 'Route Driver', xp = 15000 },
+    { rank = 4, label = 'Trailer Certified Driver', xp = 35000 },
+    { rank = 5, label = 'Freight Operator', xp = 65000 },
+    { rank = 6, label = 'Long Haul Driver', xp = 110000 },
+    { rank = 7, label = 'Heavy Freight Specialist', xp = 175000 },
+    { rank = 8, label = 'Fleet Lead', xp = 260000 },
+    { rank = 9, label = 'Logistics Supervisor', xp = 375000 },
+    { rank = 10, label = 'LSFC Master Hauler', xp = 500000 },
+    --{ rank = 0, label = 'RANK LABEL', xp = 1000000 },
+
 }
 
 Config.Payouts = {
-    van = { min = 1200, max = 2200, xp = 120, rep = 2 },
-    boxtruck = { min = 2400, max = 4200, xp = 250, rep = 4 },
-    trailer = { min = 5000, max = 9500, xp = 500, rep = 7 }
+    van = { min = 1200, max = 1500, xp = 120, rep = 2 },
+    boxtruck = { min = 2200, max = 2500, xp = 250, rep = 4 },
+    trailer = { min = 4200, max = 4500, xp = 500, rep = 7 }
+}
+
+-- Added to the randomized base payout using each route's configured routeLength.
+Config.MileagePayout = {
+    Enabled = true,
+    RatePerMile = 100
+}
+
+Config.PrivateContractor = {
+    Enabled = true,
+    UnlockRank = 5,
+    LicenseCost = 50000,
+    MaxOwnedVehicles = 6,
+    MinFuel = 20,
+    MinCondition = 55,
+    PayoutMultiplier = 1.35,
+    XpMultiplier = 1.10,
+    RepBonus = 1,
+    PenaltyMultiplier = 1.25,
+    CancelFee = 2500,
+    CancelRepLoss = 5,
+    DailyResetHour = 6,
+    DailyRouteChangeCooldownDays = 7,
+    DailyRouteCompletionBonus = 3500,
+    DailyRouteRepBonus = 2,
+    DailyRouteOptionsPerType = 8,
+    ContractBoardRoutesPerType = 5,
+    ContractBoardRefreshMinutes = 30,
+    ResaleBasePercent = 0.80,
+    DepreciationPerMile = 10,
+    VehicleTypes = { 'van', 'boxtruck', 'trailer' }, -- trailer type uses purchased tractors only; trailers remain route-assigned
+    -- Fallback only. Per-vehicle contractor pricing is assigned in config/vehicles.lua.
+    VehiclePricing = {
+        van = { base = 85000, step = 5000 },
+        boxtruck = { base = 165000, step = 10000 },
+        trailer = { base = 260000, step = 15000 }
+    },
+    DailyRoutes = {
+        { type = 'van', label = 'Package Route', minRank = 5 },
+        { type = 'boxtruck', label = 'Crate Route', minRank = 5 },
+        { type = 'trailer', label = 'Trailer Route', minRank = 5 }
+    }
 }
 
 Config.Progress = {
@@ -282,23 +368,11 @@ Config.Progress = {
     spawnGarageVehicle = 2500
 }
 
--- Job flow and payment behavior
-Config.AllowVehicleReuseAfterRoute = true
-Config.RequireSameTypeForVehicleReuse = true
-Config.DeleteOldVehicleOnNewContract = true
-Config.PayWhenRouteComplete = true
-Config.ReturnVehicleBonusEnabled = true
-Config.ReturnVehicleBonus = 250
-Config.PayToBank = false
-Config.TargetDistance = 2.5
-Config.TrailerAutoDetectInterval = 750
-Config.TrailerDespawnAfterDelivery = 10000 -- milliseconds after receiver signoff
-
 -- Delivery timing, damage, random events, cancellation, and trailer speed risk
 Config.DeliveryTiming = {
     Enabled = true,
     GraceSeconds = 60,
-    EarlyBonusWindowSeconds = 120,
+    EarlyBonusWindowSeconds = 90,
     EarlyBonusPercent = 0.08,
     LatePenaltyPercent = 0.12,
     MinimumFinalPayoutPercent = 0.45,
@@ -335,60 +409,6 @@ Config.TrailerDamagePenalties = {
     }
 }
 
-Config.RandomDeliveryEvents = {
-    Enabled = true,
-    Chance = 0.28,
-    Events = {
-        {
-            id = 'dock_delay',
-            label = 'Dock Delay Cleared',
-            description = 'Dispatch cleared a dock delay. Your route window was extended slightly.',
-            types = { 'van', 'boxtruck', 'trailer' },
-            estimateDeltaSeconds = 120,
-            payoutPercent = 0.00,
-            repBonus = 0
-        },
-        {
-            id = 'rush_order',
-            label = 'Rush Order Bonus',
-            description = 'Dispatch marked this load urgent. Deliver clean and on time for a bonus.',
-            types = { 'van', 'boxtruck', 'trailer' },
-            estimateDeltaSeconds = -60,
-            payoutPercent = 0.07,
-            repBonus = 1
-        },
-        {
-            id = 'receiver_audit',
-            label = 'Receiver Audit',
-            description = 'The receiver is checking paperwork closely. Late arrivals are less forgiving.',
-            types = { 'boxtruck', 'trailer' },
-            estimateDeltaSeconds = 0,
-            payoutPercent = 0.04,
-            latePenaltyBonusPercent = 0.05,
-            repBonus = 1
-        },
-        {
-            id = 'restricted_checkpoint',
-            label = 'Restricted Route Checkpoint',
-            description = 'Security requested careful handling through a checkpoint. Payout increased.',
-            types = { 'trailer' },
-            priorities = { 'government', 'military' },
-            estimateDeltaSeconds = 180,
-            payoutPercent = 0.10,
-            repBonus = 2
-        },
-        {
-            id = 'traffic_reroute',
-            label = 'Traffic Reroute',
-            description = 'A traffic reroute was issued. You have a little extra time, but no payout change.',
-            types = { 'van', 'boxtruck', 'trailer' },
-            estimateDeltaSeconds = 180,
-            payoutPercent = 0.00,
-            repBonus = 0
-        }
-    }
-}
-
 Config.SpeedRisk = {
     Enabled = true,
     CheckInterval = 5000,
@@ -400,6 +420,24 @@ Config.SpeedRisk = {
     EngineDamageAmount = 120.0,
     MinimumEngineHealth = 350.0,
     WarningMessage = 'Dispatch: Reduce speed. Cargo stability warning.'
+}
+
+Config.CargoCondition = {
+    Enabled = true,
+    CheckInterval = 2000,
+    IncidentCooldown = 6000,
+    HealthDropThreshold = 12.0,
+    DamageScoreMultiplier = 0.08,
+    HardBrakeMinSpeed = 35.0,
+    HardBrakeDropMph = 28.0,
+    HardBrakePenalty = 4,
+    SpeedWarningAfter = 9000,
+    SpeedPenalty = 2,
+    SafeSpeed = {
+        van = 85.0,
+        boxtruck = 75.0,
+        trailer = 70.0
+    }
 }
 
 Config.CancelPenalty = {
@@ -418,32 +456,46 @@ Config.CancelPenalty = {
 -- UI, notifications, sounds, blips, and radio
 Config.UI = {
     Sounds = true,
-    SoundVolume = 0.22,
+    SoundVolume = 0.18,
     SoundsPath = 'sounds/',
+    MiniLogo = 'images/badger-logo.png',
     ClickSound = 'click.wav',
     ConfirmSound = 'confirm.wav',
     ErrorSound = 'error.wav',
     AlertSound = 'alert.wav',
     DestinationSound = 'destination.wav',
-    SecureSound = 'secure.wav'
+    SecureSound = 'secure.wav',
+    TrailerConnectSound = 'trailer_connect.wav',
+    TrailerDisconnectSound = 'trailer_disconnect.wav'
 }
 
 Config.Notifications = {
-    Enabled = false,
+    Enabled = true,
     Title = 'Los Santos Freight Co.',
-    Duration = 8500
+    Duration = 8500,
+    Sounds = false,
+    SoundMap = {
+        error = 'alert',
+        warning = 'confirm',
+        success = 'confirm'
+    }
 }
 
 Config.Blips = {
-    Pickup = { sprite = 478, color = 2, scale = 0.80 },
-    PackageDelivery = { sprite = 478, color = 5, scale = 0.82 },
-    CrateDelivery = { sprite = 478, color = 3, scale = 0.82 },
-    TrailerDelivery = { sprite = 479, color = 47, scale = 0.88 },
-    Receiver = { sprite = 280, color = 5, scale = 0.80 },
-    ReturnVehicle = { sprite = 477, color = 5, scale = 0.82 },
-    Default = { sprite = 1, color = 5, scale = 0.85 }
+    Pickup = { sprite = 478, color = 2, scale = 0.60 },
+    PackageDelivery = { sprite = 478, color = 5, scale = 0.60 },
+    CrateDelivery = { sprite = 478, color = 3, scale = 0.60 },
+    TrailerDelivery = { sprite = 479, color = 47, scale = 0.60 },
+    Receiver = { sprite = 280, color = 5, scale = 0.60 },
+    ReturnVehicle = { sprite = 477, color = 5, scale = 0.60 },
+    Default = { sprite = 1, color = 5, scale = 0.60 }
 }
 
+Config.AreaBlips = {
+    Enabled = true,
+    TrailerPickup = { radius = 55.0, color = 47, alpha = 100 },
+    TrailerDrop = { fallbackRadius = 22.0, color = 47, alpha = 100 }
+}
 
 Config.VersionCheck = {
     Enabled = true,
