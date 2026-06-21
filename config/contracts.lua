@@ -1,4 +1,4 @@
-Config.ContractsVersion = '1.0.0'
+Config.ContractsVersion = '1.1.0'
 
 Config.Contracts = {
     van = {
