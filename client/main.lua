@@ -1,88 +1,198 @@
+LS_Trucking = LS_Trucking or {}
+
 local activeContract = nil
 local reusableVehicle = nil
 local activeBlip = nil
+local activeAreaBlip = nil
 local spawnedVehicle = nil
 local spawnedTrailer = nil
 local spawnedTrailerStartBody = 1000.0
 local carryingProp = nil
 local carryingCargo = false
 local garageVehicle = nil
-local miniUIVisible = true
+local contractorVehicle = nil
+local fullReceiverVisible = false
+local dispatchUIVisible = false
 local dispatchPed = nil
 local spawnedPeds = {}
+local activeContractPedKeys = {}
 local zones = {}
 local vehicleTargetAdded = false
 local trailerTargetAdded = false
 
+local Notify
+
 local tabletOpen = false
 local tabletProp = nil
+local tabletStopToken = 0
+local receiverProp = nil
+local receiverStopToken = 0
+local receiverAccessPending = false
+local receiverDockUserHidden = false
+local miniDockVisible = false
+local miniFullVisible = false
+local commandSuggestions = {}
+local contractorBoardRefreshToken = 0
+local receiverControlBlockUntil = 0
+local dispatchActiveTab = 'home'
+local freightHandoffPending = false
 
-local lastRouteSummary = nil
+local VEHICLE_SPAWN_INTERACTION_DISTANCE = 20.0
+local VEHICLE_RETURN_INTERACTION_DISTANCE = 20.0
+
+local cargoConditionLastHealth = nil
+local cargoConditionLastSpeed = 0.0
+local cargoConditionSpeedingSince = nil
+local cargoConditionIncidentCooldown = 0
+
+local RouteHistory = LS_Trucking and LS_Trucking.RouteHistory or {}
+local GetClientTimestamp = RouteHistory.GetClientTimestamp or function() return 'Current Session' end
+local ReceiverVehicleControls = LS_Trucking and LS_Trucking.ReceiverVehicleControls or {}
+local SpawnUtils = LS_Trucking and LS_Trucking.SpawnUtils or {}
+local DepotVehicles = LS_Trucking and LS_Trucking.DepotVehicles or {}
+local RouteState = LS_Trucking and LS_Trucking.RouteState or {}
+local Routes = LS_Trucking and LS_Trucking.Routes or {}
+local ContractorUI = LS_Trucking and LS_Trucking.ContractorUI or {}
+local TrailerCargoEditor = LS_Trucking and LS_Trucking.TrailerCargoEditor or {}
+local TrailerCargoTester = LS_Trucking and LS_Trucking.TrailerCargoTester or {}
+
+local function GetConfigCoords3(coords)
+    if not coords then return nil end
+    return vector3(coords.x, coords.y, coords.z)
+end
+
+local function IsPlayerNearCoords(coords, distance)
+    local targetCoords = GetConfigCoords3(coords)
+    if not targetCoords then return true end
+    local ped = PlayerPedId()
+    local playerCoords = GetEntityCoords(ped)
+    return #(playerCoords - targetCoords) <= (distance or 20.0)
+end
+
+local function ForceDepotDistanceNotify(message)
+    message = message or 'You are too far away from the depot.'
+
+    if lib and lib.notify then
+        lib.notify({
+            title = (Config.Notifications and Config.Notifications.Title) or 'Los Santos Freight Co.',
+            description = message,
+            type = 'error',
+            duration = (Config.Notifications and Config.Notifications.Duration) or Config.NotificationDuration or 8500
+        })
+        return
+    end
+
+    if Notify then
+        Notify(message, 'error')
+    end
+end
+
+local function RequireNearCoords(coords, distance, message, forceNotify)
+    if IsPlayerNearCoords(coords, distance) then return true end
+
+    if forceNotify then
+        ForceDepotDistanceNotify(message or 'You are too far away from the depot.')
+    elseif Notify then
+        Notify(message or 'You are too far away.', 'error')
+    end
+
+    return false
+end
+
+local function RequireNearDepotRequestArea(message)
+    if DepotVehicles.RequireNearDepotRequestArea then
+        return DepotVehicles.RequireNearDepotRequestArea(message)
+    end
+
+    ForceDepotDistanceNotify(message or 'You need to be closer to the LS Freight depot.')
+    return false
+end
+
+
 local currentDriverInfo = nil
+local lastCompletedCargoCondition = nil
 
-local function GetClientTimestamp()
-    local function pad(number)
-        number = tonumber(number) or 0
-        return number < 10 and ('0' .. number) or tostring(number)
-    end
-
-    if GetLocalTime then
-        local ok, year, month, a, b, c, d, e = pcall(GetLocalTime)
-
-        if ok and tonumber(year) and tonumber(month) then
-            -- Some FiveM builds return: year, month, dayOfWeek, day, hour, minute, second
-            if tonumber(e) then
-                local day = tonumber(b) or 1
-                local hour = tonumber(c) or 0
-                local minute = tonumber(d) or 0
-                return ('%04d-%s-%s %s:%s'):format(tonumber(year), pad(month), pad(day), pad(hour), pad(minute))
-            end
-
-            -- Other builds may return: year, month, day, hour, minute, second
-            if tonumber(d) then
-                local day = tonumber(a) or 1
-                local hour = tonumber(b) or 0
-                local minute = tonumber(c) or 0
-                return ('%04d-%s-%s %s:%s'):format(tonumber(year), pad(month), pad(day), pad(hour), pad(minute))
-            end
-        end
-    end
-
-    return 'Current Session'
-end
-
-
-local function LoadLastRouteSummary()
-    local raw = GetResourceKvpString('ls_trucking_last_route_summary')
-
-    if raw and raw ~= '' then
-        local ok, decoded = pcall(json.decode, raw)
-
-        if ok and type(decoded) == 'table' then
-            lastRouteSummary = decoded
-        end
-    end
-end
-
-LoadLastRouteSummary()
-
-local function SaveLastRouteSummary(data)
-    if not data or type(data) ~= 'table' then return end
-
-    lastRouteSummary = data
-    SetResourceKvp('ls_trucking_last_route_summary', json.encode(data))
-
-    SendNUIMessage({
-        action = 'updateLastRouteSummary',
-        summary = lastRouteSummary
-    })
-end
+RouteHistory.Load()
 
 local function PlayUISound(soundType)
     SendNUIMessage({ action = 'playSound', sound = soundType or 'click' })
 end
 
+local function SetKeepInput(enabled)
+    if SetNuiFocusKeepInput then
+        SetNuiFocusKeepInput(enabled == true)
+    end
+end
+
+local function BlockReceiverPauseControls()
+    DisableControlAction(0, 177, true) -- frontend cancel / back
+    DisableControlAction(0, 199, true) -- pause
+    DisableControlAction(0, 200, true) -- pause alternate
+    DisableControlAction(0, 322, true) -- escape
+    DisableControlAction(2, 177, true)
+    DisableControlAction(2, 199, true)
+    DisableControlAction(2, 200, true)
+    DisableControlAction(2, 322, true)
+end
+
+local function StopReceiverAnim()
+    receiverStopToken = receiverStopToken + 1
+
+    local ped = PlayerPedId()
+    ClearPedSecondaryTask(ped)
+
+    if receiverProp and DoesEntityExist(receiverProp) then
+        DeleteEntity(receiverProp)
+    end
+
+    receiverProp = nil
+end
+
+local function StopReceiverAnimDeferred(delay)
+    receiverStopToken = receiverStopToken + 1
+    local token = receiverStopToken
+
+    CreateThread(function()
+        Wait(delay or 360)
+
+        if token ~= receiverStopToken or fullReceiverVisible then return end
+        StopReceiverAnim()
+    end)
+end
+
+local function StartReceiverAnim()
+    receiverStopToken = receiverStopToken + 1
+    StopReceiverAnim()
+
+    local ped = PlayerPedId()
+    local dict = 'cellphone@'
+    local anim = 'cellphone_text_read_base'
+    local model = `prop_npc_phone_02`
+
+    RequestAnimDict(dict)
+    while not HasAnimDictLoaded(dict) do Wait(0) end
+
+    RequestModel(model)
+    while not HasModelLoaded(model) do Wait(0) end
+
+    local coords = GetEntityCoords(ped)
+    receiverProp = CreateObject(model, coords.x, coords.y, coords.z, true, true, false)
+
+    AttachEntityToEntity(
+        receiverProp,
+        ped,
+        GetPedBoneIndex(ped, 28422),
+        0.00, 0.00, 0.0,   
+        0.0, 0.0, 0.0,
+        true, true, false, true, 1, true
+    )
+
+    TaskPlayAnim(ped, dict, anim, 3.0, 3.0, -1, 49, 0, false, false, false)
+    SetModelAsNoLongerNeeded(model)
+end
+
 local function StopTabletAnim()
+    tabletStopToken = tabletStopToken + 1
     tabletOpen = false
 
     local ped = PlayerPedId()
@@ -95,7 +205,41 @@ local function StopTabletAnim()
     tabletProp = nil
 end
 
+local function StopTabletAnimDeferred(delay)
+    tabletStopToken = tabletStopToken + 1
+    local token = tabletStopToken
+    tabletOpen = false
+
+    CreateThread(function()
+        Wait(delay or 180)
+
+        if token ~= tabletStopToken or dispatchUIVisible then return end
+
+        if fullReceiverVisible then
+            if tabletProp and DoesEntityExist(tabletProp) then
+                DeleteEntity(tabletProp)
+            end
+
+            tabletProp = nil
+            return
+        end
+
+        StopTabletAnim()
+    end)
+end
+
+local function StopTabletAnimForDispatchClose()
+    if fullReceiverVisible then
+        StopTabletAnim()
+        return
+    end
+
+    StopTabletAnimDeferred(420)
+end
+
 local function StartTabletAnim()
+    tabletStopToken = tabletStopToken + 1
+    StopReceiverAnim()
     StopTabletAnim()
 
     tabletOpen = true
@@ -143,11 +287,77 @@ CreateThread(function()
     end
 end)
 
-local function Notify(message, notifyType)
+CreateThread(function()
+    while true do
+        if fullReceiverVisible and not dispatchUIVisible then
+            local ped = PlayerPedId()
+
+            if not receiverProp or not DoesEntityExist(receiverProp) then
+                StartReceiverAnim()
+            elseif not IsEntityPlayingAnim(ped, 'cellphone@', 'cellphone_text_read_base', 3) then
+                TaskPlayAnim(ped, 'cellphone@', 'cellphone_text_read_base', 3.0, 3.0, -1, 49, 0, false, false, false)
+            end
+
+            Wait(1500)
+        else
+            if receiverProp and DoesEntityExist(receiverProp) then
+                StopReceiverAnim()
+            end
+
+            Wait(1000)
+        end
+    end
+end)
+
+CreateThread(function()
+    while true do
+        local receiverInputActive = fullReceiverVisible and not dispatchUIVisible
+        local blockPauseAfterClose = receiverControlBlockUntil > GetGameTimer()
+
+        if receiverInputActive or blockPauseAfterClose then
+            BlockReceiverPauseControls()
+
+            if receiverInputActive then
+                DisableControlAction(0, 1, true) -- look left/right
+                DisableControlAction(0, 2, true) -- look up/down
+                DisableControlAction(0, 3, true) -- look up only
+                DisableControlAction(0, 4, true) -- look down only
+                DisableControlAction(0, 5, true) -- look left only
+                DisableControlAction(0, 6, true) -- look right only
+                DisableControlAction(0, 24, true) -- attack
+                DisableControlAction(0, 25, true) -- aim
+                DisableControlAction(0, 68, true) -- vehicle aim
+                DisableControlAction(0, 69, true) -- vehicle attack
+                DisableControlAction(0, 70, true) -- vehicle attack 2
+                DisableControlAction(0, 81, true) -- vehicle radio next
+                DisableControlAction(0, 82, true) -- vehicle radio previous
+                DisableControlAction(0, 83, true) -- vehicle radio next track
+                DisableControlAction(0, 84, true) -- vehicle radio previous track
+                DisableControlAction(0, 85, true) -- vehicle radio wheel
+                DisableControlAction(0, 91, true) -- passenger aim
+                DisableControlAction(0, 92, true) -- passenger attack
+                DisableControlAction(0, 106, true) -- vehicle mouse look override
+            end
+
+            Wait(0)
+        else
+            Wait(500)
+        end
+    end
+end)
+
+function Notify(message, notifyType)
     notifyType = notifyType or 'inform'
 
-    if notifyType == 'warning' or notifyType == 'error' then
-        PlayUISound('alert')
+    local soundMap = Config.Notifications and Config.Notifications.SoundMap or {}
+    local notifySound = soundMap[notifyType]
+
+    if notifySound == nil and (notifyType == 'warning' or notifyType == 'error') then
+        notifySound = 'alert'
+    end
+
+    if notifySound and (not Config.Notifications or Config.Notifications.Sounds ~= false) then
+        PlayUISound(notifySound)
     end
 
     if Config.Notifications and Config.Notifications.Enabled == false then
@@ -165,12 +375,15 @@ end
 RegisterNetEvent('ls_trucking:client:notify', function(message, notifyType) Notify(message, notifyType) end)
 
 local freightDialogPromise = nil
+local freightDialogReturnFocus = false
 
 local function ShowFreightDialog(header, lines, closeLabel)
     if type(lines) == 'table' then
         lines = table.concat(lines, '\n')
     end
 
+    freightDialogReturnFocus = tabletOpen == true or fullReceiverVisible == true
+    SetKeepInput(false)
     SetNuiFocus(true, true)
     SendNUIMessage({
         action = 'showFreightDialog',
@@ -194,6 +407,8 @@ local function ShowFreightConfirm(header, lines, confirmLabel, cancelLabel)
     local p = promise.new()
     freightDialogPromise = p
 
+    freightDialogReturnFocus = tabletOpen == true or fullReceiverVisible == true
+    SetKeepInput(false)
     SetNuiFocus(true, true)
     SendNUIMessage({
         action = 'showFreightDialog',
@@ -208,6 +423,31 @@ local function ShowFreightConfirm(header, lines, confirmLabel, cancelLabel)
     return result and result.confirmed == true
 end
 
+local function ShowFreightHandoff(mode, pedLabel, manifest)
+    if freightDialogPromise then
+        freightDialogPromise:resolve({ confirmed = false })
+        freightDialogPromise = nil
+    end
+
+    local p = promise.new()
+    freightDialogPromise = p
+
+    freightDialogReturnFocus = tabletOpen == true or fullReceiverVisible == true
+    SetKeepInput(false)
+    SetNuiFocus(true, true)
+    SendNUIMessage({
+        action = 'showFreightHandoff',
+        mode = mode,
+        header = mode == 'trailer' and 'Receiver Delivery Handoff' or 'Pickup Manifest Handoff',
+        pedLabel = pedLabel or 'Freight Clerk',
+        signerName = currentDriverInfo and currentDriverInfo.name or GetPlayerName(PlayerId()) or 'Assigned Driver',
+        contracts = { manifest }
+    })
+
+    local result = Citizen.Await(p)
+    return result or { confirmed = false }
+end
+
 local function ShowFreightCancelDialog(repLoss, reasons)
     if freightDialogPromise then
         freightDialogPromise:resolve({ confirmed = false })
@@ -217,6 +457,8 @@ local function ShowFreightCancelDialog(repLoss, reasons)
     local p = promise.new()
     freightDialogPromise = p
 
+    freightDialogReturnFocus = tabletOpen == true or fullReceiverVisible == true
+    SetKeepInput(false)
     SetNuiFocus(true, true)
     SendNUIMessage({
         action = 'showFreightCancelDialog',
@@ -283,6 +525,38 @@ local function GiveKeys(vehicle)
     end
 end
 
+local function RemoveKeys(vehicle, plate)
+    plate = plate or (vehicle and vehicle ~= 0 and DoesEntityExist(vehicle) and GetVehicleNumberPlateText(vehicle)) or nil
+    if Config.RemoveVehicleKeys then
+        Config.RemoveVehicleKeys(vehicle, plate)
+    end
+end
+
+local function NormalizeKeyPlate(plate)
+    return tostring(plate or ''):upper():gsub('%s+', '')
+end
+
+local function FindVehicleByPlate(plate)
+    local normalized = NormalizeKeyPlate(plate)
+    if normalized == '' then return nil end
+
+    for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+        if DoesEntityExist(vehicle) and NormalizeKeyPlate(GetVehicleNumberPlateText(vehicle)) == normalized then
+            return vehicle
+        end
+    end
+
+    return nil
+end
+
+RegisterNetEvent('ls_trucking:client:syncVehicleKeyOwner', function(plate, ownerServerId)
+    if Config.Keys and Config.Keys.OwnerOnly == false then return end
+    if tonumber(ownerServerId) == GetPlayerServerId(PlayerId()) then return end
+
+    local vehicle = FindVehicleByPlate(plate)
+    RemoveKeys(vehicle, plate)
+end)
+
 local function GetVehicleProps(vehicle)
     if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then return {} end
     SetVehicleModKit(vehicle, 0)
@@ -343,7 +617,35 @@ local function ApplyVehicleProps(vehicle, props)
     SetVehiclePetrolTankHealth(vehicle, props.tankHealth or 1000.0)
 end
 
+local function ClampVehicleHealth(value, fallback)
+    value = tonumber(value)
+    if not value then return fallback or 1000.0 end
+    return math.max(0.0, math.min(1000.0, value))
+end
+
+local function ApplyVehicleHealthState(vehicle, engineHealth, bodyHealth)
+    if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then return end
+
+    engineHealth = ClampVehicleHealth(engineHealth, 1000.0)
+    bodyHealth = ClampVehicleHealth(bodyHealth, 1000.0)
+
+    SetVehicleEngineHealth(vehicle, engineHealth)
+    SetVehicleBodyHealth(vehicle, bodyHealth)
+
+    if engineHealth >= 300.0 then
+        SetVehicleUndriveable(vehicle, false)
+    end
+
+    if engineHealth >= 950.0 and bodyHealth >= 950.0 then
+        SetVehicleDeformationFixed(vehicle)
+    end
+end
+
 local function GetJobVehiclePlate()
+    if DepotVehicles.GetJobVehiclePlate then
+        return DepotVehicles.GetJobVehiclePlate()
+    end
+
     if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then return nil end
     return GetVehicleNumberPlateText(spawnedVehicle)
 end
@@ -358,13 +660,24 @@ local function GetStreetAddressFromCoords(coords)
     local streetHash, crossingHash = GetStreetNameAtCoord(x, y, z)
     local street = streetHash and streetHash ~= 0 and GetStreetNameFromHashKey(streetHash) or nil
     local crossing = crossingHash and crossingHash ~= 0 and GetStreetNameFromHashKey(crossingHash) or nil
+    local zoneName = GetNameOfZone(x, y, z)
+    local zoneLabel = zoneName and zoneName ~= '' and GetLabelText(zoneName) or nil
+    if zoneLabel == 'NULL' or zoneLabel == '' then zoneLabel = nil end
 
     if street and street ~= '' and crossing and crossing ~= '' then
         return ('%s / %s'):format(street, crossing)
     end
 
+    if street and street ~= '' and zoneLabel then
+        return ('%s / %s'):format(street, zoneLabel)
+    end
+
     if street and street ~= '' then
         return street
+    end
+
+    if zoneLabel then
+        return zoneLabel
     end
 
     return nil
@@ -391,8 +704,11 @@ local function GetBlipStyle(blipType)
     return blips[key] or blips.Default or { sprite = 1, color = 5, scale = 0.85 }
 end
 
+local ClearRouteAreaBlip
+
 local function CreateRouteBlip(coords, label, blipType)
     if activeBlip then RemoveBlip(activeBlip) activeBlip = nil end
+    if ClearRouteAreaBlip then ClearRouteAreaBlip() end
     if not coords then return end
 
     local style = GetBlipStyle(blipType)
@@ -413,13 +729,40 @@ local function CreateRouteBlip(coords, label, blipType)
     PlayUISound('destination')
 end
 
+ClearRouteAreaBlip = function()
+    if activeAreaBlip then
+        RemoveBlip(activeAreaBlip)
+        activeAreaBlip = nil
+    end
+end
+
+local function CreateRouteAreaBlip(coords, radius, areaType)
+    ClearRouteAreaBlip()
+    if not coords then return end
+
+    local cfg = Config.AreaBlips or {}
+    if cfg.Enabled == false then return end
+
+    local style = cfg[areaType or 'TrailerDrop'] or {}
+    radius = tonumber(radius) or tonumber(style.fallbackRadius) or tonumber(style.radius) or 22.0
+    if radius <= 0.0 then return end
+
+    activeAreaBlip = AddBlipForRadius(coords.x, coords.y, coords.z, radius + 0.0)
+    SetBlipColour(activeAreaBlip, style.color or 47)
+    SetBlipAlpha(activeAreaBlip, style.alpha or 80)
+    SetBlipAsShortRange(activeAreaBlip, false)
+end
+
 local function GetCargoDeliveryBlipType(contractType)
     if contractType == 'boxtruck' then return 'crate' end
     if contractType == 'trailer' then return 'trailer' end
     return 'package'
 end
 
-local function ClearRouteBlip() if activeBlip then RemoveBlip(activeBlip) activeBlip = nil end end
+local function ClearRouteBlip()
+    if activeBlip then RemoveBlip(activeBlip) activeBlip = nil end
+    ClearRouteAreaBlip()
+end
 
 local function Progress(label, duration, anim, prop)
     return lib.progressBar({
@@ -459,25 +802,95 @@ local function GetCargoConfigForContract(contractType, cargoTypeOverride)
     return Config.CargoItems and Config.CargoItems[contractType]
 end
 
-local function CarryCargoProp(contractType, cargoTypeOverride)
-    local cargo = GetCargoConfigForContract(contractType, cargoTypeOverride)
-    if not cargo then return end
+local function StartCargoCarryAnim()
     local ped = PlayerPedId()
     lib.requestAnimDict('anim@heists@box_carry@')
     TaskPlayAnim(ped, 'anim@heists@box_carry@', 'idle', 8.0, 8.0, -1, 49, 0, false, false, false)
-    local prop = CreateObject(cargo.prop, 0.0, 0.0, 0.0, true, true, false)
+end
+
+local function CarryCargoProp(contractType, cargoTypeOverride, startAnim)
+    local cargo = GetCargoConfigForContract(contractType, cargoTypeOverride)
+    if not cargo then return false end
+    local ped = PlayerPedId()
+    local propModel = LoadModel(cargo.prop)
+    if not propModel then return false end
+
+    if startAnim ~= false then StartCargoCarryAnim() end
+    local prop = CreateObject(propModel, 0.0, 0.0, 0.0, true, true, false)
+    SetModelAsNoLongerNeeded(propModel)
+
     local o = cargo.carryOffset
     AttachEntityToEntity(prop, ped, GetPedBoneIndex(ped, o.bone), o.pos.x, o.pos.y, o.pos.z, o.rot.x, o.rot.y, o.rot.z, true, true, false, true, 1, true)
     carryingProp = prop
     carryingCargo = true
+    return true
 end
 
-local function DeleteCarryProp()
-    ClearPedTasks(PlayerPedId())
+local function DeleteCarryProp(keepTasks)
+    if not keepTasks then ClearPedTasks(PlayerPedId()) end
     if carryingProp and DoesEntityExist(carryingProp) then DeleteEntity(carryingProp) end
     carryingProp = nil
     carryingCargo = false
     if activeContract then activeContract.currentCarryCargoType = nil end
+end
+
+local function PlayCargoTimedAction(dict, clip, duration, momentAt, onMoment, afterAction)
+    local ped = PlayerPedId()
+    duration = tonumber(duration) or 900
+    momentAt = tonumber(momentAt) or math.floor(duration * 0.5)
+
+    lib.requestAnimDict(dict)
+    TaskPlayAnim(ped, dict, clip, 4.0, 4.0, duration, 48, 0, false, false, false)
+
+    local started = GetGameTimer()
+    local fired = false
+
+    while GetGameTimer() - started < duration do
+        local elapsed = GetGameTimer() - started
+
+        DisableControlAction(0, 21, true) -- sprint
+        DisableControlAction(0, 22, true) -- jump
+        DisableControlAction(0, 24, true) -- attack
+        DisableControlAction(0, 25, true) -- aim
+        DisableControlAction(0, 30, true) -- move left/right
+        DisableControlAction(0, 31, true) -- move forward/back
+
+        if not fired and elapsed >= momentAt then
+            fired = true
+            if onMoment then onMoment() end
+        end
+
+        Wait(0)
+    end
+
+    if not fired and onMoment then onMoment() end
+    if afterAction then afterAction() end
+end
+
+local function PlayCargoPickupTransition(contractType, cargoTypeOverride)
+    local attached = false
+
+    PlayCargoTimedAction('pickup_object', 'pickup_low', 900, 430, function()
+        attached = CarryCargoProp(contractType, cargoTypeOverride, false)
+    end, function()
+        if attached then StartCargoCarryAnim() end
+    end)
+end
+
+local function PlayCargoLoadTransition()
+    PlayCargoTimedAction('anim@heists@narcotics@trash', 'throw_b', 1050, 520, function()
+        DeleteCarryProp(true)
+    end, function()
+        ClearPedSecondaryTask(PlayerPedId())
+    end)
+end
+
+local function PlayCargoSetDownTransition()
+    PlayCargoTimedAction('pickup_object', 'pickup_low', 950, 420, function()
+        DeleteCarryProp(true)
+    end, function()
+        ClearPedSecondaryTask(PlayerPedId())
+    end)
 end
 
 CreateThread(function()
@@ -488,9 +901,29 @@ CreateThread(function()
             local ped = PlayerPedId()
 
             if not IsEntityPlayingAnim(ped, 'anim@heists@box_carry@', 'idle', 3) then
-                lib.requestAnimDict('anim@heists@box_carry@')
-                TaskPlayAnim(ped, 'anim@heists@box_carry@', 'idle', 8.0, 8.0, -1, 49, 0, false, false, false)
+                StartCargoCarryAnim()
             end
+        end
+    end
+end)
+
+CreateThread(function()
+    while true do
+        if carryingCargo then
+            local ped = PlayerPedId()
+
+            -- Prevent sprinting/jumping while carrying freight while still allowing a reasonable walking pace.
+            DisableControlAction(0, 21, true) -- INPUT_SPRINT
+            DisableControlAction(0, 22, true) -- INPUT_JUMP
+            DisableControlAction(0, 36, true) -- INPUT_DUCK
+
+            if not IsPedInAnyVehicle(ped, false) then
+                SetPedMoveRateOverride(ped, 0.88)
+            end
+
+            Wait(0)
+        else
+            Wait(500)
         end
     end
 end)
@@ -515,6 +948,25 @@ local function GetTargetSystem()
     end
 
     return 'ox'
+end
+
+
+local function TurnPlayerTowardEntityTarget(target)
+    local entity = nil
+
+    if type(target) == 'table' then
+        entity = target.entity or target[1]
+    else
+        entity = target
+    end
+
+    if entity and entity ~= 0 and DoesEntityExist(entity) then
+        local ped = PlayerPedId()
+        if not IsPedInAnyVehicle(ped, false) then
+            TaskTurnPedToFaceEntity(ped, entity, 650)
+            Wait(250)
+        end
+    end
 end
 
 local function ConvertTargetIcon(icon)
@@ -558,8 +1010,12 @@ local function ConvertTargetOptions(options)
 
                 return originalCanInteract(entity, distance, coords)
             end or nil,
-            onSelect = originalOnSelect,
+            onSelect = originalOnSelect and function(data)
+                TurnPlayerTowardEntityTarget(data)
+                originalOnSelect(data)
+            end or nil,
             action = originalOnSelect and function(entity)
+                TurnPlayerTowardEntityTarget(entity)
                 originalOnSelect({ entity = entity })
             end or nil
         }
@@ -626,29 +1082,57 @@ end
 
 local function IsCargoDoorOpen()
     if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then return false end
-    return GetVehicleDoorAngleRatio(spawnedVehicle, 5) > 0.1 or GetVehicleDoorAngleRatio(spawnedVehicle, 2) > 0.1 or GetVehicleDoorAngleRatio(spawnedVehicle, 3) > 0.1
+
+    for _, doorIndex in ipairs({ 5, 2, 3 }) do
+        if IsVehicleDoorDamaged(spawnedVehicle, doorIndex) or GetVehicleDoorAngleRatio(spawnedVehicle, doorIndex) > 0.1 then
+            return true
+        end
+    end
+
+    return false
 end
 
 local function CleanupJobVehicle()
     DeleteCarryProp()
-    if spawnedTrailer and DoesEntityExist(spawnedTrailer) then DeleteEntity(spawnedTrailer) end
+    if spawnedTrailer and DoesEntityExist(spawnedTrailer) then
+        local cargoProps = LS_Trucking and LS_Trucking.TrailerCargoProps or {}
+        if cargoProps.CleanupForTrailer then
+            cargoProps.CleanupForTrailer(spawnedTrailer)
+        end
+
+        DeleteEntity(spawnedTrailer)
+    end
     if spawnedVehicle and DoesEntityExist(spawnedVehicle) then DeleteEntity(spawnedVehicle) end
     spawnedTrailer = nil
     spawnedTrailerStartBody = 1000.0
     spawnedVehicle = nil
     reusableVehicle = nil
     garageVehicle = nil
+    contractorVehicle = nil
     vehicleTargetAdded = false
     trailerTargetAdded = false
 end
 
 local function CleanupTrailerOnly()
-    if spawnedTrailer and DoesEntityExist(spawnedTrailer) then DeleteEntity(spawnedTrailer) end
+    if spawnedTrailer and DoesEntityExist(spawnedTrailer) then
+        local cargoProps = LS_Trucking and LS_Trucking.TrailerCargoProps or {}
+        if cargoProps.CleanupForTrailer then
+            cargoProps.CleanupForTrailer(spawnedTrailer)
+        end
+
+        DeleteEntity(spawnedTrailer)
+    end
     spawnedTrailer = nil
     spawnedTrailerStartBody = 1000.0
+    trailerTargetAdded = false
 end
 
-local function HideMiniUI() SendNUIMessage({ action = 'hideMini' }) end
+local function HideMiniUI()
+    if miniFullVisible then SendNUIMessage({ action = 'hideMini' }) end
+    if miniDockVisible then SendNUIMessage({ action = 'hideMiniDock' }) end
+    miniFullVisible = false
+    miniDockVisible = false
+end
 
 local function FormatExpectedCompletion(estimatedSeconds)
     estimatedSeconds = tonumber(estimatedSeconds) or 0
@@ -669,26 +1153,339 @@ local function SetExpectedCompletionTime()
     activeContract.expectedCompletion = FormatExpectedCompletion(activeContract.estimatedSeconds)
 end
 
-local function UpdateMiniUI()
-    if not Config.MiniUIEnabled then return end
-    if not activeContract then HideMiniUI() return end
-    SendNUIMessage({ action = miniUIVisible and 'showMini' or 'hideMini', contract = { type = activeContract.type, label = activeContract.routeLabel or activeContract.label, stage = activeContract.stage, notice = activeContract.notice or '', currentStop = activeContract.currentStop or 0, totalStops = activeContract.totalStops or 0, payout = activeContract.payout, cargo = activeContract.cargo, destination = activeContract.destination or 'N/A', destinationAddress = activeContract.destinationAddress or nil, vehicle = activeContract.vehicleLabel or 'Company Vehicle', loadedCargo = activeContract.loadedCargo or 0, requiredCargo = activeContract.requiredCargo or 0, estimatedTime = activeContract.estimatedTime or '', expectedCompletion = activeContract.expectedCompletion or '', randomEventLabel = activeContract.randomEvent and activeContract.randomEvent.label or nil, contractAlert = activeContract.randomEvent and { label = activeContract.randomEvent.label or 'Dispatch Alert', description = activeContract.randomEvent.description or 'Route conditions changed.' } or nil } })
+local function GetCargoConditionState(score, contractType)
+    score = tonumber(score) or 100
+
+    if score >= 90 then
+        return contractType == 'trailer' and 'TRAILER SECURE' or 'CARGO STABLE', 'stable', 'No load movement detected.'
+    elseif score >= 70 then
+        return 'CARGO SHIFTED', 'shifted', 'Minor load movement logged.'
+    elseif score >= 45 then
+        return 'CARGO SCUFFED', 'damaged', 'Cargo handling warning logged.'
+    end
+
+    return 'CARGO DAMAGED', 'critical', 'Cargo damage report pending receiver review.'
 end
 
-local function CanReuseVehicle(contractType)
-    if not Config.AllowVehicleReuseAfterRoute then return false end
-    if not reusableVehicle and not garageVehicle then return false end
-    if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then return false end
-    local currentType = reusableVehicle and reusableVehicle.type or garageVehicle and garageVehicle.type
-    if Config.RequireSameTypeForVehicleReuse and currentType ~= contractType then return false end
+local function ResetCargoCondition()
+    cargoConditionLastHealth = nil
+    cargoConditionLastSpeed = 0.0
+    cargoConditionSpeedingSince = nil
+    cargoConditionIncidentCooldown = 0
+
+    if not activeContract then return end
+
+    local label, level, note = GetCargoConditionState(100, activeContract.type)
+    activeContract.cargoConditionScore = 100
+    activeContract.cargoConditionLabel = label
+    activeContract.cargoConditionLevel = level
+    activeContract.cargoConditionNote = note
+    activeContract.cargoConditionLastReason = 'Loaded clean'
+end
+
+local function GetMiniSignalData()
+    local targetCoords = nil
+
+    if dispatchPed and DoesEntityExist(dispatchPed) then
+        targetCoords = GetEntityCoords(dispatchPed)
+    elseif Config.DispatchPed and Config.DispatchPed.coords then
+        targetCoords = GetConfigCoords3(Config.DispatchPed.coords)
+    elseif Config.Depot and Config.Depot.terminal then
+        targetCoords = GetConfigCoords3(Config.Depot.terminal)
+    end
+
+    if not targetCoords then
+        return 4, 'Dispatch signal locked', true
+    end
+
+    local playerCoords = GetEntityCoords(PlayerPedId())
+    local distance = #(playerCoords - targetCoords)
+    local bars = 0
+
+    if distance <= 1500.0 then
+        bars = 4
+    elseif distance <= 5000.0 then
+        bars = 3
+    elseif distance <= 10000.0 then
+        bars = 2
+    elseif distance <= 15000.0 then
+        bars = 1
+    end
+
+    local label = ('Dispatch signal: %s/4 (%sm)'):format(bars, math.floor(distance))
+    return bars, label, true
+end
+
+local function BuildReceiverReuseData()
+    if DepotVehicles.BuildReceiverReuseData then
+        return DepotVehicles.BuildReceiverReuseData()
+    end
+
+    return { available = false }
+end
+
+local function BuildCurrentVehicleState()
+    if DepotVehicles.BuildCurrentVehicleState then
+        return DepotVehicles.BuildCurrentVehicleState()
+    end
+
+    return nil
+end
+
+if RouteState.ConfigureClient then
+    RouteState.ConfigureClient({
+        GetActiveContract = function() return activeContract end,
+        GetSpawnedVehicle = function() return spawnedVehicle end,
+        GetCurrentDriverInfo = function() return currentDriverInfo end,
+        GetReceiverDockUserHidden = function() return receiverDockUserHidden end,
+        GetMiniSignalData = GetMiniSignalData,
+        BuildReceiverReuseData = BuildReceiverReuseData,
+        GetRouteHistory = function() return RouteHistory.GetHistory() end,
+        GetLastRadioChatter = function() return LS_Trucking.LastRadioChatter end,
+        GetLastRadioDirection = function() return LS_Trucking.LastRadioDirection end,
+        IsContractRequestPending = function() return LS_Trucking.ContractRequestPending == true end
+    })
+end
+
+local function BuildReceiverPayload(minimal)
+    if RouteState.BuildReceiverPayload then
+        return RouteState.BuildReceiverPayload(minimal)
+    end
+
+    return { type = 'standby', label = 'DISPATCH STANDBY', hasActiveRoute = false }
+end
+
+local function UpdateMiniUI(passive)
+    if not Config.MiniUIEnabled then HideMiniUI() return end
+
+    local payload = BuildReceiverPayload(passive == true)
+
+    if activeContract and Config.ReceiverDockEnabled ~= false and not receiverDockUserHidden then
+        SendNUIMessage({ action = 'showMiniDock', contract = payload })
+        miniDockVisible = true
+    else
+        if miniDockVisible then
+            SendNUIMessage({ action = 'hideMiniDock' })
+            miniDockVisible = false
+        end
+    end
+
+    if fullReceiverVisible and Config.FullReceiverEnabled ~= false then
+        SendNUIMessage({ action = (passive == true and miniFullVisible) and 'refreshMini' or 'showMini', contract = payload })
+        miniFullVisible = true
+    else
+        if miniFullVisible then
+            SendNUIMessage({ action = 'hideMini' })
+            miniFullVisible = false
+        end
+    end
+end
+
+CreateThread(function()
+    while true do
+        Wait(math.max(5000, tonumber(Config.ReceiverRefreshInterval) or 10000))
+
+        if Config.MiniUIEnabled and (activeContract or fullReceiverVisible) then
+            UpdateMiniUI(true)
+        end
+    end
+end)
+
+local function DispatchChatter(message, notifyType, soundType, options)
+    if not message or message == '' then return end
+    options = options or {}
+
+    LS_Trucking.LastRadioChatter = message
+    LS_Trucking.LastRadioChatterAt = GetClientTimestamp()
+    LS_Trucking.LastRadioDirection = options.direction == 'tx' and 'tx' or 'rx'
+
+    if activeContract then
+        activeContract.radioChatter = message
+        activeContract.radioChatterAt = GetClientTimestamp()
+        activeContract.radioDirection = LS_Trucking.LastRadioDirection
+    end
+
+    local soundMap = Config.Notifications and Config.Notifications.SoundMap or {}
+    local shouldNotify = options.notify ~= false
+    local notifyHasSound = shouldNotify and (soundMap[notifyType or 'inform'] ~= nil or notifyType == 'warning' or notifyType == 'error')
+    if not LS_Trucking.FreightHandoff.PlayNativeRadioMessageAudio(spawnedVehicle) and not notifyHasSound then
+        PlayUISound(soundType or 'destination')
+    end
+
+    if shouldNotify then
+        Notify(('Dispatch: %s'):format(message), notifyType or 'inform')
+    end
+
+    UpdateMiniUI()
+end
+
+LS_Trucking.BeginContractRequest = function(message)
+    if LS_Trucking.ContractRequestPending then
+        Notify('Dispatch is already processing a contract request.', 'inform')
+        return false
+    end
+
+    LS_Trucking.ContractRequestPending = true
+    DispatchChatter(message or 'Contract request transmitted. Waiting for dispatch review.', 'inform', 'secure', { direction = 'tx' })
+
+    local exchange = Config.DispatchExchange or {}
+    if exchange.Enabled ~= false then
+        Wait(math.max(0, tonumber(exchange.RequestDelay) or 1250))
+    end
+
     return true
 end
 
+LS_Trucking.ResolveContractRequest = function(result, approvedMessage)
+    local exchange = Config.DispatchExchange or {}
+
+    if result and result.success then
+        DispatchChatter(approvedMessage or 'Dispatch approved the contract. Route data and GPS are now active.', 'success', 'destination')
+        if exchange.Enabled ~= false then
+            Wait(math.max(0, tonumber(exchange.ResponseDelay) or 900))
+        end
+    else
+        DispatchChatter(('Dispatch denied the contract request. %s'):format(result and result.message or 'No route was assigned.'), 'error', 'alert')
+    end
+
+    LS_Trucking.ContractRequestPending = false
+    UpdateMiniUI()
+end
+
+local function SetCargoConditionScore(score, reason)
+    if not activeContract then return end
+
+    local oldLevel = activeContract.cargoConditionLevel or 'stable'
+    score = math.max(0, math.min(100, math.floor(tonumber(score) or 100)))
+
+    local label, level, note = GetCargoConditionState(score, activeContract.type)
+    activeContract.cargoConditionScore = score
+    activeContract.cargoConditionLabel = label
+    activeContract.cargoConditionLevel = level
+    activeContract.cargoConditionNote = reason or note
+    activeContract.cargoConditionLastReason = reason or note
+
+    if level ~= oldLevel then
+        if level == 'shifted' then
+            DispatchChatter('Load movement detected. Smooth driving advised.', 'warning', 'alert')
+        elseif level == 'damaged' then
+            DispatchChatter('Cargo condition warning logged. Receiver may inspect this load.', 'warning', 'alert')
+        elseif level == 'critical' then
+            DispatchChatter('Cargo damage report transmitted. Expect receiver inspection.', 'error', 'alert')
+        elseif level == 'stable' then
+            UpdateMiniUI()
+        end
+    else
+        UpdateMiniUI()
+    end
+end
+
+local function IsCargoConditionActive()
+    if not activeContract or not activeContract.loaded then return false end
+    if activeContract.type == 'trailer' then
+        return activeContract.trailerHooked == true and activeContract.trailerDropped ~= true
+    end
+
+    return activeContract.verifiedCargo == true
+end
+
+local function GetCargoConditionVehicle()
+    if not activeContract then return nil end
+
+    if activeContract.type == 'trailer' and spawnedTrailer and DoesEntityExist(spawnedTrailer) then
+        return spawnedTrailer
+    end
+
+    if spawnedVehicle and DoesEntityExist(spawnedVehicle) then
+        return spawnedVehicle
+    end
+
+    return nil
+end
+
+local function ApplyCargoConditionWatch()
+    local cfg = Config.CargoCondition or {}
+
+    if cfg.Enabled == false or not IsCargoConditionActive() then
+        cargoConditionLastHealth = nil
+        cargoConditionLastSpeed = 0.0
+        cargoConditionSpeedingSince = nil
+        return
+    end
+
+    local vehicle = GetCargoConditionVehicle()
+    if not vehicle then return end
+
+    local now = GetGameTimer()
+    local bodyHealth = GetVehicleBodyHealth(vehicle)
+    local speedMph = GetEntitySpeed(vehicle) * 2.236936
+
+    if not cargoConditionLastHealth then
+        cargoConditionLastHealth = bodyHealth
+        cargoConditionLastSpeed = speedMph
+        return
+    end
+
+    local incidentReady = now >= cargoConditionIncidentCooldown
+    local healthDrop = cargoConditionLastHealth - bodyHealth
+    local threshold = tonumber(cfg.HealthDropThreshold) or 12.0
+
+    if incidentReady and healthDrop >= threshold then
+        cargoConditionIncidentCooldown = now + (tonumber(cfg.IncidentCooldown) or 6000)
+        incidentReady = false
+        local scoreDrop = math.max(2, math.floor(healthDrop * (tonumber(cfg.DamageScoreMultiplier) or 0.08)))
+        SetCargoConditionScore((activeContract.cargoConditionScore or 100) - scoreDrop, 'Impact detected during route.')
+    end
+
+    local speedDrop = cargoConditionLastSpeed - speedMph
+    local brakeMin = tonumber(cfg.HardBrakeMinSpeed) or 35.0
+    local brakeDrop = tonumber(cfg.HardBrakeDropMph) or 28.0
+
+    if incidentReady and cargoConditionLastSpeed >= brakeMin and speedDrop >= brakeDrop then
+        cargoConditionIncidentCooldown = now + (tonumber(cfg.IncidentCooldown) or 6000)
+        incidentReady = false
+        SetCargoConditionScore((activeContract.cargoConditionScore or 100) - (tonumber(cfg.HardBrakePenalty) or 4), 'Hard braking event logged.')
+    end
+
+    local safeSpeed = nil
+    if activeContract.type == 'trailer' then
+        safeSpeed = tonumber(activeContract.safeSpeed)
+    end
+
+    safeSpeed = safeSpeed or (cfg.SafeSpeed and (tonumber(cfg.SafeSpeed[activeContract.type]) or tonumber(cfg.SafeSpeed.default)) or nil) or 80.0
+
+    if speedMph > safeSpeed then
+        if not cargoConditionSpeedingSince then cargoConditionSpeedingSince = now end
+        if incidentReady and now - cargoConditionSpeedingSince >= (tonumber(cfg.SpeedWarningAfter) or 9000) then
+            cargoConditionIncidentCooldown = now + (tonumber(cfg.IncidentCooldown) or 6000)
+            incidentReady = false
+            SetCargoConditionScore((activeContract.cargoConditionScore or 100) - (tonumber(cfg.SpeedPenalty) or 2), ('Overspeed handling logged above %s MPH.'):format(math.floor(safeSpeed)))
+        end
+    else
+        cargoConditionSpeedingSince = nil
+    end
+
+    cargoConditionLastHealth = bodyHealth
+    cargoConditionLastSpeed = speedMph
+end
+
+CreateThread(function()
+    while true do
+        Wait((Config.CargoCondition and Config.CargoCondition.CheckInterval) or 2000)
+        ApplyCargoConditionWatch()
+    end
+end)
+
+local function CanReuseVehicle(contractType, allowContractor)
+    if DepotVehicles.CanReuseVehicle then
+        return DepotVehicles.CanReuseVehicle(contractType, allowContractor)
+    end
+
+    return false
+end
+
 local function GetReuseData()
-    if not reusableVehicle and not garageVehicle then return { available = false } end
-    if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then reusableVehicle = nil garageVehicle = nil return { available = false } end
-    local data = reusableVehicle or garageVehicle
-    return { available = true, type = data.type, label = data.label, vehicleLabel = data.vehicleLabel or data.label }
+    return BuildReceiverReuseData()
 end
 
 local function GetAttachedTrailer()
@@ -706,25 +1503,132 @@ local function IsAssignedTrailerAttached()
 end
 
 local function MarkTrailerHookedAuto()
-    if not activeContract or activeContract.type ~= 'trailer' or activeContract.trailerHooked then return end
+    if not activeContract or activeContract.type ~= 'trailer' then return end
     if activeContract.trailerAttached then return end
     if not IsAssignedTrailerAttached() then return end
+    if activeContract.trailerHooked and not activeContract.trailerConnectionLost then return end
+    if LS_Trucking.TrailerCouplePending then return end
 
-    activeContract.trailerAttached = true
-    activeContract.loaded = false
-    activeContract.loadChecklist = activeContract.loadChecklist or { truckSecure = false, trailerSecure = false }
-    activeContract.stage = 'Complete load checklist'
-    activeContract.notice = 'Trailer is hooked. Target the rear of the truck to review the checklist, secure the load connection, then confirm the trailer load is secure.'
-    SetActiveDestination('Load checklist')
+    LS_Trucking.TrailerCouplePending = true
+    LS_Trucking.TrailerCoupleToken = (LS_Trucking.TrailerCoupleToken or 0) + 1
+    local token = LS_Trucking.TrailerCoupleToken
 
-    Notify('Trailer attached. Complete the load checklist before starting the delivery route.', 'inform')
-    UpdateMiniUI()
+    CreateThread(function()
+        Wait(math.max(0, tonumber(Config.TrailerCoupleNoticeDelay) or 500))
+
+        if token ~= LS_Trucking.TrailerCoupleToken
+            or not activeContract
+            or activeContract.type ~= 'trailer'
+            or not IsAssignedTrailerAttached() then
+            if token == LS_Trucking.TrailerCoupleToken then LS_Trucking.TrailerCouplePending = false end
+            return
+        end
+
+        local reconnecting = activeContract.trailerHooked == true and activeContract.trailerConnectionLost == true
+        activeContract.trailerAttached = true
+        activeContract.loadChecklist = activeContract.loadChecklist or { truckSecure = false, trailerSecure = false }
+        activeContract.stage = reconnecting and 'Secure trailer attachment' or 'Complete load checklist'
+
+        if reconnecting then
+            activeContract.notice = 'Trailer recoupled. Target the rear of the truck and redo Secure Load Attached before continuing.'
+            SetActiveDestination('Rear of truck')
+            Notify('Trailer recoupled. Redo Secure Load Attached before continuing.', 'warning')
+            DispatchChatter('Trailer telemetry restored. Repeat the secure attachment check before continuing the route.', 'warning', 'trailerConnect')
+        else
+            activeContract.loaded = false
+            if (Config.LoadVerificationMode or 'receiver') == 'receiver' then
+                activeContract.notice = 'Trailer is hooked. Target the rear of the truck and trailer to complete the physical checks, then submit the checklist through the receiver.'
+                SetActiveDestination('Rear of truck')
+            else
+                activeContract.notice = 'Trailer is hooked. Target the rear of the truck to complete the connection and load security checklist.'
+                SetActiveDestination('Load checklist')
+            end
+
+            Notify('Trailer attached. Complete the load checklist before starting the delivery route.', 'inform')
+            DispatchChatter('Trailer telemetry shows coupled. Complete load secure checks before departure.', 'inform', 'secure')
+        end
+
+        LS_Trucking.TrailerCouplePending = false
+        UpdateMiniUI()
+    end)
 end
 
 CreateThread(function()
     while true do
         Wait(Config.TrailerAutoDetectInterval or 750)
-        if activeContract and activeContract.type == 'trailer' and not activeContract.trailerHooked then MarkTrailerHookedAuto() end
+        if activeContract and activeContract.type == 'trailer' then
+            local attachedTrailer = GetAttachedTrailer()
+            local assignedTrailerExists = spawnedTrailer and DoesEntityExist(spawnedTrailer)
+            local incorrectTrailer = attachedTrailer ~= 0 and assignedTrailerExists and attachedTrailer ~= spawnedTrailer
+            local assignedAttached = IsAssignedTrailerAttached()
+
+            if LS_Trucking.AssignedTrailerWasAttached == true and not assignedAttached then
+                activeContract.trailerAttached = false
+                LS_Trucking.TrailerCoupleToken = (LS_Trucking.TrailerCoupleToken or 0) + 1
+                LS_Trucking.TrailerCouplePending = false
+
+                local intentionalDrop = false
+                if activeContract.trailerHooked
+                    and spawnedTrailer
+                    and DoesEntityExist(spawnedTrailer)
+                    and activeContract.trailerDrop
+                    and activeContract.trailerDrop.coords then
+                    local trailerCoords = GetEntityCoords(spawnedTrailer)
+                    local dropCoords = activeContract.trailerDrop.coords
+                    local dx = trailerCoords.x - dropCoords.x
+                    local dy = trailerCoords.y - dropCoords.y
+                    local dropDistance = math.sqrt((dx * dx) + (dy * dy))
+                    local marker = Config.TrailerDropMarker or {}
+                    local allowedDistance = marker.Enabled == false
+                        and math.max(1.0, tonumber(activeContract.trailerDrop.radius) or 18.0)
+                        or math.max(0.5, tonumber(marker.PositionTolerance) or 1.40)
+                    intentionalDrop = dropDistance <= allowedDistance
+                end
+
+                activeContract.loadChecklist = activeContract.loadChecklist or { truckSecure = false, trailerSecure = false }
+                local connectionWasSecure = activeContract.loadChecklist.truckSecure == true
+                if connectionWasSecure then PlayUISound('trailerDisconnect') end
+
+                if not intentionalDrop then
+                    activeContract.loadChecklist.truckSecure = false
+
+                    if connectionWasSecure then
+                        activeContract.trailerConnectionLost = activeContract.trailerHooked == true
+                        activeContract.stage = 'Reconnect trailer'
+                        activeContract.notice = 'Trailer connection lost. Reattach the assigned trailer and redo Secure Load Attached.'
+                        SetActiveDestination('Assigned trailer')
+                        Notify('Trailer disconnected. Reattach it and redo Secure Load Attached.', 'warning')
+                        DispatchChatter('Trailer connection lost. Reconnect the assigned trailer and repeat the secure attachment check.', 'warning', 'trailerDisconnect')
+                        UpdateMiniUI()
+                    elseif not activeContract.trailerHooked then
+                        activeContract.stage = 'Hook up trailer'
+                        activeContract.notice = 'Hook up the assigned trailer to continue the load checklist.'
+                        SetActiveDestination(activeContract.trailerDepot and activeContract.trailerDepot.label or 'Assigned trailer')
+                        UpdateMiniUI()
+                    end
+                end
+            end
+
+            LS_Trucking.AssignedTrailerWasAttached = assignedAttached
+
+            if not activeContract.trailerHooked and incorrectTrailer then
+                if LS_Trucking.LastIncorrectTrailer ~= attachedTrailer then
+                    LS_Trucking.LastIncorrectTrailer = attachedTrailer
+                    activeContract.notice = ('Incorrect trailer detected. Detach it and connect the assigned %s.'):format(activeContract.trailerLabel or 'route trailer')
+                    DispatchChatter(('Incorrect trailer detected at the depot. Detach that unit and connect the assigned %s.'):format(activeContract.trailerLabel or 'route trailer'), 'warning', 'alert')
+                end
+            else
+                if attachedTrailer == 0 or attachedTrailer == spawnedTrailer then
+                    LS_Trucking.LastIncorrectTrailer = nil
+                end
+                MarkTrailerHookedAuto()
+            end
+        else
+            LS_Trucking.LastIncorrectTrailer = nil
+            LS_Trucking.AssignedTrailerWasAttached = nil
+            LS_Trucking.TrailerCoupleToken = (LS_Trucking.TrailerCoupleToken or 0) + 1
+            LS_Trucking.TrailerCouplePending = false
+        end
     end
 end)
 
@@ -818,19 +1722,26 @@ local function LoadCargoIntoVehicle()
     if not IsCargoDoorOpen() then Notify('Open the vehicle trunk or rear cargo door before loading cargo.', 'error') return end
     if not carryingCargo then Notify('You need to carry a route item first.', 'error') return end
     if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then Notify('Your job vehicle is missing.', 'error') return end
-    if not Progress('Loading cargo into open trunk...', Config.Progress.loadCargo, { dict = 'anim@heists@box_carry@', clip = 'idle' }) then return end
+    if not Progress('Positioning cargo at open trunk...', Config.Progress.loadCargo, { dict = 'anim@heists@box_carry@', clip = 'idle' }) then return end
     local result = lib.callback.await('ls_trucking:server:loadCargoOne', false)
     if not result or not result.success then Notify(result and result.message or 'Could not load cargo.', 'error') return end
-    DeleteCarryProp()
+    PlayCargoLoadTransition()
     activeContract.loadedCargo = result.loaded
     activeContract.loaded = false
     if result.ready then
         activeContract.cargoReady = true
         activeContract.verifiedCargo = false
         activeContract.stage = 'Verify loaded cargo'
-        activeContract.notice = 'All cargo is loaded. Target the vehicle and verify loaded cargo before starting the route.'
-        SetActiveDestination('Verify cargo at vehicle')
-        Notify('All cargo loaded. Target the vehicle and verify the loaded cargo to start your route.', 'success')
+        if (Config.LoadVerificationMode or 'receiver') == 'receiver' then
+            activeContract.notice = 'All cargo is loaded. Open the receiver Load page and submit the manifest for dispatch verification.'
+            SetActiveDestination('Verify cargo in receiver')
+            Notify('All cargo loaded. Verify the manifest from the receiver Load page to start your route.', 'success')
+        else
+            activeContract.notice = 'All cargo is loaded. Target the vehicle and verify loaded cargo before starting the route.'
+            SetActiveDestination('Verify cargo at vehicle')
+            Notify('All cargo loaded. Target the vehicle and verify the loaded cargo to start your route.', 'success')
+        end
+        DispatchChatter('Pickup load count matches manifest. Verify cargo before departure.', 'inform', 'secure')
     else
         activeContract.stage = 'Load cargo into vehicle'
         activeContract.notice = ('Load cargo one item at a time: %s/%s loaded.'):format(result.loaded, result.required)
@@ -839,30 +1750,55 @@ local function LoadCargoIntoVehicle()
     UpdateMiniUI()
 end
 
-local function VerifyLoadedCargo()
-    if not activeContract then return end
-    if activeContract.type == 'trailer' then return end
+local function VerifyLoadedCargo(fromReceiver)
+    fromReceiver = fromReceiver == true
+    if not activeContract then return false end
+    if activeContract.type == 'trailer' then return false end
     if not activeContract.cargoReady then
         Notify('Load all route cargo before verifying.', 'error')
-        return
+        return false
     end
 
-    if not Progress('Verifying loaded cargo...', Config.Progress.verifyLoadedCargo or 2500, {
-        dict = 'missheistdockssetup1clipboard@base',
-        clip = 'base'
-    }, {
-        model = `p_amb_clipboard_01`,
-        bone = 18905,
-        pos = vec3(0.10, 0.02, 0.08),
-        rot = vec3(-80.0, 0.0, 0.0)
-    }) then
-        return
+    if fromReceiver then
+        if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then
+            Notify('Your assigned vehicle is not available for verification.', 'error')
+            return false
+        end
+
+        if #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(spawnedVehicle)) > 8.0 then
+            Notify('Stand near the loaded vehicle before submitting the manifest.', 'error')
+            return false
+        end
+
+        if GetEntitySpeed(spawnedVehicle) > 0.75 then
+            Notify('Stop the vehicle before submitting the manifest.', 'error')
+            return false
+        end
+
+        DispatchChatter('Verifying cargo manifest with dispatch. Stand by for load clearance.', 'inform', 'secure', { direction = 'tx' })
+        local exchange = Config.DispatchExchange or {}
+        if exchange.Enabled ~= false then
+            Wait(math.max(0, tonumber(exchange.RequestDelay) or 1250))
+        end
+    elseif not Progress('Verifying loaded cargo...', Config.Progress.verifyLoadedCargo or 2500, {
+            dict = 'missheistdockssetup1clipboard@base',
+            clip = 'base'
+        }, {
+            model = `p_amb_clipboard_01`,
+            bone = 18905,
+            pos = vec3(0.10, 0.02, 0.08),
+            rot = vec3(-80.0, 0.0, 0.0)
+        }) then
+        return false
     end
 
     local result = lib.callback.await('ls_trucking:server:verifyLoadedCargo', false)
     if not result or not result.success then
         Notify(result and result.message or 'Could not verify loaded cargo.', 'error')
-        return
+        if fromReceiver then
+            DispatchChatter(('Manifest verification failed. %s'):format(result and result.message or 'Dispatch could not clear the load.'), 'error', 'alert')
+        end
+        return false
     end
 
     activeContract.verifiedCargo = true
@@ -879,18 +1815,20 @@ local function VerifyLoadedCargo()
     end
 
     Notify('Cargo verified. Delivery route started.', 'success')
+    DispatchChatter(fromReceiver and 'Dispatch verified manifest. Route confirmed. GPS activated.' or 'Cargo seal verified. Receiver has been notified of your departure.', 'inform', 'secure')
     UpdateMiniUI()
+    return true
 end
 
 local function GrabCargoFromVehicle()
     if not activeContract then return end
     if not IsCargoDoorOpen() then Notify('Open the vehicle trunk or rear cargo door before grabbing cargo.', 'error') return end
     if carryingCargo then Notify('You are already carrying cargo.', 'error') return end
-    if not Progress('Grabbing cargo from open trunk...', Config.Progress.grabCargo, { dict = 'anim@heists@box_carry@', clip = 'idle' }) then return end
+    if not Progress('Reaching into open trunk...', Config.Progress.grabCargo, { dict = 'pickup_object', clip = 'pickup_low' }) then return end
     local result = lib.callback.await('ls_trucking:server:grabCargoFromVehicle', false)
     if not result or not result.success then Notify(result and result.message or 'Could not grab cargo.', 'error') return end
     activeContract.currentCarryCargoType = result.cargoType
-    CarryCargoProp(activeContract.type, result.cargoType)
+    PlayCargoPickupTransition(activeContract.type, result.cargoType)
     activeContract.notice = 'Carry the package to the current dropoff target.'
     Notify(('Grabbed %s. Take it to the dropoff target.'):format(result.label), 'success')
     UpdateMiniUI()
@@ -900,6 +1838,7 @@ end
 local function GetChecklistStatusText()
     local checklist = activeContract.loadChecklist or { truckSecure = false, trailerSecure = false }
     local trailerLabel = activeContract.trailerLabel or 'Assigned Trailer'
+    local receiverMode = (Config.LoadVerificationMode or 'receiver') == 'receiver'
 
     local truckStatus = checklist.truckSecure and 'Complete' or 'Pending'
     local trailerStatus = checklist.trailerSecure and 'Complete' or 'Pending'
@@ -916,7 +1855,7 @@ local function GetChecklistStatusText()
         '**Required Steps**',
         '1. Target the rear of the truck and secure the load connection.',
         '2. Target the rear of the trailer and confirm the load is secure.',
-        '3. Return to the rear of the truck and complete the checklist.'
+        receiverMode and '3. Submit the completed checklist to dispatch.' or '3. Return to the rear of the truck and complete the checklist.'
     }, '\n\n')
 end
 
@@ -929,13 +1868,18 @@ local function ShowTrailerLoadChecklist()
     ShowFreightDialog('Trailer Load Checklist', GetChecklistStatusText(), 'Close Checklist')
 end
 
-local function SecureTruckLoadConnection()
+local AddTrailerLoadTarget
+
+local function SecureTruckLoadConnection(fromReceiver)
+    fromReceiver = fromReceiver == true
     if not activeContract or activeContract.type ~= 'trailer' then
         Notify('You do not have a trailer hauling contract.', 'error')
         return
     end
 
-    if activeContract.trailerHooked then
+    local reconnecting = activeContract.trailerHooked == true and activeContract.trailerConnectionLost == true
+
+    if activeContract.trailerHooked and not reconnecting then
         Notify('This trailer load is already cleared for delivery.', 'inform')
         return
     end
@@ -952,24 +1896,50 @@ local function SecureTruckLoadConnection()
         return
     end
 
-    if not Progress('Securing truck load connection...', Config.Progress.secureTruckLoad or 3000, {
-        dict = 'mini@repair',
-        clip = 'fixing_a_ped'
-    }) then
-        return
+    if fromReceiver then
+        DispatchChatter('Running air and electrical connection check. Hold for telemetry.', 'inform', 'trailerConnect')
+        local exchange = Config.DispatchExchange or {}
+        if exchange.Enabled ~= false then
+            Wait(math.max(0, tonumber(exchange.ChecklistStepDelay) or 700))
+        end
+    elseif not Progress('Securing truck load connection...', Config.Progress.secureTruckLoad or 3000, {
+            dict = 'mini@repair',
+            clip = 'fixing_a_ped'
+        }) then
+        return false
     end
 
     activeContract.loadChecklist.truckSecure = true
-    PlayUISound('secure')
+    PlayUISound('trailerConnect')
+
+    if reconnecting then
+        activeContract.trailerConnectionLost = false
+        activeContract.trailerAttached = true
+        activeContract.loaded = true
+        activeContract.stage = 'Deliver trailer'
+        activeContract.notice = (Config.TrailerDropMarker or {}).Enabled ~= false
+            and 'Trailer connection re-secured. Place the trailer inside the receiving marker, detach it, and wait for yard acceptance.'
+            or 'Trailer connection re-secured. Drive to the receiving yard and detach the trailer in the drop zone.'
+        SetActiveDestination(activeContract.trailerDrop.label, activeContract.trailerDrop.coords)
+        Notify('Trailer connection re-secured. Route clearance restored.', 'success')
+        DispatchChatter('Secure attachment verified. Trailer route clearance restored.', 'success', 'secure')
+        UpdateMiniUI()
+        return true
+    end
+
     activeContract.stage = 'Complete load checklist'
-    activeContract.notice = 'Truck connection secured. Now target the rear of the trailer and confirm the load is secure.'
+    activeContract.notice = 'Truck connection secured. Target the rear of the trailer and confirm the load is secure.'
     SetActiveDestination('Rear of trailer')
+    AddTrailerLoadTarget()
 
     Notify('Truck connection secured.', 'success')
+    if fromReceiver then DispatchChatter('Connection telemetry confirmed. Air and electrical lines are secure.', 'success', 'secure') end
     UpdateMiniUI()
+    return true
 end
 
-local function SecureTrailerLoad()
+local function SecureTrailerLoad(fromReceiver)
+    fromReceiver = fromReceiver == true
     if not activeContract or activeContract.type ~= 'trailer' then
         Notify('You do not have a trailer hauling contract.', 'error')
         return
@@ -992,24 +1962,38 @@ local function SecureTrailerLoad()
         return
     end
 
-    if not Progress('Confirming trailer load secure...', Config.Progress.secureTrailerLoad or 3000, {
-        dict = 'mini@repair',
-        clip = 'fixing_a_ped'
-    }) then
-        return
+    if fromReceiver then
+        DispatchChatter('Checking trailer load security and stability sensors.', 'inform', 'secure')
+        local exchange = Config.DispatchExchange or {}
+        if exchange.Enabled ~= false then
+            Wait(math.max(0, tonumber(exchange.ChecklistStepDelay) or 700))
+        end
+    elseif not Progress('Confirming trailer load secure...', Config.Progress.secureTrailerLoad or 3000, {
+            dict = 'mini@repair',
+            clip = 'fixing_a_ped'
+        }) then
+        return false
     end
 
     activeContract.loadChecklist.trailerSecure = true
     PlayUISound('secure')
     activeContract.stage = 'Complete load checklist'
-    activeContract.notice = 'Trailer load confirmed secure. Return to the rear of the truck to complete the load checklist.'
-    SetActiveDestination('Rear of truck')
+    if (Config.LoadVerificationMode or 'receiver') == 'receiver' then
+        activeContract.notice = 'Trailer load confirmed secure. Submit the completed checklist from the receiver Load page.'
+        SetActiveDestination('Submit load checklist')
+    else
+        activeContract.notice = 'Trailer load confirmed secure. Return to the rear of the truck to complete the load checklist.'
+        SetActiveDestination('Rear of truck')
+    end
 
     Notify('Trailer load confirmed secure.', 'success')
+    if fromReceiver then DispatchChatter('Trailer load security confirmed. Checklist is ready for dispatch submission.', 'success', 'secure') end
     UpdateMiniUI()
+    return true
 end
 
-local function CompleteTrailerLoadChecklist()
+local function CompleteTrailerLoadChecklist(fromReceiver)
+    fromReceiver = fromReceiver == true
     if not activeContract or activeContract.type ~= 'trailer' then
         Notify('You do not have a trailer hauling contract.', 'error')
         return
@@ -1033,44 +2017,60 @@ local function CompleteTrailerLoadChecklist()
         return
     end
 
-    local confirmed = ShowFreightConfirm(
-        'Complete Load Checklist',
-        GetChecklistStatusText() .. '\n\nConfirm this load is secured and ready for dispatch?',
-        'Confirm Dispatch',
-        'Go Back'
-    )
+    if fromReceiver then
+        DispatchChatter('Submitting completed trailer load checklist to dispatch. Awaiting route clearance.', 'inform', 'secure', { direction = 'tx' })
+        local exchange = Config.DispatchExchange or {}
+        if exchange.Enabled ~= false then
+            Wait(math.max(0, tonumber(exchange.RequestDelay) or 1250))
+        end
+    else
+        local confirmed = ShowFreightConfirm(
+            'Complete Load Checklist',
+            GetChecklistStatusText() .. '\n\nConfirm this load is secured and ready for dispatch?',
+            'Confirm Dispatch',
+            'Go Back'
+        )
 
-    if not confirmed then return end
+        if not confirmed then return false end
 
-    if not Progress('Submitting load checklist...', Config.Progress.completeLoadChecklist or 2500, {
-        dict = 'missheistdockssetup1clipboard@base',
-        clip = 'base'
-    }, {
-        model = `p_amb_clipboard_01`,
-        bone = 18905,
-        pos = vec3(0.10, 0.02, 0.08),
-        rot = vec3(-80.0, 0.0, 0.0)
-    }) then
-        return
+        if not Progress('Submitting load checklist...', Config.Progress.completeLoadChecklist or 2500, {
+                dict = 'missheistdockssetup1clipboard@base',
+                clip = 'base'
+            }, {
+                model = `p_amb_clipboard_01`,
+                bone = 18905,
+                pos = vec3(0.10, 0.02, 0.08),
+                rot = vec3(-80.0, 0.0, 0.0)
+            }) then
+            return false
+        end
     end
 
     local result = lib.callback.await('ls_trucking:server:markTrailerHooked', false)
     if not result or not result.success then
         Notify(result and result.message or 'Could not clear trailer load for dispatch.', 'error')
-        return
+        if fromReceiver then
+            DispatchChatter(('Checklist verification failed. %s'):format(result and result.message or 'Dispatch could not clear the trailer.'), 'error', 'alert')
+        end
+        return false
     end
 
     activeContract.trailerAttached = true
     activeContract.trailerHooked = true
     activeContract.loaded = true
     activeContract.stage = 'Deliver trailer'
-    activeContract.notice = 'Checklist complete. Drive to the receiving yard and detach the trailer in the drop zone.'
+    activeContract.notice = (Config.TrailerDropMarker or {}).Enabled ~= false
+        and 'Checklist complete. Place the trailer inside the receiving marker, detach it, and wait for yard acceptance.'
+        or 'Checklist complete. Drive to the receiving yard and detach the trailer in the drop zone.'
     SetExpectedCompletionTime()
     SetActiveDestination(activeContract.trailerDrop.label, activeContract.trailerDrop.coords)
 
     CreateRouteBlip(activeContract.trailerDrop.coords, activeContract.trailerDrop.label, 'trailer')
+    CreateRouteAreaBlip(activeContract.trailerDrop.coords, activeContract.trailerDrop.radius, 'TrailerDrop')
     Notify('Load checklist complete. Delivery waypoint assigned.', 'success')
+    DispatchChatter(fromReceiver and 'Dispatch verified checklist. Trailer route confirmed. GPS activated.' or 'Checklist received. Trailer load released to receiver.', 'inform', 'secure')
     UpdateMiniUI()
+    return true
 end
 
 local function IsAtRearOfEntity(entity, coords, minRearOffset)
@@ -1086,7 +2086,7 @@ local function AddVehicleCargoTarget()
     if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then return end
     AddTargetEntity(spawnedVehicle, {
         { name = 'ls_trucking_load_cargo_one', label = 'Load Carried Cargo', icon = 'fa-solid fa-box', distance = 3.0, canInteract = function() return activeContract ~= nil and activeContract.type ~= 'trailer' and carryingCargo and not activeContract.loaded and not activeContract.cargoReady end, onSelect = LoadCargoIntoVehicle },
-        { name = 'ls_trucking_verify_loaded_cargo', label = 'Verify Loaded Cargo', icon = 'fa-solid fa-clipboard-check', distance = 3.0, canInteract = function() return activeContract ~= nil and activeContract.type ~= 'trailer' and activeContract.cargoReady and not activeContract.verifiedCargo and not carryingCargo end, onSelect = VerifyLoadedCargo },
+        { name = 'ls_trucking_verify_loaded_cargo', label = 'Verify Loaded Cargo', icon = 'fa-solid fa-clipboard-check', distance = 3.0, canInteract = function() return (Config.LoadVerificationMode or 'receiver') == 'target' and activeContract ~= nil and activeContract.type ~= 'trailer' and activeContract.cargoReady and not activeContract.verifiedCargo and not carryingCargo end, onSelect = VerifyLoadedCargo },
         { name = 'ls_trucking_grab_cargo_one', label = 'Grab Delivery Cargo', icon = 'fa-solid fa-box-open', distance = 3.0, canInteract = function() return activeContract ~= nil and activeContract.loaded and activeContract.verifiedCargo and activeContract.type ~= 'trailer' and not carryingCargo end, onSelect = GrabCargoFromVehicle },
         { name = 'ls_trucking_view_load_checklist', label = 'View Load Checklist', icon = 'fa-solid fa-clipboard-list', distance = 3.0, canInteract = function(entity, distance, coords)
             return activeContract ~= nil
@@ -1099,24 +2099,47 @@ local function AddVehicleCargoTarget()
             return activeContract ~= nil
                 and activeContract.type == 'trailer'
                 and activeContract.trailerAttached
-                and not activeContract.trailerHooked
+                and (not activeContract.trailerHooked or activeContract.trailerConnectionLost)
                 and IsAssignedTrailerAttached()
                 and not (activeContract.loadChecklist and activeContract.loadChecklist.truckSecure)
                 and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
         end, onSelect = SecureTruckLoadConnection },
-        { name = 'ls_trucking_complete_load_checklist', label = 'Complete Load Checklist', icon = 'fa-solid fa-clipboard-check', distance = 3.0, canInteract = function(entity, distance, coords)
+        { name = 'ls_trucking_secure_trailer_load_from_truck', label = 'Confirm Trailer Load Secure', icon = 'fa-solid fa-shield-alt', distance = 3.0, canInteract = function(entity, distance, coords)
+            local checklist = activeContract and activeContract.loadChecklist or {}
+
             return activeContract ~= nil
                 and activeContract.type == 'trailer'
                 and activeContract.trailerAttached
                 and not activeContract.trailerHooked
                 and IsAssignedTrailerAttached()
+                and checklist.truckSecure == true
+                and not checklist.trailerSecure
                 and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
-        end, onSelect = CompleteTrailerLoadChecklist }
+        end, onSelect = SecureTrailerLoad },
+        { name = 'ls_trucking_complete_load_checklist', label = 'Complete Load Checklist', icon = 'fa-solid fa-clipboard-check', distance = 3.0, canInteract = function(entity, distance, coords)
+            return (Config.LoadVerificationMode or 'receiver') == 'target'
+                and activeContract ~= nil
+                and activeContract.type == 'trailer'
+                and activeContract.trailerAttached
+                and not activeContract.trailerHooked
+                and IsAssignedTrailerAttached()
+                and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
+        end, onSelect = CompleteTrailerLoadChecklist },
+        { name = 'ls_trucking_disconnect_contract_trailer', label = 'Disconnect Contract Trailer', icon = 'fa-solid fa-link-slash', distance = 3.0, canInteract = function(entity, distance, coords)
+            return LS_Trucking.TrailerDropMarker
+                and LS_Trucking.TrailerDropMarker.CanDisconnectTrailer
+                and LS_Trucking.TrailerDropMarker.CanDisconnectTrailer()
+                and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
+        end, onSelect = function()
+            if LS_Trucking.TrailerDropMarker and LS_Trucking.TrailerDropMarker.DisconnectTrailer then
+                LS_Trucking.TrailerDropMarker.DisconnectTrailer()
+            end
+        end }
     })
     vehicleTargetAdded = true
 end
 
-local function AddTrailerLoadTarget()
+AddTrailerLoadTarget = function()
     if trailerTargetAdded then return end
     if not spawnedTrailer or not DoesEntityExist(spawnedTrailer) then return end
 
@@ -1133,7 +2156,6 @@ local function AddTrailerLoadTarget()
                     and not activeContract.trailerHooked
                     and IsAssignedTrailerAttached()
                     and not (activeContract.loadChecklist and activeContract.loadChecklist.trailerSecure)
-                    and IsAtRearOfEntity(spawnedTrailer, coords, -1.0)
             end,
             onSelect = SecureTrailerLoad
         }
@@ -1142,124 +2164,69 @@ local function AddTrailerLoadTarget()
     trailerTargetAdded = true
 end
 
-local function GetRandomTrailerSpawn(trailerDepot)
-    local spawns = trailerDepot and trailerDepot.spawns or nil
-
-    if not spawns or #spawns == 0 then
-        local depots = Config.TrailerDepots or {}
-        local depotKey = trailerDepot and trailerDepot.key or 'docks'
-        local depot = depots[depotKey] or depots.docks
-        spawns = depot and depot.spawns or nil
-    end
-
-    if not spawns or #spawns == 0 then
-        return vector4(1244.30, -3184.92, 5.90, 90.0)
-    end
-
-    return spawns[math.random(1, #spawns)]
+if DepotVehicles.ConfigureClient then
+    DepotVehicles.ConfigureClient({
+        Notify = Notify,
+        IsPlayerNearCoords = IsPlayerNearCoords,
+        ForceDepotDistanceNotify = ForceDepotDistanceNotify,
+        RequireNearCoords = RequireNearCoords,
+        VehicleReturnDistance = VEHICLE_RETURN_INTERACTION_DISTANCE,
+        GetActiveContract = function() return activeContract end,
+        GetSpawnedVehicle = function() return spawnedVehicle end,
+        SetSpawnedVehicle = function(value) spawnedVehicle = value end,
+        GetSpawnedTrailer = function() return spawnedTrailer end,
+        SetSpawnedTrailer = function(value) spawnedTrailer = value end,
+        SetSpawnedTrailerStartBody = function(value) spawnedTrailerStartBody = value end,
+        SetTrailerTargetAdded = function(value) trailerTargetAdded = value end,
+        GetGarageVehicle = function() return garageVehicle end,
+        SetGarageVehicle = function(value) garageVehicle = value end,
+        GetReusableVehicle = function() return reusableVehicle end,
+        SetReusableVehicle = function(value) reusableVehicle = value end,
+        GetContractorVehicle = function() return contractorVehicle end,
+        SetContractorVehicle = function(value) contractorVehicle = value end,
+        LoadModel = LoadModel,
+        SetVehicleOptions = SetVehicleOptions,
+        ApplyVehicleProps = ApplyVehicleProps,
+        ApplyVehicleHealthState = ApplyVehicleHealthState,
+        ApplyExtras = ApplyExtras,
+        SetFuel = SetFuel,
+        GiveKeys = GiveKeys,
+        RemoveKeys = RemoveKeys,
+        AddVehicleCargoTarget = AddVehicleCargoTarget,
+        AddTrailerLoadTarget = AddTrailerLoadTarget,
+        GetVehicleProps = GetVehicleProps,
+        CleanupJobVehicle = CleanupJobVehicle,
+        ClearRouteBlip = ClearRouteBlip,
+        RemoveAllZones = RemoveAllZones,
+        Progress = Progress,
+        UpdateMiniUI = UpdateMiniUI
+    })
 end
 
 local function SpawnTrailerOnly(vehicleData, routeTrailer, trailerDepot)
-    CleanupTrailerOnly()
-
-    routeTrailer = routeTrailer or {}
-
-    -- Trailer model comes from the route now. vehicleData is only the truck/tractor.
-    local trailerModelName = routeTrailer.model or vehicleData.trailer
-    local trailerModel = LoadModel(trailerModelName)
-
-    if not trailerModel then return false end
-
-    local s = GetRandomTrailerSpawn(trailerDepot)
-    spawnedTrailer = CreateVehicle(trailerModel, s.x, s.y, s.z, s.w, true, false)
-
-    if routeTrailer.livery ~= nil then
-        SetVehicleLivery(spawnedTrailer, routeTrailer.livery)
-    elseif vehicleData.trailerLivery ~= nil then
-        SetVehicleLivery(spawnedTrailer, vehicleData.trailerLivery)
-    end
-
-    ApplyExtras(spawnedTrailer, routeTrailer.extras or vehicleData.trailerExtras)
-    SetVehicleDirtLevel(spawnedTrailer, 0.0)
-
-    spawnedTrailerStartBody = GetVehicleBodyHealth(spawnedTrailer)
-    if spawnedTrailerStartBody <= 0.0 then spawnedTrailerStartBody = 1000.0 end
-    SetModelAsNoLongerNeeded(trailerModel)
-
-    Wait(250)
-    AddTrailerLoadTarget()
-
-    return true
+    return DepotVehicles.SpawnTrailerOnly and DepotVehicles.SpawnTrailerOnly(vehicleData, routeTrailer, trailerDepot) or false
 end
 
 local function SpawnJobVehicle(data)
-    local contractType, vehicleData, plate = data.contractType, data.vehicle, data.plate
-    local s = Config.Depot.vehicleSpawn
-    if contractType == 'van' or contractType == 'boxtruck' then
-        local model = LoadModel(vehicleData.model)
-        if not model then return false end
-        spawnedVehicle = CreateVehicle(model, s.x, s.y, s.z, s.w, true, false)
-        SetVehicleNumberPlateText(spawnedVehicle, plate)
-        SetVehicleOptions(spawnedVehicle, vehicleData, false)
-        SetFuel(spawnedVehicle, vehicleData.fuel)
-        GiveKeys(spawnedVehicle)
-        SetModelAsNoLongerNeeded(model)
-        Wait(500)
-        AddVehicleCargoTarget()
-        Notify(('Your %s is ready at the depot.'):format(vehicleData.label), 'success')
-        return true
-    elseif contractType == 'trailer' then
-        local model = LoadModel(vehicleData.model or vehicleData.truck)
-        if not model then return false end
-        spawnedVehicle = CreateVehicle(model, s.x, s.y, s.z, s.w, true, false)
-        SetVehicleNumberPlateText(spawnedVehicle, plate)
-        SetVehicleOptions(spawnedVehicle, vehicleData, false)
-        SetFuel(spawnedVehicle, vehicleData.fuel)
-        GiveKeys(spawnedVehicle)
-        SetModelAsNoLongerNeeded(model)
-        if not SpawnTrailerOnly(vehicleData, data.contract and data.contract.routeTrailer, data.contract and data.contract.trailerDepot) then Notify('Unable to spawn trailer.', 'error') return false end
-        Wait(500)
-        AddVehicleCargoTarget()
-        Notify(('Your %s is ready. Trailer is waiting at %s.'):format(vehicleData.label, data.contract and data.contract.trailerDepot and data.contract.trailerDepot.label or 'the trailer yard'), 'success')
-        return true
-    end
-    return false
+    return DepotVehicles.SpawnJobVehicle and DepotVehicles.SpawnJobVehicle(data) or false
 end
 
 local function SpawnGarageVehicle(data)
-    if spawnedVehicle and DoesEntityExist(spawnedVehicle) then Notify('You already have a company vehicle out. Return it first.', 'error') return end
-    local vehicleType, vehicleData, plate = data.vehicleType, data.vehicle, data.plate
-    local s = Config.Depot.garageSpawn
-    local modelName = vehicleData.model or vehicleData.truck
-    local model = LoadModel(modelName)
-    if not model then return end
-    spawnedVehicle = CreateVehicle(model, s.x, s.y, s.z, s.w, true, false)
-    SetVehicleNumberPlateText(spawnedVehicle, plate)
-    SetVehicleOptions(spawnedVehicle, vehicleData, false)
-    ApplyVehicleProps(spawnedVehicle, data.props)
-    SetFuel(spawnedVehicle, vehicleData.fuel)
-    GiveKeys(spawnedVehicle)
-    SetModelAsNoLongerNeeded(model)
-    garageVehicle = { type = vehicleType, index = data.vehicleIndex, plate = plate, label = vehicleData.label, vehicleLabel = vehicleData.label }
-    reusableVehicle = { type = vehicleType, index = data.vehicleIndex, label = vehicleData.label, vehicleLabel = vehicleData.label }
-    AddVehicleCargoTarget()
-    Notify(('Company vehicle spawned: %s. Customize it, use it for jobs, then return it to the dispatcher.'):format(vehicleData.label), 'success')
+    if DepotVehicles.SpawnGarageVehicle then return DepotVehicles.SpawnGarageVehicle(data) == true end
+    return false
+end
+
+local function SpawnContractorVehicle(data)
+    if DepotVehicles.SpawnContractorVehicle then return DepotVehicles.SpawnContractorVehicle(data) == true end
+    return false
 end
 
 local function ReturnCompanyVehicle()
-    if activeContract then Notify('Finish or cancel your active job before returning the vehicle.', 'error') return end
-    if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then Notify('You do not have a company vehicle out.', 'error') return end
-    local garageData = garageVehicle or reusableVehicle
-    if not garageData then Notify('Could not identify this company vehicle.', 'error') return end
-    if not Progress('Returning company vehicle...', Config.Progress.returnVehicle, { dict = 'missheistdockssetup1clipboard@base', clip = 'base' }) then return end
-    local props = GetVehicleProps(spawnedVehicle)
-    local plate = GetVehicleNumberPlateText(spawnedVehicle)
-    local result = lib.callback.await('ls_trucking:server:returnGarageVehicle', false, garageData.type, garageData.index or 1, plate, json.encode(props))
-    if not result or not result.success then Notify(result and result.message or 'Could not return vehicle.', 'error') return end
-    CleanupJobVehicle()
-    ClearRouteBlip()
-    RemoveAllZones()
-    if Config.ReturnVehicleBonusEnabled then TriggerServerEvent('ls_trucking:server:returnVehicleBonus') else Notify('Company vehicle returned and saved.', 'success') end
+    if DepotVehicles.ReturnCompanyVehicle then DepotVehicles.ReturnCompanyVehicle() end
+end
+
+local function StoreContractorVehicle()
+    if DepotVehicles.StoreContractorVehicle then DepotVehicles.StoreContractorVehicle() end
 end
 
 local function SpawnStaticPed(key, pedData)
@@ -1280,11 +2247,11 @@ local function CollectCargoFromPed()
     if not activeContract then Notify('You do not have an active contract.', 'error') return end
     if activeContract.type == 'trailer' then Notify('Trailer hauling does not use cargo boxes.', 'error') return end
     if carryingCargo then Notify('Load the cargo you are carrying before collecting another item.', 'error') return end
-    if not Progress('Collecting route cargo...', Config.Progress.collectCargo, { dict = 'missheistdockssetup1clipboard@base', clip = 'base' }) then return end
+    if not Progress('Receiving route cargo...', Config.Progress.collectCargo, { dict = 'pickup_object', clip = 'pickup_low' }) then return end
     local result = lib.callback.await('ls_trucking:server:pickupCargoOne', false)
     if not result or not result.success then Notify(result and result.message or 'Could not collect cargo.', 'error') return end
     activeContract.currentCarryCargoType = result.cargoType
-    CarryCargoProp(activeContract.type, result.cargoType)
+    PlayCargoPickupTransition(activeContract.type, result.cargoType)
     activeContract.stage = 'Carry cargo to vehicle'
     activeContract.notice = ('Carry this item to your vehicle, open the trunk, and load it. Pickup: %s/%s.'):format(result.pickedUp, result.required)
     SetActiveDestination('Your delivery vehicle')
@@ -1300,6 +2267,11 @@ local function DespawnDeliveredTrailer()
 
     SetTimeout(delay, function()
         if trailer and DoesEntityExist(trailer) then
+            local cargoProps = LS_Trucking and LS_Trucking.TrailerCargoProps or {}
+            if cargoProps.CleanupForTrailer then
+                cargoProps.CleanupForTrailer(trailer)
+            end
+
             DeleteEntity(trailer)
         end
 
@@ -1309,29 +2281,257 @@ local function DespawnDeliveredTrailer()
     end)
 end
 
-local function FinalizeTrailerDelivery()
+local function FinalizeTrailerDelivery(signature)
     if not activeContract or activeContract.type ~= 'trailer' then Notify('You do not have a trailer delivery to finalize.', 'error') return end
     if not activeContract.trailerDropped then Notify('Drop the trailer inside the receiving yard first.', 'error') return end
-    local ok = Progress('Verifying manifest, signing receipt...', Config.Progress.finalizeTrailer, { dict = 'missheistdockssetup1clipboard@base', clip = 'base' }, { model = `p_amb_clipboard_01`, bone = 18905, pos = vec3(0.10, 0.02, 0.08), rot = vec3(-80.0, 0.0, 0.0) })
-    if not ok then return end
+    local ok = Progress('Receiver reviewing signed manifest...', Config.Progress.finalizeTrailer, { dict = 'missheistdockssetup1clipboard@base', clip = 'base' }, { model = `p_amb_clipboard_01`, bone = 18905, pos = vec3(0.10, 0.02, 0.08), rot = vec3(-80.0, 0.0, 0.0) })
+    if not ok then return false end
     local damageData = { startBody = spawnedTrailerStartBody or 1000.0, endBody = 1000.0 }
     if spawnedTrailer and DoesEntityExist(spawnedTrailer) then
         damageData.endBody = GetVehicleBodyHealth(spawnedTrailer)
     end
-    local result = lib.callback.await('ls_trucking:server:finalizeTrailerDelivery', false, damageData)
-    if not result or not result.success then Notify(result and result.message or 'Could not finalize delivery.', 'error') return end
-    Notify('Trailer delivery confirmed. The trailer will be cleared from the yard shortly.', 'success')
+    local result = lib.callback.await('ls_trucking:server:finalizeTrailerDelivery', false, damageData, signature)
+    if not result or not result.success then
+        DispatchChatter(('Receiver rejected the delivery handoff: %s'):format(result and result.message or 'paperwork could not be verified.'), 'error', 'alert', { notify = false, direction = 'rx' })
+        Notify(result and result.message or 'Could not finalize delivery.', 'error')
+        return false
+    end
+
+    if activeContract then activeContract.deliverySignature = result.signature end
+    DispatchChatter(('Receiver signature verified. Contract %s cleared for closeout.'):format(activeContract.contractId), 'success', 'secure', { notify = false, direction = 'rx' })
+    Wait(math.max(350, tonumber((Config.RadioMessageAudio or {}).EndDelay) or 575))
     DespawnDeliveredTrailer()
     CompleteRoute()
+    return true
+end
+
+local function HandlePickupPedInteraction(ped, pedLabel, scenario)
+    if freightHandoffPending then return end
+    if not activeContract then Notify('You do not have an active contract.', 'error') return end
+
+    LS_Trucking.FreightHandoff.PlayPedGreeting(ped, scenario)
+
+    local handoff = Config.FreightHandoff or {}
+    if handoff.Enabled == false or handoff.RequirePickupSignature == false or activeContract.pickupManifestSigned then
+        CollectCargoFromPed()
+        return
+    end
+
+    freightHandoffPending = true
+    local form = ShowFreightHandoff('pickup', pedLabel, LS_Trucking.FreightHandoff.BuildManifest(activeContract, 'pickup', pedLabel))
+    if not form.confirmed then
+        freightHandoffPending = false
+        return
+    end
+
+    local contractId = activeContract and activeContract.contractId
+    DispatchChatter(('Pickup authorization for Contract %s transmitted to %s.'):format(contractId or 'N/A', pedLabel or 'the freight clerk'), 'inform', 'secure', { notify = false, direction = 'tx' })
+    Wait(math.max(0, tonumber(handoff.ResponseDelay) or 900))
+
+    local result = lib.callback.await('ls_trucking:server:authorizePickupHandoff', false, {
+        contractId = form.contractId,
+        signatureAccepted = form.signatureAccepted == true
+    })
+
+    if not result or not result.success then
+        DispatchChatter(('Pickup authorization rejected: %s'):format(result and result.message or 'manifest validation failed.'), 'error', 'alert', { notify = false, direction = 'rx' })
+        Notify(result and result.message or 'Could not authorize cargo pickup.', 'error')
+        freightHandoffPending = false
+        return
+    end
+
+    if activeContract and activeContract.contractId == contractId then
+        activeContract.pickupManifestSigned = true
+        activeContract.pickupSignature = result.signature
+    end
+
+    DispatchChatter(('Dispatch verified Contract %s. Cargo release approved.'):format(contractId or 'N/A'), 'success', 'secure', { notify = false, direction = 'rx' })
+    freightHandoffPending = false
+    Notify('Manifest signed and cargo released. Target the freight clerk again to collect the next route item.', 'success')
+    UpdateMiniUI()
+end
+
+local function HandleReceiverPedInteraction(ped, pedLabel, scenario)
+    if freightHandoffPending then return end
+    if not activeContract or activeContract.type ~= 'trailer' then Notify('You do not have a trailer delivery to finalize.', 'error') return end
+
+    LS_Trucking.FreightHandoff.PlayPedGreeting(ped, scenario)
+
+    local handoff = Config.FreightHandoff or {}
+    if handoff.Enabled == false or handoff.RequireTrailerSignature == false then
+        FinalizeTrailerDelivery()
+        return
+    end
+
+    freightHandoffPending = true
+    local form = ShowFreightHandoff('trailer', pedLabel, LS_Trucking.FreightHandoff.BuildManifest(activeContract, 'trailer', pedLabel))
+    if not form.confirmed then
+        freightHandoffPending = false
+        return
+    end
+
+    local contractId = activeContract and activeContract.contractId
+    DispatchChatter(('Proof of delivery for Contract %s transmitted from %s.'):format(contractId or 'N/A', pedLabel or 'the receiving clerk'), 'inform', 'secure', { notify = false, direction = 'tx' })
+    Wait(math.max(0, tonumber(handoff.ResponseDelay) or 900))
+
+    local success = FinalizeTrailerDelivery({
+        contractId = form.contractId,
+        signatureAccepted = form.signatureAccepted == true
+    })
+    freightHandoffPending = false
+    return success
 end
 
 local function AddPickupPedTarget(ped, contractType)
-    AddTargetEntity(ped, { { name = ('ls_trucking_collect_cargo_%s'):format(contractType), label = 'Collect Route Cargo', icon = 'fa-solid fa-box', distance = Config.TargetDistance, canInteract = function() return activeContract ~= nil and activeContract.type == contractType and activeContract.type ~= 'trailer' and not activeContract.loaded end, onSelect = CollectCargoFromPed } })
+    local pedData = Config.Contracts and Config.Contracts[contractType] and Config.Contracts[contractType].pickupPed or {}
+    local pedLabel = pedData.label or 'Pickup Worker'
+    local handoff = Config.FreightHandoff or {}
+    local handoffRequired = handoff.Enabled ~= false and handoff.RequirePickupSignature ~= false
+    local pickupLabel = contractType == 'boxtruck' and 'Pick Up Route Crate' or 'Pick Up Route Package'
+
+    AddTargetEntity(ped, {
+        {
+            name = ('ls_trucking_talk_pickup_%s'):format(contractType),
+            label = ('Talk to %s'):format(pedLabel),
+            icon = 'fa-solid fa-comments',
+            distance = Config.TargetDistance,
+            canInteract = function()
+                return handoffRequired and activeContract ~= nil and activeContract.type == contractType and not activeContract.loaded and not activeContract.pickupManifestSigned
+            end,
+            onSelect = function()
+                HandlePickupPedInteraction(ped, pedLabel, pedData.scenario)
+            end
+        },
+        {
+            name = ('ls_trucking_collect_cargo_%s'):format(contractType),
+            label = pickupLabel,
+            icon = 'fa-solid fa-box',
+            distance = Config.TargetDistance,
+            canInteract = function()
+                return activeContract ~= nil
+                    and activeContract.type == contractType
+                    and not activeContract.loaded
+                    and (not handoffRequired or activeContract.pickupManifestSigned == true)
+            end,
+            onSelect = CollectCargoFromPed
+        }
+    })
 end
 
 local function AddReceiverPedTarget(ped, contractType, routeIndex)
-    AddTargetEntity(ped, { { name = ('ls_trucking_finalize_trailer_%s_%s'):format(contractType, routeIndex), label = 'Finalize Trailer Delivery', icon = 'fa-solid fa-clipboard-check', distance = Config.TargetDistance, canInteract = function() return activeContract ~= nil and activeContract.type == contractType and activeContract.routeIndex == routeIndex and activeContract.trailerDropped end, onSelect = FinalizeTrailerDelivery } })
+    local pedLabel = activeContract and activeContract.receiverPed and activeContract.receiverPed.label or 'Receiving Clerk'
+    AddTargetEntity(ped, { { name = ('ls_trucking_finalize_trailer_%s_%s'):format(contractType, routeIndex), label = ('Talk to %s'):format(pedLabel), icon = 'fa-solid fa-comments', distance = Config.TargetDistance, canInteract = function() return activeContract ~= nil and activeContract.type == contractType and activeContract.routeIndex == routeIndex and activeContract.trailerDropped end, onSelect = function() HandleReceiverPedInteraction(ped, pedLabel, activeContract and activeContract.receiverPed and activeContract.receiverPed.scenario) end } })
 end
+
+local function CleanupActiveContractPeds(delay)
+    local pedsToClean = {}
+
+    for key, ped in pairs(activeContractPedKeys) do
+        pedsToClean[key] = ped
+    end
+
+    if not next(pedsToClean) then return end
+
+    local function removePeds()
+        for key, ped in pairs(pedsToClean) do
+            if ped and DoesEntityExist(ped) then
+                if GetTargetSystem() == 'qb' then
+                    pcall(function() exports['qb-target']:RemoveTargetEntity(ped) end)
+                else
+                    pcall(function() exports.ox_target:removeLocalEntity(ped) end)
+                end
+                DeleteEntity(ped)
+            end
+            LS_Trucking.FreightHandoff.ClearPed(ped)
+
+            if spawnedPeds[key] == ped then
+                spawnedPeds[key] = nil
+            end
+
+            if activeContractPedKeys[key] == ped then
+                activeContractPedKeys[key] = nil
+            end
+        end
+    end
+
+    LS_Trucking.ActivePedCleanupToken = (LS_Trucking.ActivePedCleanupToken or 0) + 1
+    local cleanupToken = LS_Trucking.ActivePedCleanupToken
+
+    if delay then
+        LS_Trucking.ActivePedCleanupPending = true
+        local cleanupDelay = type(delay) == 'number' and delay or (tonumber(Config.TrailerDespawnAfterDelivery) or 10000)
+        SetTimeout(cleanupDelay, function()
+            if cleanupToken ~= LS_Trucking.ActivePedCleanupToken then return end
+            removePeds()
+            LS_Trucking.ActivePedCleanupPending = false
+        end)
+    else
+        LS_Trucking.ActivePedCleanupPending = false
+        removePeds()
+    end
+end
+
+local function SetupActiveContractPeds()
+    if not activeContract or not Config.UsePed then
+        if next(activeContractPedKeys) and LS_Trucking.ActivePedCleanupPending ~= true then CleanupActiveContractPeds() end
+        return
+    end
+
+    if LS_Trucking.ActivePedCleanupPending == true then
+        LS_Trucking.ActivePedCleanupToken = (LS_Trucking.ActivePedCleanupToken or 0) + 1
+        LS_Trucking.ActivePedCleanupPending = false
+    end
+
+    local key, pedData
+    if activeContract.type == 'van' or activeContract.type == 'boxtruck' then
+        local contract = Config.Contracts and Config.Contracts[activeContract.type]
+        if contract and contract.pickupPed then
+            key = ('active_pickup_%s'):format(activeContract.type)
+            pedData = contract.pickupPed
+        end
+    elseif activeContract.type == 'trailer' and activeContract.receiverPed then
+        key = ('active_receiver_%s_%s'):format(activeContract.type, activeContract.routeIndex or 1)
+        pedData = activeContract.receiverPed
+    end
+
+    if not key or not pedData or not pedData.coords then
+        if next(activeContractPedKeys) then CleanupActiveContractPeds() end
+        return
+    end
+
+    if not activeContractPedKeys[key] and next(activeContractPedKeys) then
+        CleanupActiveContractPeds()
+    end
+
+    local pedConfig = Config.ActiveContractPeds or {}
+    local playerCoords = GetEntityCoords(PlayerPedId())
+    local pedCoords = vector3(pedData.coords.x, pedData.coords.y, pedData.coords.z)
+    local distance = #(playerCoords - pedCoords)
+    local existingPed = activeContractPedKeys[key]
+
+    if distance <= math.max(10.0, tonumber(pedConfig.SpawnDistance) or 100.0) then
+        if existingPed and DoesEntityExist(existingPed) then return end
+
+        local ped = SpawnStaticPed(key, pedData)
+        if ped then
+            activeContractPedKeys[key] = ped
+            if activeContract.type == 'trailer' then
+                AddReceiverPedTarget(ped, activeContract.type, activeContract.routeIndex or 1)
+            else
+                AddPickupPedTarget(ped, activeContract.type)
+            end
+        end
+    elseif existingPed and distance >= math.max(15.0, tonumber(pedConfig.DespawnDistance) or 130.0) then
+        CleanupActiveContractPeds()
+    end
+end
+
+CreateThread(function()
+    while true do
+        SetupActiveContractPeds()
+        Wait(math.max(250, tonumber((Config.ActiveContractPeds or {}).CheckInterval) or 750))
+    end
+end)
 
 local function SetupRouteTargets()
     RemoveAllZones()
@@ -1340,10 +2540,10 @@ local function SetupRouteTargets()
         for index, stop in ipairs(activeContract.dropoffs or {}) do
             AddSphereZone(('dropoff_%s'):format(index), stop.coords, 2.0, { { name = ('ls_trucking_dropoff_%s'):format(index), label = ('Deliver Cargo - %s'):format(stop.label), icon = 'fa-solid fa-box-open', distance = 2.5, canInteract = function() return activeContract and activeContract.loaded and activeContract.currentStop == index and carryingCargo end, onSelect = function()
                 if not activeContract or activeContract.currentStop ~= index then return end
-                if not Progress('Delivering cargo...', Config.Progress.deliverCargo, { dict = 'pickup_object', clip = 'pickup_low' }) then return end
+                if not Progress('Checking delivery spot...', Config.Progress.deliverCargo, { dict = 'anim@heists@box_carry@', clip = 'idle' }) then return end
                 local result = lib.callback.await('ls_trucking:server:deliverCargoOne', false)
                 if not result or not result.success then Notify(result and result.message or 'Could not deliver cargo.', 'error') return end
-                DeleteCarryProp()
+                PlayCargoSetDownTransition()
                 activeContract.loadedCargo = result.loaded
                 activeContract.currentStop = result.currentStop
                 if result.routeComplete then
@@ -1355,6 +2555,7 @@ local function SetupRouteTargets()
                         activeContract.notice = 'Stop complete. Drive to the next stop, open your trunk, and grab another item.'
                         CreateRouteBlip(currentStop.coords, currentStop.label, GetCargoDeliveryBlipType(activeContract.type))
                         Notify(('Stop complete. Continue to stop %s/%s.'):format(activeContract.currentStop, activeContract.totalStops), 'success')
+                        DispatchChatter(('Stop complete. Proceed to stop %s of %s.'):format(activeContract.currentStop, activeContract.totalStops), 'inform', 'destination')
                     else
                         SetActiveDestination(currentStop.label, currentStop.coords)
                         activeContract.notice = ('This stop still needs %s more item(s). Open your trunk and grab another.'):format(result.requiredAtStop - result.deliveredAtStop)
@@ -1364,7 +2565,7 @@ local function SetupRouteTargets()
                 UpdateMiniUI()
             end } })
         end
-    elseif activeContract.type == 'trailer' then
+    elseif activeContract.type == 'trailer' and (Config.TrailerDropMarker or {}).Enabled == false then
         AddSphereZone('trailer_drop', activeContract.trailerDrop.coords, activeContract.trailerDrop.radius or 18.0, { { name = 'ls_trucking_confirm_trailer_drop', label = 'Confirm Trailer Dropped In Yard', icon = 'fa-solid fa-warehouse', distance = 3.5, canInteract = function() return activeContract and activeContract.type == 'trailer' and activeContract.trailerHooked and not activeContract.trailerDropped end, onSelect = function()
             if IsAssignedTrailerAttached() then Notify('Detach the trailer inside the receiving yard first.', 'error') return end
             if not Progress('Confirming trailer drop in yard...', Config.Progress.confirmTrailerDrop or 2500, {
@@ -1376,141 +2577,114 @@ local function SetupRouteTargets()
                 pos = vec3(0.10, 0.02, 0.08),
                 rot = vec3(-80.0, 0.0, 0.0)
             }) then return end
+            local result = lib.callback.await('ls_trucking:server:confirmTrailerDropped', false)
+            if not result or not result.success then Notify(result and result.message or 'Could not confirm trailer drop.', 'error') return end
             activeContract.trailerDropped = true
             activeContract.stage = 'Talk to receiver'
             activeContract.notice = 'Talk to the receiving yard worker to finalize the trailer delivery.'
             SetActiveDestination(activeContract.receiverPed.label, vector3(activeContract.receiverPed.coords.x, activeContract.receiverPed.coords.y, activeContract.receiverPed.coords.z))
             CreateRouteBlip(vector3(activeContract.receiverPed.coords.x, activeContract.receiverPed.coords.y, activeContract.receiverPed.coords.z), activeContract.receiverPed.label, 'receiver')
             Notify('Trailer drop confirmed. Talk to the receiver to finalize.', 'success')
+            DispatchChatter('Trailer drop confirmed. Receiver paperwork is ready for signature.', 'inform', 'secure')
             UpdateMiniUI()
         end } })
     end
 end
 
+if LS_Trucking.TrailerDropMarker and LS_Trucking.TrailerDropMarker.ConfigureClient then
+    LS_Trucking.TrailerDropMarker.ConfigureClient({
+        GetActiveContract = function() return activeContract end,
+        GetSpawnedVehicle = function() return spawnedVehicle end,
+        GetSpawnedTrailer = function() return spawnedTrailer end,
+        IsAssignedTrailerAttached = IsAssignedTrailerAttached,
+        SetActiveDestination = SetActiveDestination,
+        CreateRouteBlip = CreateRouteBlip,
+        Notify = Notify,
+        DispatchChatter = DispatchChatter,
+        UpdateMiniUI = UpdateMiniUI
+    })
+end
+
+if Routes.ConfigureClient then
+    Routes.ConfigureClient({
+        Notify = Notify,
+        ShowFreightCancelDialog = ShowFreightCancelDialog,
+        GetActiveContract = function() return activeContract end,
+        SetActiveContract = function(value) activeContract = value end,
+        GetGarageVehicle = function() return garageVehicle end,
+        SetGarageVehicle = function(value) garageVehicle = value end,
+        SetReusableVehicle = function(value) reusableVehicle = value end,
+        SetReceiverDockUserHidden = function(value) receiverDockUserHidden = value end,
+        SetLastCompletedCargoCondition = function(value) lastCompletedCargoCondition = value end,
+        CanReuseVehicle = CanReuseVehicle,
+        SpawnTrailerOnly = SpawnTrailerOnly,
+        SpawnJobVehicle = SpawnJobVehicle,
+        CleanupJobVehicle = CleanupJobVehicle,
+        AddVehicleCargoTarget = AddVehicleCargoTarget,
+        ResetCargoCondition = ResetCargoCondition,
+        SetupActiveContractPeds = SetupActiveContractPeds,
+        SetupRouteTargets = SetupRouteTargets,
+        RegisterAssignedTrailer = function(contractId)
+            if spawnedTrailer and DoesEntityExist(spawnedTrailer) then
+                TriggerServerEvent('ls_trucking:server:registerAssignedTrailer', contractId, NetworkGetNetworkIdFromEntity(spawnedTrailer))
+            end
+        end,
+        CleanupActiveContractPeds = CleanupActiveContractPeds,
+        SetActiveDestination = SetActiveDestination,
+        CreateRouteBlip = CreateRouteBlip,
+        CreateRouteAreaBlip = CreateRouteAreaBlip,
+        ClearRouteBlip = ClearRouteBlip,
+        RemoveAllZones = RemoveAllZones,
+        DeleteCarryProp = DeleteCarryProp,
+        DispatchChatter = DispatchChatter,
+        UpdateMiniUI = UpdateMiniUI,
+        CleanupPendingContractStart = function()
+            return lib.callback.await('ls_trucking:server:cleanupPendingContractStart', false)
+        end
+    })
+end
+
 function CompleteRoute()
-    if not activeContract then return end
-    TriggerServerEvent('ls_trucking:server:routeComplete', activeContract.contractId)
-    reusableVehicle = { type = activeContract.type, index = activeContract.vehicleIndex or (garageVehicle and garageVehicle.index) or 1, label = activeContract.priorityLabel and (activeContract.priorityLabel .. ' - ' .. activeContract.label) or activeContract.label, vehicleLabel = activeContract.vehicleLabel }
-    activeContract.stage = 'Route complete'
-    activeContract.notice = 'Return the vehicle to the dispatcher or start another job with the same vehicle.'
-    SetActiveDestination('Return vehicle or start another job', Config.Depot.vehicleReturn)
-    UpdateMiniUI()
-    ClearRouteBlip()
-    RemoveAllZones()
-    CreateRouteBlip(Config.Depot.vehicleReturn, 'Return Vehicle - LS Freight Dispatcher', 'return')
-    activeContract = nil
-    SetTimeout(2500, HideMiniUI)
-end
-
-local function BuildCancelReasonOptions()
-    local options = {}
-    local reasons = Config.CancelPenalty and Config.CancelPenalty.Reasons or nil
-
-    if reasons and #reasons > 0 then
-        for _, reason in ipairs(reasons) do
-            options[#options + 1] = {
-                value = reason.value or reason.label,
-                label = reason.label or reason.value
-            }
-        end
-    else
-        options = {
-            { value = 'vehicle_damaged', label = 'Vehicle / trailer damaged' },
-            { value = 'wrong_vehicle', label = 'Wrong vehicle selected' },
-            { value = 'route_issue', label = 'Route issue / blocked destination' },
-            { value = 'out_of_time', label = 'Out of time' },
-            { value = 'player_choice', label = 'Changed my mind' },
-            { value = 'other', label = 'Other' }
-        }
-    end
-
-    return options
-end
-
-local function GetCancelReasonLabel(value)
-    for _, option in ipairs(BuildCancelReasonOptions()) do
-        if option.value == value then
-            return option.label
-        end
-    end
-
-    return tostring(value or 'Not specified')
-end
-
-local function ConfirmCancelContract()
-    local repLoss = 0
-
-    if Config.CancelPenalty and Config.CancelPenalty.Enabled then
-        repLoss = tonumber(Config.CancelPenalty.ReputationLoss) or 0
-    end
-
-    return ShowFreightCancelDialog(repLoss, BuildCancelReasonOptions())
+    if Routes.CompleteRoute then Routes.CompleteRoute() end
 end
 
 local function CancelActiveContract()
-    if not activeContract then Notify('You do not have an active contract.', 'error') return end
+    if Routes.CancelActiveContract then Routes.CancelActiveContract() end
+end
 
-    local reason = ConfirmCancelContract()
-    if not reason then
-        Notify('Route cancellation aborted.', 'inform')
+local function CancelActiveContractFromReceiver()
+    return Routes.CancelActiveContract and Routes.CancelActiveContract({ fromReceiver = true }) or false
+end
+
+local function CleanupFailedLocalRouteStart(data, reuseVehicle)
+    lib.callback.await('ls_trucking:server:cleanupPendingContractStart', false)
+
+    if data and data.contractor == true and reuseVehicle == true then
+        if data.contractType == 'trailer' then CleanupTrailerOnly() end
         return
     end
 
-    TriggerServerEvent('ls_trucking:server:cancelContract', GetCancelReasonLabel(reason))
-    ClearRouteBlip()
-    RemoveAllZones()
-    DeleteCarryProp()
-    activeContract = nil
-    UpdateMiniUI()
-end
-
-local function GetTrailerHookStage(routeTrailer)
-    if routeTrailer and routeTrailer.label then
-        return ('Hook up %s'):format(routeTrailer.label)
-    end
-
-    if routeTrailer and routeTrailer.model then
-        return ('Hook up %s'):format(routeTrailer.model)
-    end
-
-    return 'Hook up trailer'
+    CleanupJobVehicle()
 end
 
 local function StartLocalContract(data, reuseVehicle)
-    local contract, contractType = data.contract, data.contractType
-    local vehicleLabel = data.vehicle and data.vehicle.label or 'Company Vehicle'
-    local trailerHookStage = GetTrailerHookStage(contract.routeTrailer)
-    if reuseVehicle then
-        if not CanReuseVehicle(contractType) then Notify('You cannot reuse your current vehicle for this contract.', 'error') TriggerServerEvent('ls_trucking:server:cancelContract', '__system_cleanup') return end
-        ClearRouteBlip()
-        if contractType == 'trailer' then
-            if not SpawnTrailerOnly(data.vehicle, contract.routeTrailer, contract.trailerDepot) then Notify('Unable to spawn new trailer.', 'error') TriggerServerEvent('ls_trucking:server:cancelContract', '__system_cleanup') return end
-        else
-            AddVehicleCargoTarget()
+    if Routes.StartLocalContract then
+        local ok, started = pcall(Routes.StartLocalContract, data, reuseVehicle)
+
+        if not ok then
+            if Config.Debug then
+                print(('[ls_trucking] Client route start failed: %s'):format(started))
+            end
+
+            CleanupFailedLocalRouteStart(data, reuseVehicle)
+            Notify('Unable to start the route locally. Dispatch released the pending contract.', 'error')
+            return false
         end
-        Notify(('New route assigned using your current %s.'):format(vehicleLabel), 'success')
-    else
-        if Config.DeleteOldVehicleOnNewContract then CleanupJobVehicle() end
-        if not SpawnJobVehicle(data) then Notify('Unable to spawn selected job vehicle.', 'error') TriggerServerEvent('ls_trucking:server:cancelContract', '__system_cleanup') return end
-        garageVehicle = { type = contractType, index = data.vehicleIndex, plate = data.plate, label = vehicleLabel, vehicleLabel = vehicleLabel }
+
+        return started == true
     end
-    reusableVehicle = nil
-    local notice = 'Go to the pickup worker. Collect one item, carry it to your vehicle, open the trunk, and load it.'
-    local destination = contract.pickup.label
-    local loaded, loadedCargo = false, 0
-    if contractType == 'trailer' then
-        notice = ('Drive to %s and hook up the assigned trailer: %s. After hooking up, complete the load checklist to start the route.'):format(contract.trailerDepot and contract.trailerDepot.label or 'the trailer yard', trailerHookStage:gsub('^Hook up%s+', ''))
-        loadedCargo = 1
-    end
-    activeContract = { contractId = data.contractId, type = contractType, label = contract.label, priorityLabel = contract.priorityLabel, routeLabel = contract.routeLabel, routeLength = contract.routeLength, routeIndex = data.routeIndex, cargo = contract.cargo, payout = data.payout, plate = data.plate, vehicleIndex = data.vehicleIndex, stage = contractType == 'trailer' and trailerHookStage or 'Talk to pickup worker', notice = notice, pickup = contract.pickup, dropoffs = contract.dropoffs, trailerDrop = contract.trailerDrop, receiverPed = contract.receiverPed, currentStop = 0, totalStops = contract.dropoffs and #contract.dropoffs or 1, loaded = loaded, loadedCargo = loadedCargo, requiredCargo = contract.requiredCargo or 1, destination = destination, vehicleLabel = vehicleLabel, trailerAttached = false, trailerHooked = false, trailerDropped = false, loadChecklist = { truckSecure = false, trailerSecure = false }, estimatedSeconds = contract.estimatedSeconds, estimatedTime = contract.estimatedTime, randomEvent = contract.randomEvent, routeTrailer = contract.routeTrailer, trailerDepot = contract.trailerDepot, trailerLabel = contract.routeTrailer and contract.routeTrailer.label or nil, trailerContents = contract.routeTrailer and contract.routeTrailer.contents or nil, trailerInstructions = contract.routeTrailer and contract.routeTrailer.instructions or nil, safeSpeed = contract.routeTrailer and contract.routeTrailer.safeSpeed or (Config.SpeedRisk and Config.SpeedRisk.DefaultSafeSpeed) or 75.0, cargoType = contract.cargoType, cargoItem = contract.cargoItem, cargoLabel = contract.cargoLabel, cargoConfig = contract.cargoType and Config.CargoTypes and Config.CargoTypes[contract.cargoType] or nil, manifest = contract.manifest, cargoReady = false, verifiedCargo = false }
-    SetActiveDestination(contract.pickup.label, contract.pickup.coords)
-    SetupRouteTargets()
-    CreateRouteBlip(contract.pickup.coords, contract.pickup.label, 'pickup')
-    if contract.randomEvent then
-        Notify(('Dispatch Event: %s - %s'):format(contract.randomEvent.label or 'Route Update', contract.randomEvent.description or 'Route conditions changed.'), 'inform')
-    end
-    UpdateMiniUI()
-    Notify(contractType == 'trailer' and ('Contract accepted. Go to the docks and %s.'):format(trailerHookStage:sub(1, 1):lower() .. trailerHookStage:sub(2)) or 'Contract accepted. Go to the pickup worker to collect route cargo.', 'success')
+
+    return false
 end
 
 
@@ -1533,6 +2707,29 @@ local function ShowActiveManifest()
     AddField('Contract', activeContract.contractId)
     AddField('Route', activeContract.routeLabel)
     AddField('Load Type', activeContract.priorityLabel)
+    AddField('Vehicle', activeContract.vehicleLabel)
+    AddField('Plate', activeContract.plate)
+    AddField('Cargo Condition', activeContract.cargoConditionLabel)
+    AddField('Condition Notes', activeContract.cargoConditionNote)
+    AddField('Last Dispatch', activeContract.radioChatter)
+
+    if activeContract.pickupSignature or activeContract.deliverySignature then
+        lines[#lines + 1] = ''
+        lines[#lines + 1] = 'Handoff Paperwork'
+        lines[#lines + 1] = '-----------------'
+    end
+
+    if activeContract.pickupSignature then
+        AddField('Pickup Signed By', activeContract.pickupSignature.name)
+        AddField('Pickup Signed At', activeContract.pickupSignature.signedAt)
+        AddField('Pickup Location', activeContract.pickupSignature.location)
+    end
+
+    if activeContract.deliverySignature then
+        AddField('Delivery Signed By', activeContract.deliverySignature.name)
+        AddField('Delivery Signed At', activeContract.deliverySignature.signedAt)
+        AddField('Receiver Location', activeContract.deliverySignature.location)
+    end
 
     if activeContract.type == 'trailer' then
         AddField('Pickup Depot', activeContract.trailerDepot and activeContract.trailerDepot.label or 'Trailer Pickup Yard')
@@ -1566,7 +2763,6 @@ local function ShowActiveManifest()
                 groupedStops[stopKey] = {
                     stop = entry.stop or (#orderedStops + 1),
                     receiver = entry.receiver or entry.dropoff or 'Receiver',
-                    dropoff = entry.dropoff or entry.receiver or 'Dropoff',
                     count = 0,
                     cargo = {}
                 }
@@ -1597,38 +2793,445 @@ local function ShowActiveManifest()
             table.sort(cargoParts)
 
             lines[#lines + 1] = ('Stop %s - %s'):format(index, stop.receiver)
-            lines[#lines + 1] = ('  Dropoff: %s'):format(stop.dropoff)
             lines[#lines + 1] = ('  Packages: %s'):format(#cargoParts > 0 and table.concat(cargoParts, ', ') or tostring(stop.count))
         end
     end
 
-    ShowFreightDialog('Delivery Manifest', lines, 'Close Manifest')
+    ShowFreightDialog('Route Manifest / Paperwork', lines, 'Close Manifest')
 end
 
 RegisterNetEvent('ls_trucking:client:openManifest', ShowActiveManifest)
 
-function OpenDispatch()
+local function HandleReceiverVehicleControl(action)
+    return ReceiverVehicleControls.Handle(action, {
+        getVehicle = function()
+            if spawnedVehicle and DoesEntityExist(spawnedVehicle) then return spawnedVehicle end
+            return 0
+        end,
+        notify = Notify,
+        playSound = PlayUISound,
+        updateMiniUI = UpdateMiniUI
+    })
+end
+
+local function DispatchMapCoords(coords)
+    if not coords then return nil end
+
+    return {
+        x = coords.x + 0.0,
+        y = coords.y + 0.0,
+        z = coords.z + 0.0
+    }
+end
+
+local function DispatchMapZone(coords)
+    if not coords then return 'San Andreas' end
+
+    local x = tonumber(coords.x) or 0.0
+    local y = tonumber(coords.y) or 0.0
+
+    if y > 5600 then return 'Paleto Bay / North County' end
+    if y > 2200 then return 'Blaine County' end
+    if y < -2400 then return 'Port of Los Santos' end
+    if x < -1500 then return 'West Coast' end
+    if x > 1200 then return 'East County' end
+    return 'Los Santos'
+end
+
+local function DispatchMapStreetAddress(coords)
+    if not coords then return 'Address unavailable' end
+
+    local streetHash, crossingHash = GetStreetNameAtCoord(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0)
+    local street = streetHash and streetHash ~= 0 and GetStreetNameFromHashKey(streetHash) or nil
+    local crossing = crossingHash and crossingHash ~= 0 and GetStreetNameFromHashKey(crossingHash) or nil
+
+    if street and street ~= '' and crossing and crossing ~= '' and crossing ~= street then
+        return ('%s / %s'):format(street, crossing)
+    end
+
+    if street and street ~= '' then return street end
+
+    return DispatchMapZone(coords)
+end
+
+local function GetDispatchHomeConfig()
+    return Config.DispatchHome or {}
+end
+
+local function DispatchHomePhoto(key)
+    local photos = GetDispatchHomeConfig().Photos or {}
+    local photo = photos[key]
+    if photo and photo ~= '' then return photo end
+
+    return nil
+end
+
+local function DispatchTrailerDepotPhoto(depotKey)
+    local photos = GetDispatchHomeConfig().Photos or {}
+    local depotPhotos = photos.trailerDepots or {}
+    local photo = depotPhotos[depotKey] or photos.trailerDepot
+    if photo and photo ~= '' then return photo end
+
+    return nil
+end
+
+local function AddDispatchMapPoint(points, point)
+    if not point or not point.coords then return end
+
+    point.zone = point.zone or DispatchMapZone(point.coords)
+    point.address = point.address or DispatchMapStreetAddress(point.coords)
+    point.details = point.details or {
+        { icon = 'fa-road', label = 'Street Address', value = point.address },
+        { icon = 'fa-clipboard-check', label = 'Use', value = point.description or 'LSFC operating point.' }
+    }
+
+    points[#points + 1] = point
+end
+
+local function BuildDispatchHomeMapData()
+    local points = {}
+    local depot = Config.Depot or {}
+    local contracts = Config.Contracts or {}
+    local homeConfig = GetDispatchHomeConfig()
+
+    AddDispatchMapPoint(points, {
+        id = 'depot-terminal',
+        category = 'terminal',
+        icon = 'fas fa-tower-broadcast',
+        shortLabel = 'LSFC',
+        label = 'Los Santos Freight Co. Terminal',
+        description = 'Primary dispatch terminal for contracts, route review, vehicle requests, and company paperwork.',
+        coords = DispatchMapCoords(depot.terminal or (Config.DispatchBlip and Config.DispatchBlip.coords)),
+        photo = DispatchHomePhoto('terminal'),
+        details = {
+            { icon = 'fa-file-contract', label = 'Functions', value = 'Dispatch board, current jobs, history, contractor desk' },
+            { icon = 'fa-road', label = 'Street Address', value = DispatchMapStreetAddress(depot.terminal or (Config.DispatchBlip and Config.DispatchBlip.coords)) }
+        }
+    })
+
+    AddDispatchMapPoint(points, {
+        id = 'depot-vehicle-spawn',
+        category = 'vehicle',
+        icon = 'fas fa-truck-fast',
+        shortLabel = 'UNIT',
+        label = 'Company Vehicle Spawn',
+        description = 'Company route vehicles are staged here after contract approval.',
+        coords = DispatchMapCoords(depot.vehicleSpawn),
+        photo = DispatchHomePhoto('vehicleSpawn'),
+        details = {
+            { icon = 'fa-truck-fast', label = 'Functions', value = 'Company contract vehicle pickup' },
+            { icon = 'fa-circle-info', label = 'Spawn Check', value = 'Area must be clear before vehicle release' },
+            { icon = 'fa-road', label = 'Street Address', value = DispatchMapStreetAddress(depot.vehicleSpawn) }
+        }
+    })
+
+    AddDispatchMapPoint(points, {
+        id = 'depot-garage-spawn',
+        category = 'garage',
+        icon = 'fas fa-warehouse',
+        shortLabel = 'GAR',
+        label = 'Garage Vehicle Spawn',
+        description = 'Stored company and contractor units are released from this garage staging area.',
+        coords = DispatchMapCoords(depot.garageSpawn or depot.vehicleSpawn),
+        photo = DispatchHomePhoto('garageSpawn'),
+        details = {
+            { icon = 'fa-warehouse', label = 'Functions', value = 'Company garage and private fleet pickup' },
+            { icon = 'fa-key', label = 'Access', value = 'Assigned vehicle owner receives keys' },
+            { icon = 'fa-road', label = 'Street Address', value = DispatchMapStreetAddress(depot.garageSpawn or depot.vehicleSpawn) }
+        }
+    })
+
+    local pickupTypes = {
+        { type = 'van', category = 'van', label = 'Van Package Pickup', photo = DispatchHomePhoto('vanPickup'), icon = 'fas fa-box', shortLabel = 'VAN' },
+        { type = 'boxtruck', category = 'boxtruck', label = 'Box Truck Freight Pickup', photo = DispatchHomePhoto('boxTruckPickup'), icon = 'fas fa-truck-moving', shortLabel = 'BOX' }
+    }
+
+    for _, pickupType in ipairs(pickupTypes) do
+        local contract = contracts[pickupType.type]
+        local pickup = contract and contract.pickup
+
+        AddDispatchMapPoint(points, {
+            id = ('pickup-%s'):format(pickupType.type),
+            category = pickupType.category,
+            icon = pickupType.icon,
+            shortLabel = pickupType.shortLabel,
+            label = (pickup and pickup.label) or pickupType.label,
+            description = contract and contract.description or 'Freight pickup location.',
+            coords = DispatchMapCoords(pickup and pickup.coords),
+            photo = pickupType.photo,
+            details = {
+                { icon = 'fa-boxes-stacked', label = 'Cargo', value = contract and contract.cargo or 'Cargo' },
+                { icon = 'fa-route', label = 'Route Type', value = contract and contract.label or pickupType.label },
+                { icon = 'fa-road', label = 'Street Address', value = DispatchMapStreetAddress(pickup and pickup.coords) }
+            }
+        })
+    end
+
+    local trailerDepotKeys = {}
+    for key in pairs(Config.TrailerDepots or {}) do trailerDepotKeys[#trailerDepotKeys + 1] = key end
+    table.sort(trailerDepotKeys)
+
+    for _, key in ipairs(trailerDepotKeys) do
+        local trailerDepot = Config.TrailerDepots[key]
+        AddDispatchMapPoint(points, {
+            id = ('trailer-%s'):format(key),
+            category = 'trailer',
+            icon = 'fas fa-trailer',
+            shortLabel = 'TRL',
+            label = trailerDepot.label or 'Trailer Depot',
+            description = 'Trailer hookup yard for assigned trailer haul contracts.',
+            coords = DispatchMapCoords(trailerDepot.pickup),
+            photo = DispatchTrailerDepotPhoto(key),
+            details = {
+                { icon = 'fa-trailer', label = 'Functions', value = 'Trailer pickup, hookup, and yard release' },
+                { icon = 'fa-square-parking', label = 'Spawn Spots', value = tostring(#(trailerDepot.spawns or {})) },
+                { icon = 'fa-road', label = 'Street Address', value = DispatchMapStreetAddress(trailerDepot.pickup) }
+            }
+        })
+    end
+
+    return {
+        points = points,
+        mapImage = homeConfig.MapImage,
+        mapBounds = homeConfig.MapBounds,
+        mapZoom = homeConfig.MapZoom,
+        mapZoomMin = homeConfig.MapZoomMin,
+        mapZoomMax = homeConfig.MapZoomMax,
+        mapZoomStep = homeConfig.MapZoomStep
+    }
+end
+
+local function BuildDispatchUIData()
     local data = lib.callback.await('ls_trucking:server:getDispatchData', false)
-    if not data or not data.allowed then Notify(data and data.message or 'Unable to open trucking dispatch.', 'error') return end
+    if not data or not data.allowed then return nil, data and data.message or 'Unable to open trucking dispatch.' end
     currentDriverInfo = data.player or currentDriverInfo
     data.reuse = GetReuseData()
     data.config = { allowVehicleReuseAfterRoute = Config.AllowVehicleReuseAfterRoute, requireSameTypeForVehicleReuse = Config.RequireSameTypeForVehicleReuse, radioFrequency = Config.RadioFrequency, uiSounds = Config.UI or {} }
-    data.lastRouteSummary = lastRouteSummary
-    if activeContract then data.currentJob = { id = activeContract.contractId, type = activeContract.type, label = activeContract.priorityLabel and (activeContract.priorityLabel .. ' - ' .. activeContract.label) or activeContract.label, stage = activeContract.stage, payout = activeContract.payout, loadedCargo = activeContract.loadedCargo, requiredCargo = activeContract.requiredCargo, currentStop = activeContract.currentStop, totalStops = activeContract.totalStops } end
+    data.dispatchHome = BuildDispatchHomeMapData()
+    data.lastRouteSummary = RouteHistory.GetLast()
+    data.routeHistory = RouteHistory.GetHistory()
+    data.currentJob = RouteState.BuildCurrentJob and RouteState.BuildCurrentJob(activeContract) or nil
+    return data
+end
+
+local function RefreshDispatchUI(delayMs, attempts)
+    if not dispatchUIVisible then return end
+    delayMs = tonumber(delayMs) or 0
+    attempts = math.max(1, tonumber(attempts) or 1)
+
+    CreateThread(function()
+        if delayMs > 0 then Wait(delayMs) end
+
+        for attempt = 1, attempts do
+            if not dispatchUIVisible then return end
+
+            local data, message = BuildDispatchUIData()
+            if data then
+                SendNUIMessage({ action = 'refreshDispatch', data = data })
+                return
+            end
+
+            if attempt < attempts then
+                Wait(550)
+            else
+                Notify(message or 'Unable to refresh trucking dispatch.', 'error')
+            end
+        end
+    end)
+end
+
+local function GetContractorBoardRefreshMs()
+    local minutes = tonumber(Config.PrivateContractor and Config.PrivateContractor.ContractBoardRefreshMinutes) or 30
+    return math.max(60000, math.floor(minutes * 60000))
+end
+
+local function StartContractorBoardRefreshLoop()
+    contractorBoardRefreshToken = contractorBoardRefreshToken + 1
+    local token = contractorBoardRefreshToken
+
+    CreateThread(function()
+        while dispatchUIVisible and token == contractorBoardRefreshToken do
+            Wait(GetContractorBoardRefreshMs())
+            if dispatchUIVisible and token == contractorBoardRefreshToken and dispatchActiveTab == 'contractor' then
+                RefreshDispatchUI(0, 1)
+            end
+        end
+    end)
+end
+
+LS_Trucking.RequestReceiverAccess = function()
+    if receiverAccessPending then return nil end
+
+    receiverAccessPending = true
+    local access = lib.callback.await('ls_trucking:server:canUseReceiver', false)
+    receiverAccessPending = false
+
+    if access and access.player then
+        currentDriverInfo = access.player or currentDriverInfo
+    end
+
+    if Config.RequireJob and (not access or not access.allowed) then
+        Notify(access and access.message or 'Receiver access denied.', 'error')
+        return nil
+    end
+
+    return access or { allowed = true }
+end
+
+LS_Trucking.ToggleDutyStatus = function()
+    if LS_Trucking.DutyTogglePending then return end
+
+    LS_Trucking.DutyTogglePending = true
+    local result = lib.callback.await('ls_trucking:server:toggleDuty', false)
+    LS_Trucking.DutyTogglePending = false
+
+    if not result then
+        Notify('Unable to update duty status.', 'error')
+        return
+    end
+
+    Notify(result.message or 'Duty status updated.', result.success and 'success' or 'error')
+
+    if result.success and dispatchUIVisible then
+        RefreshDispatchUI(250, 1)
+    end
+end
+
+function OpenDispatch()
+    local data, message = BuildDispatchUIData()
+    if not data then Notify(message or 'Unable to open trucking dispatch.', 'error') return end
     StartTabletAnim()
+    dispatchUIVisible = true
+    dispatchActiveTab = 'home'
+    SetKeepInput(false)
     SetNuiFocus(true, true)
     SendNUIMessage({ action = 'open', data = data })
+    StartContractorBoardRefreshLoop()
 end
 
 RegisterNetEvent('ls_trucking:client:openDispatch', OpenDispatch)
-RegisterNetEvent('ls_trucking:client:toggleMiniUI', function() miniUIVisible = not miniUIVisible UpdateMiniUI() end)
 
-RegisterCommand(Config.Command, OpenDispatch, false)
-RegisterCommand(Config.MiniUIToggleCommand, function() miniUIVisible = not miniUIVisible UpdateMiniUI() end, false)
+local function ToggleFullReceiver()
+    if Config.FullReceiverEnabled == false or Config.MiniUIEnabled == false then return end
+
+    if fullReceiverVisible then
+        receiverControlBlockUntil = GetGameTimer() + 700
+        fullReceiverVisible = false
+        SendNUIMessage({ action = 'hideMini' })
+        miniFullVisible = false
+
+        if not dispatchUIVisible then
+            SetNuiFocus(false, false)
+            SetKeepInput(false)
+            StopReceiverAnimDeferred(420)
+        end
+
+        return
+    end
+
+    local access = LS_Trucking.RequestReceiverAccess()
+    if not access then return end
+
+    fullReceiverVisible = true
+    SetNuiFocus(true, true)
+    SetKeepInput(not dispatchUIVisible)
+    if not dispatchUIVisible then StartReceiverAnim() end
+    UpdateMiniUI()
+end
+
+local function ToggleReceiverDock()
+    if Config.MiniUIEnabled == false or Config.ReceiverDockEnabled == false then
+        Notify('Receiver dock is disabled.', 'error')
+        return
+    end
+
+    if not activeContract then
+        Notify('No active route dock is available.', 'inform')
+        return
+    end
+
+    if receiverDockUserHidden then
+        local access = LS_Trucking.RequestReceiverAccess()
+        if not access then return end
+    end
+
+    receiverDockUserHidden = not receiverDockUserHidden
+    UpdateMiniUI()
+    Notify(receiverDockUserHidden and 'Compact receiver dock hidden.' or 'Compact receiver dock shown.', 'inform')
+end
+
+RegisterNetEvent('ls_trucking:client:toggleReceiver', ToggleFullReceiver)
+RegisterNetEvent('ls_trucking:client:toggleDock', ToggleReceiverDock)
+RegisterNetEvent('ls_trucking:client:toggleMiniUI', ToggleReceiverDock)
+RegisterNetEvent('ls_trucking:client:cancelActiveContract', CancelActiveContract)
+
+local function AddCommandSuggestion(command, help, params)
+    command = tostring(command or ''):gsub('^/', '')
+    if command == '' or commandSuggestions[command] then return end
+
+    commandSuggestions[command] = true
+    TriggerEvent('chat:addSuggestion', ('/%s'):format(command), help, params or {})
+end
+
+local function RegisterCommandSuggestions()
+    AddCommandSuggestion(Config.Command or 'trucking', 'Open the Los Santos Freight Co. dispatch tablet.')
+
+    local receiverCommand = Config.FullReceiverCommand or 'truckreceiver'
+    AddCommandSuggestion(receiverCommand, 'Toggle the LS Freight handheld receiver.')
+
+    if Config.MiniUIToggleCommand and Config.MiniUIToggleCommand ~= receiverCommand then
+        AddCommandSuggestion(Config.MiniUIToggleCommand, 'Toggle the compact LS Freight route dock.')
+    end
+
+    AddCommandSuggestion(Config.CancelCommand or 'canceltrucking', 'Cancel your active LS Freight route.')
+
+    local showAdminCommands = lib.callback.await('ls_trucking:server:canUseAdminCommand', false) == true
+    if not showAdminCommands then return end
+
+    AddCommandSuggestion('lstruck_resetjob', 'Admin: force reset your active trucking job.')
+    AddCommandSuggestion('lstruck_clearpeds', 'Admin: clear active contract worker peds.')
+    AddCommandSuggestion('lstruck_giveitems', 'Admin: give yourself cargo items for the active route.')
+    AddCommandSuggestion('lstruck_summary', 'Admin: open a route state summary.')
+    AddCommandSuggestion('lstraileredit', 'Admin: open the trailer cargo prop editor.', {
+        { name = 'trailerKey', help = 'Config.RouteTrailers key, for example flatbed_crates' }
+    })
+    AddCommandSuggestion('lstrailertest', 'Admin: spawn a configured trailer without starting a contract.', {
+        { name = 'trailerKey', help = 'Config.RouteTrailers key, for example flatbed_crates' }
+    })
+    AddCommandSuggestion('lstrailerclear', 'Admin: remove the currently spawned trailer test unit.')
+    AddCommandSuggestion('lstruck_rank', 'Admin: set trucking rank XP.', {
+        { name = 'rank', help = 'Rank number to apply' }
+    })
+    AddCommandSuggestion('lstruck_rep', 'Admin: adjust trucking reputation.', {
+        { name = 'amount', help = 'Reputation amount to add or remove' }
+    })
+    AddCommandSuggestion('lstruck_resetstats', 'Admin: reset your trucking stats.')
+end
+
+CreateThread(function()
+    Wait(750)
+    RegisterCommandSuggestions()
+end)
+
+local receiverCommandName = Config.FullReceiverCommand or 'truckreceiver'
+RegisterCommand(Config.Command or 'trucking', OpenDispatch, false)
+RegisterCommand(receiverCommandName, ToggleFullReceiver, false)
+if Config.MiniUIToggleCommand and Config.MiniUIToggleCommand ~= receiverCommandName then
+    RegisterCommand(Config.MiniUIToggleCommand, ToggleReceiverDock, false)
+end
+if RegisterKeyMapping and Config.DispatchKey then
+    RegisterKeyMapping(Config.Command or 'trucking', 'Open Los Santos Freight dispatch', 'keyboard', Config.DispatchKey)
+end
+if RegisterKeyMapping and Config.FullReceiverKey then
+    RegisterKeyMapping(receiverCommandName, 'Toggle LS Freight handheld receiver', 'keyboard', Config.FullReceiverKey)
+end
 RegisterCommand(Config.CancelCommand, CancelActiveContract, false)
 
 RegisterNUICallback('freightDialogClose', function(_, cb)
-    SetNuiFocus(false, false)
+    local returnFocus = freightDialogReturnFocus == true
+    freightDialogReturnFocus = false
+    SetNuiFocus(returnFocus, returnFocus)
+    SetKeepInput(returnFocus and fullReceiverVisible and not dispatchUIVisible)
     SendNUIMessage({ action = 'hideFreightDialog' })
 
     if freightDialogPromise then
@@ -1640,7 +3243,10 @@ RegisterNUICallback('freightDialogClose', function(_, cb)
 end)
 
 RegisterNUICallback('freightDialogResult', function(data, cb)
-    SetNuiFocus(false, false)
+    local returnFocus = freightDialogReturnFocus == true
+    freightDialogReturnFocus = false
+    SetNuiFocus(returnFocus, returnFocus)
+    SetKeepInput(returnFocus and fullReceiverVisible and not dispatchUIVisible)
     SendNUIMessage({ action = 'hideFreightDialog' })
 
     if freightDialogPromise then
@@ -1650,179 +3256,372 @@ RegisterNUICallback('freightDialogResult', function(data, cb)
 
     cb(true)
 end)
-RegisterNUICallback('close', function(_, cb) StopTabletAnim() SetNuiFocus(false, false) SendNUIMessage({ action = 'close' }) cb(true) end)
+RegisterNUICallback('close', function(_, cb)
+    freightDialogReturnFocus = false
+    dispatchUIVisible = false
+    dispatchActiveTab = 'home'
+    StopTabletAnimForDispatchClose()
+    SetNuiFocus(fullReceiverVisible, fullReceiverVisible)
+    SetKeepInput(fullReceiverVisible)
+    if fullReceiverVisible then StartReceiverAnim() end
+    SendNUIMessage({ action = 'hideFreightDialog' })
+    SendNUIMessage({ action = 'close' })
+    cb(true)
+end)
+
+RegisterNUICallback('dispatchTabChanged', function(data, cb)
+    local tab = data and data.tab or 'home'
+    if type(tab) ~= 'string' then tab = 'home' end
+    dispatchActiveTab = tab
+    cb(true)
+
+    if dispatchUIVisible and dispatchActiveTab == 'contractor' then
+        RefreshDispatchUI(650, 2)
+    end
+end)
+
+RegisterNUICallback('dispatchSetGps', function(data, cb)
+    local x = data and tonumber(data.x) or nil
+    local y = data and tonumber(data.y) or nil
+
+    if not x or not y then
+        Notify('Unable to set GPS for that dispatch location.', 'error')
+        cb({ success = false })
+        return
+    end
+
+    SetNewWaypoint(x + 0.0, y + 0.0)
+    Notify(('GPS set to %s.'):format(data.label or 'dispatch location'), 'success')
+    cb({ success = true })
+end)
+
+RegisterNUICallback('closeReceiver', function(_, cb)
+    receiverControlBlockUntil = GetGameTimer() + 700
+    fullReceiverVisible = false
+    SendNUIMessage({ action = 'hideMini' })
+    miniFullVisible = false
+    if not dispatchUIVisible then
+        SetNuiFocus(false, false)
+        SetKeepInput(false)
+    end
+    cb(true)
+    StopReceiverAnimDeferred(420)
+end)
+
 RegisterNUICallback('startContract', function(data, cb)
     local contractType = data and data.contractType
     local vehicleIndex = data and data.vehicleIndex or 1
     local reuseVehicle = data and data.reuseVehicle == true
     local priorityKey = data and data.priorityKey or 'standard'
+    local previewRouteIndex = data and tonumber(data.routeIndex) or nil
     local currentPlate = reuseVehicle and GetJobVehiclePlate() or nil
     if not contractType then cb({ success = false }) return end
     if activeContract then Notify('You already have an active job. Cancel it from the Current Job panel first.', 'error') cb({ success = false }) return end
     if reuseVehicle and not CanReuseVehicle(contractType) then Notify('Your current vehicle cannot be reused for this contract type.', 'error') cb({ success = false }) return end
-    local result = lib.callback.await('ls_trucking:server:createContract', false, contractType, vehicleIndex, reuseVehicle, currentPlate, priorityKey)
-    if not result or not result.success then Notify(result and result.message or 'Unable to start contract.', 'error') cb({ success = false }) return end
-    StopTabletAnim()
-    SetNuiFocus(false, false)
+    if not reuseVehicle and spawnedVehicle and DoesEntityExist(spawnedVehicle) then Notify('Store or return your current vehicle before starting another contract.', 'error') cb({ success = false }) return end
+    if not reuseVehicle and not RequireNearDepotRequestArea('You need to be closer to the company vehicle spawn area to start a contract.') then cb({ success = false }) return end
+    if not LS_Trucking.BeginContractRequest(('Contract request transmitted for %s service. Dispatch is reviewing route and vehicle availability.'):format(contractType)) then cb({ success = false }) return end
+    local result = lib.callback.await('ls_trucking:server:createContract', false, contractType, vehicleIndex, reuseVehicle, currentPlate, priorityKey, previewRouteIndex)
+    LS_Trucking.ResolveContractRequest(result, result and result.success and ('Dispatch approved %s. Contract %s confirmed. Vehicle release and GPS authorized.'):format(result.contract and result.contract.routeLabel or 'the selected route', result.contractId or 'pending') or nil)
+    if not result or not result.success then cb({ success = false }) return end
+    if not StartLocalContract(result, reuseVehicle) then
+        RefreshDispatchUI(650, 2)
+        cb({ success = false })
+        return
+    end
+
+    dispatchUIVisible = false
+    StopTabletAnimForDispatchClose()
+    SetNuiFocus(fullReceiverVisible, fullReceiverVisible)
+    SetKeepInput(fullReceiverVisible)
+    if fullReceiverVisible then StartReceiverAnim() end
     SendNUIMessage({ action = 'close' })
-    StartLocalContract(result, reuseVehicle)
     cb({ success = true })
 end)
 
+RegisterNUICallback('receiverVehicleControl', function(data, cb)
+    local success = HandleReceiverVehicleControl(data and data.action)
+    cb({ success = success })
+end)
+
+RegisterNUICallback('receiverToggleDock', function(_, cb)
+    ToggleReceiverDock()
+    cb({ success = true })
+end)
+
+RegisterNUICallback('receiverLoadAction', function(data, cb)
+    if (Config.LoadVerificationMode or 'receiver') ~= 'receiver' then
+        Notify('Load verification is configured for target interactions.', 'error')
+        cb({ success = false })
+        return
+    end
+
+    if LS_Trucking.ReceiverLoadActionPending then
+        Notify('Dispatch is already processing a load request.', 'inform')
+        cb({ success = false })
+        return
+    end
+
+    if not activeContract then
+        Notify('No active load is assigned to this receiver.', 'error')
+        cb({ success = false })
+        return
+    end
+
+    if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then
+        Notify('Your assigned vehicle is not available.', 'error')
+        cb({ success = false })
+        return
+    end
+
+    if #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(spawnedVehicle)) > 8.0 then
+        Notify('Stand near the assigned vehicle to complete load verification.', 'error')
+        cb({ success = false })
+        return
+    end
+
+    if GetEntitySpeed(spawnedVehicle) > 0.75 then
+        Notify('Stop the vehicle before completing load verification.', 'error')
+        cb({ success = false })
+        return
+    end
+
+    local action = data and data.action or ''
+    LS_Trucking.ReceiverLoadActionPending = true
+    activeContract.receiverLoadAction = action
+    UpdateMiniUI()
+
+    local success = false
+    if action == 'verify_cargo' then
+        success = VerifyLoadedCargo(true) == true
+    elseif action == 'submit_checklist' then
+        success = CompleteTrailerLoadChecklist(true) == true
+    else
+        Notify('Unknown receiver load action.', 'error')
+    end
+
+    LS_Trucking.ReceiverLoadActionPending = false
+    if activeContract then activeContract.receiverLoadAction = nil end
+    UpdateMiniUI()
+    cb({ success = success })
+end)
+
+RegisterNUICallback('receiverStartCurrentJob', function(data, cb)
+    if activeContract then
+        Notify('Finish or cancel your active route before requesting another load.', 'error')
+        cb({ success = false })
+        return
+    end
+
+    local priorityKey = data and data.priorityKey or 'standard'
+
+    if contractorVehicle then
+        if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then
+            Notify('No current contractor vehicle detected.', 'error')
+            cb({ success = false })
+            return
+        end
+
+        local state = BuildCurrentVehicleState()
+        if not state then
+            Notify('Could not read contractor vehicle state.', 'error')
+            cb({ success = false })
+            return
+        end
+
+        if not LS_Trucking.BeginContractRequest('Private load request transmitted. Dispatch is verifying contractor authority and route availability.') then cb({ success = false }) return end
+        local result = lib.callback.await('ls_trucking:server:createContractorContract', false, contractorVehicle.id, priorityKey, nil, state)
+        LS_Trucking.ResolveContractRequest(result, result and result.success and ('Dispatch approved %s. Private contract %s confirmed. GPS authorized.'):format(result.contract and result.contract.routeLabel or 'the assigned route', result.contractId or 'pending') or nil)
+        if not result or not result.success then
+            cb({ success = false })
+            return
+        end
+
+        if not StartLocalContract(result, true) then
+            cb({ success = false })
+            return
+        end
+
+        cb({ success = true })
+        return
+    end
+
+    if Config.AllowVehicleReuseAfterRoute == false then
+        Notify('Current-vehicle route requests are disabled.', 'error')
+        cb({ success = false })
+        return
+    end
+
+    local reuse = BuildReceiverReuseData()
+    if not reuse.available or not reuse.type then
+        Notify('No current vehicle detected.', 'error')
+        cb({ success = false })
+        return
+    end
+
+    if not CanReuseVehicle(reuse.type) then
+        Notify('Your current vehicle cannot be used for a new route.', 'error')
+        cb({ success = false })
+        return
+    end
+
+    local plate = GetJobVehiclePlate()
+    if not LS_Trucking.BeginContractRequest('Current-unit load request transmitted. Dispatch is searching available company routes.') then cb({ success = false }) return end
+    local result = lib.callback.await('ls_trucking:server:createContract', false, reuse.type, reuse.index or 1, true, plate, priorityKey, nil)
+    LS_Trucking.ResolveContractRequest(result, result and result.success and ('Dispatch assigned %s. Contract %s confirmed. GPS authorized.'):format(result.contract and result.contract.routeLabel or 'a new route', result.contractId or 'pending') or nil)
+
+    if not result or not result.success then
+        cb({ success = false })
+        return
+    end
+
+    if not StartLocalContract(result, true) then
+        cb({ success = false })
+        return
+    end
+
+    cb({ success = true })
+end)
+
+RegisterNUICallback('receiverCancelRoute', function(_, cb)
+    local success = CancelActiveContractFromReceiver()
+    cb({ success = success == true })
+end)
+
 RegisterNUICallback('cancelCurrentJob', function(_, cb)
-    StopTabletAnim()
-    SetNuiFocus(false, false)
+    dispatchUIVisible = false
+    StopTabletAnimForDispatchClose()
+    SetNuiFocus(fullReceiverVisible, fullReceiverVisible)
+    SetKeepInput(fullReceiverVisible)
+    if fullReceiverVisible then StartReceiverAnim() end
     SendNUIMessage({ action = 'close' })
     Wait(100)
     CancelActiveContract()
     cb(true)
 end)
+
+RegisterNUICallback('openActiveManifest', function(_, cb)
+    ShowActiveManifest()
+    cb(true)
+end)
+
+local function IsStaleVehicleCheckoutMessage(message)
+    message = tostring(message or ''):lower()
+    return message:find('vehicle checked out', 1, true) ~= nil
+        or message:find('vehicle out', 1, true) ~= nil
+        or message:find('unit out', 1, true) ~= nil
+        or message:find('only one private contractor vehicle', 1, true) ~= nil
+end
+
+local function TryReleaseStaleVehicleCheckout()
+    if spawnedVehicle and DoesEntityExist(spawnedVehicle) then return false end
+
+    local result = lib.callback.await('ls_trucking:server:releaseStaleVehicleCheckout', false)
+    return result and result.success and result.released == true
+end
+
+local function CloseDispatchForVehicleSpawn()
+    dispatchUIVisible = false
+    StopTabletAnimForDispatchClose()
+    SetNuiFocus(fullReceiverVisible, fullReceiverVisible)
+    SetKeepInput(fullReceiverVisible)
+    if fullReceiverVisible then StartReceiverAnim() end
+    SendNUIMessage({ action = 'close' })
+end
+
 RegisterNUICallback('spawnGarageVehicle', function(data, cb)
     if activeContract then Notify('You cannot spawn a garage vehicle while on a job.', 'error') cb({ success = false }) return end
     if spawnedVehicle and DoesEntityExist(spawnedVehicle) then Notify('You already have a company vehicle out. Return it first.', 'error') cb({ success = false }) return end
     if not data or not data.vehicleType or not data.vehicleIndex then cb({ success = false }) return end
+    if not RequireNearDepotRequestArea('You need to be closer to the company garage area to request a vehicle.') then cb({ success = false }) return end
     if not Progress('Requesting company vehicle...', Config.Progress.spawnGarageVehicle, { dict = 'missheistdockssetup1clipboard@base', clip = 'base' }) then cb({ success = false }) return end
     local result = lib.callback.await('ls_trucking:server:spawnGarageVehicle', false, data.vehicleType, data.vehicleIndex)
+    if (not result or not result.success) and IsStaleVehicleCheckoutMessage(result and result.message) and TryReleaseStaleVehicleCheckout() then
+        result = lib.callback.await('ls_trucking:server:spawnGarageVehicle', false, data.vehicleType, data.vehicleIndex)
+    end
     if not result or not result.success then Notify(result and result.message or 'Unable to spawn garage vehicle.', 'error') cb({ success = false }) return end
-    StopTabletAnim()
-    SetNuiFocus(false, false)
-    SendNUIMessage({ action = 'close' })
-    SpawnGarageVehicle(result)
+    if not SpawnGarageVehicle(result) then
+        lib.callback.await('ls_trucking:server:releaseStaleVehicleCheckout', false)
+        cb({ success = false })
+        return
+    end
+    CloseDispatchForVehicleSpawn()
     cb({ success = true })
 end)
-RegisterNUICallback('returnGarageVehicle', function(_, cb) StopTabletAnim() SetNuiFocus(false, false) SendNUIMessage({ action = 'close' }) ReturnCompanyVehicle() cb(true) end)
+RegisterNUICallback('returnGarageVehicle', function(_, cb) dispatchUIVisible = false StopTabletAnimForDispatchClose() SetNuiFocus(fullReceiverVisible, fullReceiverVisible) SetKeepInput(fullReceiverVisible) if fullReceiverVisible then StartReceiverAnim() end SendNUIMessage({ action = 'close' }) ReturnCompanyVehicle() cb(true) end)
 
-
-local function FormatSummarySeconds(seconds)
-    seconds = tonumber(seconds) or 0
-    seconds = math.max(0, math.floor(seconds))
-
-    local minutes = math.floor(seconds / 60)
-    local secs = seconds % 60
-
-    if minutes >= 60 then
-        local hours = math.floor(minutes / 60)
-        local mins = minutes % 60
-        return ('%sh %sm'):format(hours, mins)
-    end
-
-    return ('%sm %02ds'):format(minutes, secs)
-end
-
-local function FormatPercent(percent)
-    percent = tonumber(percent) or 0.0
-    local sign = percent > 0 and '+' or ''
-    return ('%s%s%%'):format(sign, math.floor(percent * 100))
-end
-
-local function GetContractTypeLabel(contractType)
-    if contractType == 'van' then return 'Van Delivery' end
-    if contractType == 'boxtruck' then return 'Box Truck Delivery' end
-    if contractType == 'trailer' then return 'Trailer Hauling' end
-    return tostring(contractType or 'Delivery')
-end
-
-local function ShowRouteSummary(data)
-    if not data then return end
-
-    local lines = {}
-    local timeData = data.time or {}
-    local elapsed = timeData.elapsedSeconds or 0
-    local estimated = timeData.estimatedSeconds or data.estimatedSeconds or 0
-    local timingStatus = timeData.label or 'Delivery complete'
-
-    local function AddSection(title)
-        if #lines > 0 then
-            lines[#lines + 1] = ''
-        end
-
-        lines[#lines + 1] = tostring(title)
-        lines[#lines + 1] = string.rep('-', #tostring(title))
-    end
-
-    local function AddField(label, value)
-        if value == nil then return end
-        value = tostring(value)
-        if value == '' then return end
-
-        lines[#lines + 1] = ('%s: %s'):format(label, value)
-    end
-
-    AddSection('Contract Information')
-    AddField('Driver', data.driverName or (currentDriverInfo and currentDriverInfo.name) or GetPlayerName(PlayerId()) or 'Driver')
-    AddField('Job / Grade', data.jobText or (currentDriverInfo and (currentDriverInfo.jobText or currentDriverInfo.jobLabel)) or 'Unknown')
-    AddField('Completed At', data.completedAt or GetClientTimestamp())
-    AddField('Contract Type', GetContractTypeLabel(data.contractType))
-    AddField('Load Type', data.priorityLabel)
-    AddField('Route', data.routeLabel)
-    AddField('Route Length', data.routeLength)
-    AddField('Vehicle', data.vehicleLabel)
-
-    AddSection('Delivery Time')
-    AddField('Estimated Time', FormatSummarySeconds(estimated))
-    AddField('Completed In', FormatSummarySeconds(elapsed))
-    AddField('Timing Result', timingStatus)
-
-    if data.randomEvent and data.randomEvent.label then
-        AddSection('Dispatch Event')
-        AddField('Event', data.randomEvent.label)
-        AddField('Details', data.randomEvent.description)
-    end
-
-    if data.contractType == 'trailer' then
-        AddSection('Trailer Condition')
-        AddField('Trailer Damage', ('%s%%'):format(math.floor(tonumber(data.damagePercent) or 0.0)))
-    end
-
-    local adjustmentLines = {}
-
-    if data.adjustments then
-        for _, adj in ipairs(data.adjustments) do
-            if adj and adj.percent and adj.percent ~= 0 then
-                adjustmentLines[#adjustmentLines + 1] = {
-                    label = adj.label or 'Adjustment',
-                    value = FormatPercent(adj.percent)
-                }
-            end
-        end
-    end
-
-    AddSection('Payout Summary')
-    AddField('Base Payout', ('$%s'):format(data.basePayout or data.payout or 0))
-
-    if #adjustmentLines > 0 then
-        lines[#lines + 1] = 'Payout Adjustments:'
-
-        for _, adjustment in ipairs(adjustmentLines) do
-            lines[#lines + 1] = ('  - %s: %s'):format(adjustment.label, adjustment.value)
-        end
-    else
-        AddField('Payout Adjustments', 'None')
-    end
-
-    AddField('Final Payout', ('$%s'):format(data.payout or 0))
-    AddField('XP Earned', data.xp or 0)
-    AddField('Reputation Earned', data.rep or 0)
-
-    ShowFreightDialog('Los Santos Freight Co. Route Summary', lines, 'Close Summary')
+if ContractorUI.RegisterClient then
+    ContractorUI.RegisterClient({
+        Notify = Notify,
+        RefreshDispatchUI = RefreshDispatchUI,
+        ShowFreightConfirm = ShowFreightConfirm,
+        GetActiveContract = function() return activeContract end,
+        GetSpawnedVehicle = function() return spawnedVehicle end,
+        GetContractorVehicle = function() return contractorVehicle end,
+        RequireNearDepotRequestArea = RequireNearDepotRequestArea,
+        Progress = Progress,
+        IsStaleVehicleCheckoutMessage = IsStaleVehicleCheckoutMessage,
+        TryReleaseStaleVehicleCheckout = TryReleaseStaleVehicleCheckout,
+        SpawnContractorVehicle = SpawnContractorVehicle,
+        StoreContractorVehicle = StoreContractorVehicle,
+        BuildCurrentVehicleState = BuildCurrentVehicleState,
+        BeginContractRequest = function(message) return LS_Trucking.BeginContractRequest(message) end,
+        ResolveContractRequest = function(result, message) return LS_Trucking.ResolveContractRequest(result, message) end,
+        StartLocalContract = StartLocalContract,
+        CloseDispatch = CloseDispatchForVehicleSpawn
+    })
 end
 
 RegisterNetEvent('ls_trucking:client:routePaid', function(data)
-    -- Save the latest route summary so it can be shown on the Current Job tab.
-    SaveLastRouteSummary(data)
+    if data and lastCompletedCargoCondition then
+        data.cargoCondition = lastCompletedCargoCondition
+    end
 
-    -- Route completion is shown with an ox_lib alert dialog instead of a notify.
-    ShowRouteSummary(data)
+    -- Save the latest route summary so it can be reviewed later without forcing a modal.
+    RouteHistory.Save(data)
+
+    local routeName = data and (data.routeLabel or data.contractLabel) or 'route'
+    DispatchChatter(('Route %s closed. Payment of $%s processed and summary logged.'):format(routeName, data and data.payout or 0), 'success', 'confirm')
 end)
 RegisterNetEvent('ls_trucking:client:returnBonusPaid', function(amount) Notify(('Company vehicle returned and saved. Bonus paid: $%s.'):format(amount), 'success') end)
 
 RegisterNetEvent('ls_trucking:client:contractCancelled', function(data)
     data = data or {}
     local repLoss = tonumber(data.repLoss) or 0
+    local fee = tonumber(data.fee) or 0
     local reason = data.reason or 'Not specified'
+
+    if fee > 0 then
+        Notify(('Route cancelled. Reason: %s. Reputation lost: %s. Contractor fee: $%s.'):format(reason, repLoss, fee), 'error')
+        return
+    end
 
     Notify(('Route cancelled. Reason: %s. Reputation lost: %s.'):format(reason, repLoss), 'error')
 end)
+
+LS_Trucking.DutyTargetEnabled = function()
+    local dutyConfig = Config.DutyTarget or Config.DutyLocation or {}
+    return Config.RequireJob == true and Config.RequireDuty ~= false and dutyConfig.enabled ~= false
+end
+
+LS_Trucking.GetDutyTargetCoords = function()
+    local dutyConfig = Config.DutyTarget or Config.DutyLocation or {}
+    return GetConfigCoords3(dutyConfig.coords)
+        or GetConfigCoords3(Config.DispatchPed and Config.DispatchPed.coords)
+        or GetConfigCoords3(Config.Depot and Config.Depot.terminal)
+end
+
+LS_Trucking.BuildDutyTargetOption = function()
+    local dutyConfig = Config.DutyTarget or Config.DutyLocation or {}
+
+    return {
+        name = 'ls_trucking_toggle_duty',
+        label = dutyConfig.label or 'Clock In / Out',
+        icon = dutyConfig.icon or 'fa-solid fa-clock',
+        distance = Config.TargetDistance,
+        onSelect = LS_Trucking.ToggleDutyStatus
+    }
+end
 
 CreateThread(function()
     if Config.UseBlip then
@@ -1841,27 +3640,196 @@ CreateThread(function()
             SetEntityInvincible(dispatchPed, true)
             SetBlockingOfNonTemporaryEvents(dispatchPed, true)
             if Config.DispatchPed.scenario then TaskStartScenarioInPlace(dispatchPed, Config.DispatchPed.scenario, 0, true) end
-            AddTargetEntity(dispatchPed, {
+            local dispatchOptions = {
                 { name = 'ls_trucking_open_dispatch_ped', label = 'Open Freight Dispatch', icon = 'fa-solid fa-tablet-screen-button', distance = Config.TargetDistance, onSelect = OpenDispatch },
-                { name = 'ls_trucking_return_company_vehicle', label = 'Return Company Vehicle', icon = 'fa-solid fa-rotate-left', distance = Config.TargetDistance, canInteract = function() return spawnedVehicle ~= nil and DoesEntityExist(spawnedVehicle) and activeContract == nil end, onSelect = ReturnCompanyVehicle }
-            })
+                { name = 'ls_trucking_return_company_vehicle', label = 'Return Company Vehicle', icon = 'fa-solid fa-rotate-left', distance = Config.TargetDistance, canInteract = function() return spawnedVehicle ~= nil and DoesEntityExist(spawnedVehicle) and contractorVehicle == nil and activeContract == nil end, onSelect = ReturnCompanyVehicle },
+                { name = 'ls_trucking_store_contractor_vehicle', label = 'Store Contractor Vehicle', icon = 'fa-solid fa-square-parking', distance = Config.TargetDistance, canInteract = function() return spawnedVehicle ~= nil and DoesEntityExist(spawnedVehicle) and contractorVehicle ~= nil and activeContract == nil end, onSelect = StoreContractorVehicle }
+            }
+
+            if LS_Trucking.DutyTargetEnabled() and ((Config.DutyTarget or Config.DutyLocation or {}).useDispatchPed ~= false) then
+                dispatchOptions[#dispatchOptions + 1] = LS_Trucking.BuildDutyTargetOption()
+            end
+
+            AddTargetEntity(dispatchPed, dispatchOptions)
             SetModelAsNoLongerNeeded(model)
         end
     end
     if Config.UseTerminalTargetZone then
         AddSphereZone('ls_trucking_open_dispatch_terminal', Config.Depot.terminal, 2.0, { { name = 'ls_trucking_open_dispatch_terminal', label = 'Open Freight Dispatch', icon = 'fa-solid fa-tablet-screen-button', distance = Config.TargetDistance, onSelect = OpenDispatch } })
     end
-    for contractType, contract in pairs(Config.Contracts) do
-        if contract.pickupPed then local ped = SpawnStaticPed(('pickup_%s'):format(contractType), contract.pickupPed) if ped then AddPickupPedTarget(ped, contractType) end end
-        if contract.routes then for routeIndex, route in ipairs(contract.routes) do if route.receiverPed then local ped = SpawnStaticPed(('receiver_%s_%s'):format(contractType, routeIndex), route.receiverPed) if ped then AddReceiverPedTarget(ped, contractType, routeIndex) end end end end
+    if LS_Trucking.DutyTargetEnabled() and (not Config.UsePed or ((Config.DutyTarget or Config.DutyLocation or {}).useDispatchPed == false)) then
+        local dutyCoords = LS_Trucking.GetDutyTargetCoords()
+        if dutyCoords then
+            local dutyConfig = Config.DutyTarget or Config.DutyLocation or {}
+            AddSphereZone('ls_trucking_toggle_duty', dutyCoords, tonumber(dutyConfig.radius) or 2.0, { LS_Trucking.BuildDutyTargetOption() })
+        end
+    end
+end)
+
+
+local function AdminCommandEnabled()
+    local allowed = lib.callback.await('ls_trucking:server:canUseAdminCommand', false)
+    if allowed then return true end
+
+    Notify('You need admin permissions to use this LS Freight command.', 'error')
+    return false
+end
+
+local function ForceJobCleanup(message, keepVehicle)
+    if message then Notify(message, 'warning') end
+
+    TriggerServerEvent('ls_trucking:server:cancelContract', '__system_cleanup')
+    ClearRouteBlip()
+    RemoveAllZones()
+    CleanupActiveContractPeds(true)
+    DeleteCarryProp()
+
+    if not keepVehicle then
+        CleanupJobVehicle()
+    else
+        CleanupTrailerOnly()
+    end
+
+    activeContract = nil
+    carryingCargo = false
+    UpdateMiniUI()
+end
+
+RegisterCommand('lstruck_resetjob', function()
+    if not AdminCommandEnabled() then return end
+    ForceJobCleanup('Admin: active trucking job has been force reset.', false)
+end, false)
+
+RegisterCommand('lstruck_clearpeds', function()
+    if not AdminCommandEnabled() then return end
+    CleanupActiveContractPeds(false)
+    Notify('Admin: active contract peds cleared.', 'success')
+end, false)
+
+RegisterCommand('lstruck_giveitems', function()
+    if not AdminCommandEnabled() then return end
+    TriggerServerEvent('ls_trucking:server:debugGiveItems')
+end, false)
+
+RegisterCommand('lstruck_summary', function()
+    if not AdminCommandEnabled() then return end
+
+    if not activeContract then
+        ShowFreightDialog('Admin Route Summary', 'No active trucking contract.', 'Close')
+        return
+    end
+
+    ShowFreightDialog('Admin Route Summary', {
+        ('Contract ID: %s'):format(activeContract.contractId or 'N/A'),
+        ('Type: %s'):format(activeContract.type or 'N/A'),
+        ('Route: %s'):format(activeContract.routeLabel or activeContract.label or 'N/A'),
+        ('Stage: %s'):format(activeContract.stage or 'N/A'),
+        ('Vehicle: %s'):format(activeContract.vehicleLabel or 'N/A'),
+        ('Plate: %s'):format(activeContract.plate or 'N/A'),
+        ('Cargo: %s/%s'):format(activeContract.loadedCargo or 0, activeContract.requiredCargo or 0),
+        ('Stop: %s/%s'):format(activeContract.currentStop or 0, activeContract.totalStops or 0),
+        ('Trailer Hooked: %s'):format(tostring(activeContract.trailerHooked == true)),
+        ('Trailer Dropped: %s'):format(tostring(activeContract.trailerDropped == true)),
+    }, 'Close')
+end, false)
+
+RegisterCommand('lstraileredit', function(_, args)
+    if not AdminCommandEnabled() then return end
+
+    local trailerKey = args and args[1] or 'flatbed_crates'
+    if TrailerCargoEditor.Open then
+        TrailerCargoEditor.Open(trailerKey)
+    else
+        Notify('Trailer cargo editor is unavailable.', 'error')
+    end
+end, false)
+
+RegisterCommand('lstrailertest', function(_, args)
+    if not AdminCommandEnabled() then return end
+
+    local trailerKey = args and args[1] or 'flatbed_crates'
+    if TrailerCargoTester.Spawn then
+        TrailerCargoTester.Spawn(trailerKey)
+    else
+        Notify('Trailer test spawner is unavailable.', 'error')
+    end
+end, false)
+
+RegisterCommand('lstrailerclear', function()
+    if not AdminCommandEnabled() then return end
+
+    if TrailerCargoTester.Clear then
+        TrailerCargoTester.Clear(false)
+    else
+        Notify('Trailer test spawner is unavailable.', 'error')
+    end
+end, false)
+
+CreateThread(function()
+    local missingVehicleTicks = 0
+    local missingTrailerTicks = 0
+    local lastDeadCargoCleanup = 0
+
+    while true do
+        Wait(5000)
+
+        if activeContract then
+            if spawnedVehicle and DoesEntityExist(spawnedVehicle) then
+                missingVehicleTicks = 0
+            else
+                missingVehicleTicks = missingVehicleTicks + 1
+            end
+
+            if missingVehicleTicks >= 3 then
+                missingVehicleTicks = 0
+                ForceJobCleanup('Freight job cancelled: the company vehicle could not be found.', false)
+            end
+
+            if activeContract and activeContract.type == 'trailer' and activeContract.trailerDepot then
+                if spawnedTrailer and DoesEntityExist(spawnedTrailer) then
+                    missingTrailerTicks = 0
+                else
+                    missingTrailerTicks = missingTrailerTicks + 1
+                end
+
+                if missingTrailerTicks >= 3 then
+                    missingTrailerTicks = 0
+                    ForceJobCleanup('Freight job cancelled: the assigned trailer could not be found.', false)
+                end
+            else
+                missingTrailerTicks = 0
+            end
+
+            if carryingCargo and IsEntityDead(PlayerPedId()) then
+                local now = GetGameTimer()
+                if now - lastDeadCargoCleanup > 10000 then
+                    DeleteCarryProp()
+                    carryingCargo = false
+                    lastDeadCargoCleanup = now
+                    Notify('Cargo carry animation was reset because your player went down.', 'warning')
+                end
+            end
+        else
+            missingVehicleTicks = 0
+            missingTrailerTicks = 0
+        end
     end
 end)
 
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
+    for command in pairs(commandSuggestions) do
+        TriggerEvent('chat:removeSuggestion', ('/%s'):format(command))
+    end
+    SetKeepInput(false)
+    StopReceiverAnim()
     StopTabletAnim()
     ClearRouteBlip()
     RemoveAllZones()
+    if TrailerCargoEditor.Close then TrailerCargoEditor.Close(true) end
+    if TrailerCargoTester.Clear then TrailerCargoTester.Clear(true) end
+    local cargoProps = LS_Trucking and LS_Trucking.TrailerCargoProps or {}
+    if cargoProps.CleanupAll then cargoProps.CleanupAll() end
     CleanupJobVehicle()
     if dispatchPed and DoesEntityExist(dispatchPed) then DeleteEntity(dispatchPed) end
     for _, ped in pairs(spawnedPeds) do if ped and DoesEntityExist(ped) then DeleteEntity(ped) end end
