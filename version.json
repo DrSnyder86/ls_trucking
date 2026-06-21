@@ -1,6 +1,6 @@
 {
   "version": "1.1.0",
-  "download": "https://github.com/DrSnyder86/ls_trucking/releases/latest",
+  "download": "https://github.com/DrSnyder86/ls_trucking",
   "repository": "https://github.com/DrSnyder86/ls_trucking",
   "changelog": "Updated Framework Compatibility, UI, Contracts and now Private Contractor Delivery ",
   "config_version": "1.1.0",
