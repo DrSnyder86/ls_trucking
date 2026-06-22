@@ -56,6 +56,10 @@ The script is built around a dispatch tablet for selecting work and a handheld r
 - Rank progression with 10 ranks, ending at 500,000 XP.arge intrusive popup.
 - Framework adapters for QB-Core, Qbox, ESX, ND_Core, and standalone fallback.
 - Inventory, fuel, key, and target compatibility bridges.
+- Vehicles.config includes popular add-on vehicle tables. Uncomment desired vehicle tables. Vanilla vehicle tables
+included by default.
+- Pier 400 Port area cleanup ymaps included. Removes Trailers from pump and weigh station area.
+- Also includes ytd's with custom LSF Liveries and vehicle.metas for trailer compatibility for gta vanilla vehicles.
 
 ---
 
