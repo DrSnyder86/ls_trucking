@@ -20,7 +20,7 @@ The script is built around a dispatch tablet for selecting work and a handheld r
 
 <p align="center">
   <img src="https://r2.fivemanage.com/image/V7AInPUQnHJm.jpg" width="32%" alt="Freight Dispatch UI" />
-  <img src="https://r2.fivemanage.com/image/koGBHenopjcv.jpg" width="32%" alt="Company Progress" />
+  <img src="https://r2.fivemanage.com/image/RtEFyLzoR2w6.png" width="32%" alt="Company Progress" />
   <img src="https://r2.fivemanage.com/image/O4QPR3R8rJdm.jpg" width="32%" alt="Company Garage" />   
 </p>
 
