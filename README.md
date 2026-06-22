@@ -19,9 +19,9 @@ The script is built around a dispatch tablet for selecting work and a handheld r
 ## Screenshots
 
 <p align="center">
-  <img src="https://r2.fivemanage.com/image/V7AInPUQnHJm.jpg" width="32%" alt="Freight Dispatch UI" />
-  <img src="https://r2.fivemanage.com/image/RtEFyLzoR2w6.png" width="32%" alt="Company Progress" />
-  <img src="https://r2.fivemanage.com/image/O4QPR3R8rJdm.jpg" width="32%" alt="Company Garage" />   
+  <img src="https://r2.fivemanage.com/image/MjSADCAoSkti.png" width="32%" alt="Freight Dispatch UI" />
+  <img src="https://r2.fivemanage.com/image/T4DTiQnvJkHq.png" width="32%" alt="Company stats" />
+  <img src="https://r2.fivemanage.com/image/GPA5TCuUt2K9.png" width="32%" alt="Company Garage" />   
 </p>
 
 <p align="center">
@@ -31,7 +31,8 @@ The script is built around a dispatch tablet for selecting work and a handheld r
 </p>
 
 <p align="center">
-  <img src="https://r2.fivemanage.com/image/H1FOGuz7QLEq.png" width="32%" alt="Mini UI" />
+  <img src="https://r2.fivemanage.com/image/PjImpifso7HQ.png" width="32%" alt="Contractoe Tab" />
+  <img src="https://r2.fivemanage.com/image/AQXF7S1qTZPv.png" width="32%" alt="Mini UI" />
   <img src="https://r2.fivemanage.com/image/HDWrtpGdzsfQ.png" width="32%" alt="Route Summary" />
 </p>
 <p align="center">
