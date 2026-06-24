@@ -649,19 +649,19 @@ Config.JobVehicles = {
                 [1] = false,
             },
         },
-        {
-            label = 'JOBUILT Hauler 270',
-            minRank = 4,
-            contractor = { enabled = true, price = 260000, minRank = 5 },
-            model = 'hauler3',
-            photo = 'https://r2.fivemanage.com/image/rcupfD1acRNL.png',
-            platePrefix = 'LST',
-            truckLivery = 0,
-            fuel = 100,
-            truckExtras = {
-                [1] = false,
-            },
-        },
+        -- {
+        --     label = 'JOBUILT Hauler 270',
+        --     minRank = 4,
+        --     contractor = { enabled = true, price = 260000, minRank = 5 },
+        --     model = 'hauler3',
+        --     photo = 'https://r2.fivemanage.com/image/rcupfD1acRNL.png',
+        --     platePrefix = 'LST',
+        --     truckLivery = 0,
+        --     fuel = 100,
+        --     truckExtras = {
+        --         [1] = false,
+        --     },
+        -- },
         -- {
         --     label = 'MTL Voyager SA',
         --     minRank = 4,
