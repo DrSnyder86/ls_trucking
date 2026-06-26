@@ -67,6 +67,20 @@ The script is built around a dispatch tablet for selecting work and a handheld r
   <img src="https://r2.fivemanage.com/image/3CzeTQg2EUew.png" width="32%" alt="Trailer" />
 </p>
 
+### Vehicle YTD's
+<p align="center">
+  <img src="https://r2.fivemanage.com/image/M7vd2DqJFuRt.png" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/ECRr59FU9Gal.jpg" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/ILTiRcVnNnxE.png" width="32%" alt="Trailer" />
+
+  <img src="https://r2.fivemanage.com/image/VHiMlolEBYBP.png" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/nwD05R77qvag.png" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/Hdk5Z86iV8Qq.png" width="32%" alt="Trailer" />
+
+  <img src="https://r2.fivemanage.com/image/2F5x14YXlCBW.jpg" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/U888j6Zcn5hY.png" width="32%" alt="Trailer" />
+</p>
+
 ## Highlights
 
 - Dispatch tablet with contract, current job, garage, contractor, company, and route history views.
