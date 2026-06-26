@@ -32,11 +32,11 @@ The script is built around a dispatch tablet for selecting work and a handheld r
 
 ### Receiver UI 
 <p align="center">
-  <img src="https://r2.fivemanage.com/image/AQXF7S1qTZPv.png" width="50%" alt="Mini UI" />
-  <img src="https://r2.fivemanage.com/image/5H9p7Jk7ENbt.png" width="50%" alt="Mini UI" />
-  <img src="https://r2.fivemanage.com/image/JMaNGVPUBG16.png" width="50%" alt="Mini UI" />
-  <img src="https://r2.fivemanage.com/image/pcp69CvC6UsK.png" width="50%" alt="Mini UI" />
-  <img src="https://r2.fivemanage.com/image/5Gd7YCwrZ9sV.png" width="50%" alt="Mini UI" />
+  <img src="https://r2.fivemanage.com/image/AQXF7S1qTZPv.png" width="10%" alt="Mini UI" />
+  <img src="https://r2.fivemanage.com/image/5H9p7Jk7ENbt.png" width="10%" alt="Mini UI" />
+  <img src="https://r2.fivemanage.com/image/JMaNGVPUBG16.png" width="10%" alt="Mini UI" />
+  <img src="https://r2.fivemanage.com/image/pcp69CvC6UsK.png" width="10%" alt="Mini UI" />
+  <img src="https://r2.fivemanage.com/image/5Gd7YCwrZ9sV.png" width="10%" alt="Mini UI" />
 </p>
 <p align="center">
   <img src="https://r2.fivemanage.com/image/EILDeJYrhYuV.png" width="32%" alt="Cancel UI" />
@@ -46,25 +46,25 @@ The script is built around a dispatch tablet for selecting work and a handheld r
 
 ### Pier 400 YMAP's
 <p align="center">
-  <img src="https://r2.fivemanage.com/image/ccZDudCK2O33.jpg" width="50%" alt="Terminal" />
-  <img src="https://r2.fivemanage.com/image/lBDvnLXxJHHZ.jpg" width="50%" alt="Weigh Station" />
+  <img src="https://r2.fivemanage.com/image/ccZDudCK2O33.jpg" width="40%" alt="Terminal" />
+  <img src="https://r2.fivemanage.com/image/lBDvnLXxJHHZ.jpg" width="40%" alt="Weigh Station" />
 </p>
 
 ### Trailer YTD's
 <p align="center">
-  <img src="https://r2.fivemanage.com/image/hxf2uJfRhxXg.jpg" width="50%" alt="Trailer" />
-  <img src="https://r2.fivemanage.com/image/0HBrvRAeAfEv.png" width="50%" alt="Trailer" />
-  <img src="https://r2.fivemanage.com/image/MRUy6TR5jy1V.png" width="50%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/hxf2uJfRhxXg.jpg" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/0HBrvRAeAfEv.png" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/MRUy6TR5jy1V.png" width="32%" alt="Trailer" />
 </p>
 <p align="center">
-  <img src="https://r2.fivemanage.com/image/GDujeRCNPjRA.png" width="50%" alt="Trailer" />
-  <img src="https://r2.fivemanage.com/image/B3Dlc6gTgeXB.png" width="50%" alt="Trailer" />
-  <img src="https://r2.fivemanage.com/image/fhLE76oWpkYI.png" width="50%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/GDujeRCNPjRA.png" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/B3Dlc6gTgeXB.png" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/fhLE76oWpkYI.png" width="32%" alt="Trailer" />
 </p>
 <p align="center">
-  <img src="https://r2.fivemanage.com/image/c4rmfmqhmNt8.png" width="50%" alt="Trailer" />
-  <img src="https://r2.fivemanage.com/image/Wl9PMqOg7mgV.jpg" width="50%" alt="Trailer" />
-  <img src="https://r2.fivemanage.com/image/3CzeTQg2EUew.png" width="50%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/c4rmfmqhmNt8.png" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/Wl9PMqOg7mgV.jpg" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/3CzeTQg2EUew.png" width="32%" alt="Trailer" />
 </p>
 
 ## Highlights
