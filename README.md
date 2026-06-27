@@ -90,17 +90,15 @@ The script is built around a dispatch tablet for selecting work and a handheld r
 - Private contractor system with license purchase, vehicle ownership, optional dedicated daily route assignments, contractor reputation, and higher-risk payouts.
 - Company garage and private fleet support with saved vehicle props, fuel, engine health, and body health.
 - Cargo collection, trunk loading, delivery handoff, cargo condition, and route completion tracking.
-- Trailer hookup, trailer load checklist, secure/load verification, receiver signoff, and trailer drop validation.
+- Trailer hookup, trailer load checklist, secure/load verification, receiver signoff, realistic trailer connect/disconnect flow, and trailer drop validation.
 - Configurable flatbed trailer cargo props with an in-game admin editor and test spawner.
-- Dispatch radio chatter, TX/RX light behavior, GPS lock status, signal bars, route progress, and status sounds.
+- Over 30 trailer cargo prop configs included by default.
+- Dispatch radio chatter, TX/RX light behavior, GPS lock status, signal bars, route progress, and status sounds, including realistic trailer air-line/electrical connect and disconnect audio.
 - Random delivery events such as rush orders, audits, reroutes, dock delays, customer call-aheads, and other route modifiers.
-- Rank progression with 10 ranks, ending at 500,000 XP.arge intrusive popup.
+- Rank progression with 10 ranks, ending at 500,000 XP.
 - Framework adapters for QB-Core, Qbox, ESX, ND_Core, and standalone fallback.
 - Inventory, fuel, key, and target compatibility bridges.
-- Vehicles.config includes popular add-on vehicle tables. Uncomment desired vehicle tables. Vanilla vehicle tables
-included by default.
-- Pier 400 Port area cleanup ymaps included. Removes Trailers from pump and weigh station area.
-- Also includes ytd's with custom LSF Liveries and vehicle.metas for trailer compatibility for gta vanilla vehicles.
+- `config/vehicles.lua` includes popular add-on vehicle tables. Uncomment desired vehicle tables. Vanilla vehicle tables are included by default.
 
 ---
 
@@ -282,6 +280,31 @@ If a vehicle is out during a resource or server restart, the script is designed 
 - `config/random_events.lua` - random delivery events.
 
 Trailer pickup/drop area circles are controlled from `Config.AreaBlips` in `config/config.lua`. Set `Enabled = false` to disable the extra minimap circles, or adjust radius/color/alpha per trailer pickup and drop stage.
+
+---
+
+## Optional Streamed Liveries And Map Assets
+
+The `stream` folder includes optional custom Los Santos Freight Co. texture dictionaries (`.ytd`) for supported vanilla vehicles and route trailers. These are included to make company and contractor equipment feel more like a real freight fleet without requiring separate livery downloads.
+
+Included vehicle livery folders:
+
+- `stream/[burrito2]` - DECLASSE Burrito.
+- `stream/[rumpo]` - BRAVADO Rumpo.
+- `stream/[mule2]` - MAIBATSU Mule.
+- `stream/[benson]` - VAPID Benson.
+- `stream/[benson2]` - VAPID Benson Priority.
+- `stream/[pounder]` - MTL Pounder.
+
+Included trailer livery folders:
+
+- `stream/[trailers2]` - LSF Reefer Trailer variants.
+- `stream/[trailers3]` - LSF Cargo Trailer.
+- `stream/[tanker]` - Fuel Tanker.
+- `stream/[tanker2]` - Chemical Tanker.
+- `stream/[tvtrailer2]` - Support Trailer.
+
+The `stream/FreightMap` folder contains the included Pier 400 YMAP files. If you do not want the custom LSFC liveries, delete the optional `.ytd` livery folders or remove the `.ytd` files from `stream`. Keep `stream/FreightMap` if you still want the included map edits.
 
 Install helper files:
 
@@ -612,7 +635,7 @@ Receiver and job sounds are stored in:
 html/sounds
 ```
 
-The current sound direction is older radio clicks, short beeps, squelch, dispatch updates, trailer air connection, and electrical connection clicks.
+The current sound direction is older radio clicks, short beeps, squelch, dispatch updates, and realistic trailer line handling. Trailer hookup uses air-line and electrical connection sounds, while target-based trailer disconnect uses a matching disconnect sound after the disconnect animation.
 
 ---
 
