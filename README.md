@@ -740,24 +740,24 @@ The script has been split into focused client and server modules where possible:
 
 ### Recommended Vehicle Links
 
-Linerunner- https://www.gta5-mods.com/vehicles/mtl-linerunner-replace-lore-friendly
-Tanker- https://www.gta5-mods.com/vehicles/vapid-tanker-addon-replace
-Longpath- https://www.gta5-mods.com/vehicles/jobuilt-longpath-t1000-add-on
-Juggernaut- https://www.gta5-mods.com/vehicles/jobuilt-juggernaut-add-on
-Pounder Liveries- https://www.gta5-mods.com/vehicles/pounder-lore-friendly-liveries
-Hauler 270- https://www.gta5-mods.com/vehicles/jobuilt-hauler-270-add-on-replace-liveries-template-sounds
-Cerberus 200/300- https://www.gta5-mods.com/vehicles/mtl-cerberus-200-300-add-on-liveries-template
-Speedo Express- https://fenton.tebex.io/package/7280833
-Steed 1500- https://www.gta5-mods.com/vehicles/vapid-steed-1500-add-on-liveries
-Jogger- https://marketplace.cfx.re/packages/7227454-benefactor-jogger-12-van-set-free
-Mule 4x4- https://www.gta5-mods.com/vehicles/maibatsu-mule-4x4-addon
-Yankee- https://www.gta5-mods.com/vehicles/vapid-new-yankee-add-on-replace
-Steed & Yankee- https://www.gta5-mods.com/vehicles/vapid-steed-and-yankee-improvements-add-on-liveries
-Esperta- https://fivem.gabzv.com/package/6500332
-Gabz Vehicles- https://fivem.gabzv.com/package/6500369
-Onx Vehicle Bundle- https://store.onx.gg/package/7364987
-Biff- https://www.gta5-mods.com/vehicles/hvy-biff-semi-add-on
-Roadkiller- https://www.gta5-mods.com/vehicles/brute-roadkiller-add-on
+- Linerunner - https://www.gta5-mods.com/vehicles/mtl-linerunner-replace-lore-friendly
+- Tanker - https://www.gta5-mods.com/vehicles/vapid-tanker-addon-replace
+- Longpath- https://www.gta5-mods.com/vehicles/jobuilt-longpath-t1000-add-on
+- Juggernaut- https://www.gta5-mods.com/vehicles/jobuilt-juggernaut-add-on
+- Pounder Liveries- https://www.gta5-mods.com/vehicles/pounder-lore-friendly-liveries
+- Hauler 270- https://www.gta5-mods.com/vehicles/jobuilt-hauler-270-add-on-replace-liveries-template-sounds
+- Cerberus 200/300- https://www.gta5-mods.com/vehicles/mtl-cerberus-200-300-add-on-liveries-template
+- Speedo Express- https://fenton.tebex.io/package/7280833
+- Steed 1500- https://www.gta5-mods.com/vehicles/vapid-steed-1500-add-on-liveries
+- Jogger- https://marketplace.cfx.re/packages/7227454-benefactor-jogger-12-van-set-free
+- Mule 4x4- https://www.gta5-mods.com/vehicles/maibatsu-mule-4x4-addon
+- Yankee- https://www.gta5-mods.com/vehicles/vapid-new-yankee-add-on-replace
+- Steed & Yankee- https://www.gta5-mods.com/vehicles/vapid-steed-and-yankee-improvements-add-on-liveries
+- Esperta- https://fivem.gabzv.com/package/6500332
+- Gabz Vehicles- https://fivem.gabzv.com/package/6500369
+- Onx Vehicle Bundle- https://store.onx.gg/package/7364987
+- Biff- https://www.gta5-mods.com/vehicles/hvy-biff-semi-add-on
+- Roadkiller- https://www.gta5-mods.com/vehicles/brute-roadkiller-add-on
 
 ---
 
