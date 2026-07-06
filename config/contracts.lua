@@ -173,7 +173,7 @@ Config.Contracts = {
     },
     boxtruck = {
         label = 'Crate Delivery',
-        description = 'Load crates from a warehouse and restock stores along a planned route.',
+        description = 'Load crates from a warehouse and restock businesses along a planned route.',
         cargo = 'Crates',
         difficulty = 'Medium',
         cardColor = '#3f8cff',

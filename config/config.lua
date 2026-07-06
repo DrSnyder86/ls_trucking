@@ -1,5 +1,6 @@
 Config = {}
 
+Config.Locale = 'en'
 Config.ConfigVersion = '1.1.0'
 
 Config.Debug = false  -- Enables debug visuals/logging. Admin commands are available to admins even when this is false.
@@ -29,6 +30,7 @@ Config.ReturnVehicleBonusEnabled = true
 Config.ReturnVehicleBonus = 250
 Config.PayToBank = false
 Config.TargetDistance = 2.5
+Config.DropoffTarget = { Radius = 3.5, Distance = 3.5, HeightOffset = 0.75 } -- larger/easier package delivery target zones
 Config.TrailerAutoDetectInterval = 750
 Config.TrailerCoupleNoticeDelay = 500
 Config.TrailerDespawnAfterDelivery = 10000 -- milliseconds after receiver signoff
@@ -89,7 +91,6 @@ Config.Depot = {
     garageSpawn = vector4(-46.58, -2503.58, 6.01, 237.01),
     vehicleReturn = vector3(-41.54, -2513.28, 6.16)
 }
-
 -- Active route world behavior
 Config.ActiveContractPeds = {
     SpawnDistance = 100.0,
@@ -212,7 +213,7 @@ Config.RadioMessageAudio = {
 Config.DispatchHome = {
     -- To use an actual San Andreas map, add your map image to /images and set this to '../images/your-map.png'.
     -- Markers use GTA world coords against these bounds, so a north-up full-island image will line up best.
-    MapImage = 'https://r2.fivemanage.com/image/Iu0yS8wJpaSY.png',
+    MapImage = '../images/photos/locations/MapImage.png',
     MapBounds = {
         minX = -6000,
         maxX = 7000,
@@ -225,16 +226,16 @@ Config.DispatchHome = {
     MapZoomStep = 0.25,
     Photos = {
         -- Use URLs or local NUI paths such as '../images/dispatch_terminal.png'.
-        terminal = 'https://r2.fivemanage.com/image/7SmxlfR3emsi.jpg',
-        vehicleSpawn = 'https://r2.fivemanage.com/image/slqT1q14tFgF.jpg',
-        garageSpawn = 'https://r2.fivemanage.com/image/slqT1q14tFgF.jpg',
-        vanPickup = 'https://r2.fivemanage.com/image/BZD9hbRyLzZZ.png',
-        boxTruckPickup = 'https://r2.fivemanage.com/image/vDXsTbde2TzR.jpg',
-        trailerDepot = 'https://r2.fivemanage.com/image/4qvtjco8avzJ.png',
+        terminal = '../images/photos/locations/terminal.jpg',
+        vehicleSpawn = '../images/photos/locations/vehicleSpawn.jpg',
+        garageSpawn = '../images/photos/locations/garageSpawn.jpg',
+        vanPickup = '../images/photos/locations/vanPickup.png',
+        boxTruckPickup = '../images/photos/locations/boxTruckPickup.jpg',
+        trailerDepot = '../images/photos/locations/trailerDepot.png',
         trailerDepots = {
-            docks = 'https://r2.fivemanage.com/image/MfK08Q4VbQer.jpg',
-            harmony = 'https://r2.fivemanage.com/image/S3aOCvBxkjWz.jpg',
-            lsport = 'https://r2.fivemanage.com/image/br539auhQg5P.jpg',
+            docks = '../images/photos/locations/docks.jpg',
+            harmony = '../images/photos/locations/harmony.jpg',
+            lsport = '../images/photos/locations/lsport.jpg',
         }
     }
 }
@@ -335,7 +336,7 @@ Config.PrivateContractor = {
     DailyRouteRepBonus = 2,
     DailyRouteOptionsPerType = 8,
     ContractBoardRoutesPerType = 5,
-    ContractBoardRefreshMinutes = 30,
+    ContractBoardRefreshMinutes = 60,
     ResaleBasePercent = 0.80,
     DepreciationPerMile = 10,
     VehicleTypes = { 'van', 'boxtruck', 'trailer' }, -- trailer type uses purchased tractors only; trailers remain route-assigned
@@ -362,6 +363,7 @@ Config.Progress = {
     confirmTrailerDrop = 2500,
     confirmTrailerLoad = 3500,
     secureTruckLoad = 3000,
+    disconnectTrailer = 3000,
     secureTrailerLoad = 3000,
     completeLoadChecklist = 2500,
     returnVehicle = 3500,
@@ -419,7 +421,7 @@ Config.SpeedRisk = {
     EngineFailureChance = 1, -- percent per check after RiskAfter
     EngineDamageAmount = 120.0,
     MinimumEngineHealth = 350.0,
-    WarningMessage = 'Dispatch: Reduce speed. Cargo stability warning.'
+    WarningMessage = 'Dispatch: Cargo stability warning! Reduce speed.'
 }
 
 Config.CargoCondition = {
@@ -466,7 +468,8 @@ Config.UI = {
     DestinationSound = 'destination.wav',
     SecureSound = 'secure.wav',
     TrailerConnectSound = 'trailer_connect.wav',
-    TrailerDisconnectSound = 'trailer_disconnect.wav'
+    TrailerDisconnectSound = 'trailer_disconnect.wav',
+    ImpactWrenchSound = 'impact_wrench.wav'
 }
 
 Config.Notifications = {
