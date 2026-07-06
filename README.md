@@ -115,6 +115,30 @@ Required:
 - `ox_target` or `qb-target`
 - A supported framework or standalone mode
 - A supported inventory system
+- Tractor trailer truck vehicles.meta compatibility update (includes vanilla truck meta's)
+### REQUIRED TRAILERS
+<trailers>
+ <Item>docktrailer</Item>
+ <Item>trailers</Item>
+ <Item>trailers2</Item>
+ <Item>trailers3</Item>
+ <Item>tanker</Item>
+ <Item>trailerlogs</Item>
+ <Item>trflat</Item>
+</trailers>
+<additionalTrailers>
+ <Item>armytanker</Item>
+ <Item>armytrailer</Item>
+ <Item>armytrailer2</Item>
+ <Item>tr3</Item>
+ <Item>tr4</Item>
+ <Item>tvtrailer</Item>
+ <Item>tvtrailer2</Item>
+ <Item>trailerlarge</Item>
+ <Item>trailers4</Item>
+ <Item>tanker2</Item>
+ <Item>freighttrailer</Item>
+</additionalTrailers>
 
 Recommended:
 
