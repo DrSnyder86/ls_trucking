@@ -959,7 +959,7 @@ NUI files are split into smaller JavaScript and CSS modules under:
 
 Parts of the LSFC UI were created and refined with AI assistance. I used OpenAI Codex as a coding assistant to review the existing resource, suggest cleanup, edit HTML/CSS/JavaScript/Lua, build the service bay UI, add locale support, convert config photo links to local assets, and update documentation. Final direction, testing, feature choices, and approval were handled by me.
 
-Tools used included FiveM/GTA V for in-game testing, Microsoft Edge for UI preview screenshots, ShareX for screenshots, Windows PowerShell, Node.js/npm, Prettier, ESLint, Stylelint, html-validate, Lua/luac, Scoop, and locally bundled Font Awesome assets.
+Tools used included FiveM/GTA V for in-game testing, Microsoft Edge for UI preview, ShareX for photos and screenshots, Windows PowerShell, CodeWalker, OpenIV, XnResize, Adobe Photoshop for background removal, Paint.net, VS Code, Notepad++, nv_debug for target coordinates, Node.js/npm, Prettier, ESLint, Stylelint, html-validate, Lua/luac, Scoop, and locally bundled Font Awesome assets.
 
 Roughly, this UI and cleanup pass took about 40-50 user instructions/prompts and around 120-160 AI-assisted workspace actions, including file reviews, code edits, validation checks, syntax checks, and UI polish passes. These numbers are estimates, since many AI actions were inspection or verification steps rather than direct code changes.
 
