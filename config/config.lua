@@ -1,7 +1,7 @@
 Config = {}
 
 Config.Locale = 'en'
-Config.ConfigVersion = '1.1.0'
+Config.ConfigVersion = '1.2.0'
 
 Config.Debug = false  -- Enables debug visuals/logging. Admin commands are available to admins even when this is false.
 Config.Framework = 'auto' -- auto, qb, qbox, esx, nd, standalone
