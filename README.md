@@ -967,7 +967,9 @@ Roughly, this UI and cleanup pass took about 40-50 user instructions/prompts and
 
 ## Credits
 
-ls_trucking also includes functionality from the dragcam resource by Jorn, check it out!: https://github.com/Jorn08/dragcam
+- ls_trucking also includes functionality from the dragcam resource by Jorn, check it out!: https://github.com/Jorn08/dragcam
+
+- Some vehicle images provided by https://images.sky-systems.net/
 
 Resource label:
 
