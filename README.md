@@ -491,7 +491,7 @@ Default location:
 coords = vector3(-169.13, -2462.35, 6.4)
 ```
 
-The service bay works on LSFC company garage vehicles and private contractor fleet vehicles. It does not service random civilian vehicles.
+The service bay works on LSFC company garage vehicles and private contractor fleet vehicles. It does not service auto spawned contract vehicles or random civilian vehicles.
 
 ### Service Tab
 
