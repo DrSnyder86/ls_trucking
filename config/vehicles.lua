@@ -1,4 +1,4 @@
-Config.VehicleConfigVersion = '1.0.0'
+Config.VehicleConfigVersion = '1.2.0'
 
 -- Company garage vehicles and contractor fleet vehicles
 Config.JobVehicles = {
