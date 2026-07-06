@@ -971,12 +971,6 @@ Roughly, this UI and cleanup pass took about 40-50 user instructions/prompts and
 
 - Some vehicle images provided by https://images.sky-systems.net/
 
-Resource label:
-
-```text
-ls_trucking by DrSnyder
-```
-
 ## License
 
 For license details, check the `License` file. That file will always overrule anything mentioned in this README.
