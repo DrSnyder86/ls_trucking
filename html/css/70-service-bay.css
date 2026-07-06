@@ -1,0 +1,979 @@
+.service-bay.hidden { display: none; }
+
+.service-bay {
+    position: fixed;
+    top: 5vh;
+    left: 2.2vw;
+    width: 360px;
+    height: 69vh;
+    max-height: 69vh;
+    z-index: 1000;
+    color: #f4f6f0;
+    font-family: Inter, Arial, sans-serif;
+    user-select: none;
+}
+
+.service-bay-panel {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    border: 1px solid rgba(255, 196, 31, 0.35);
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(15, 19, 18, 0.98), rgba(3, 7, 7, 0.96));
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), inset 0 1px rgba(255,255,255,0.08);
+    overflow: hidden;
+}
+
+.service-bay-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255, 196, 31, 0.06);
+}
+
+.service-bay-header small,
+.service-bay-section-title,
+.service-bay-stat small,
+.service-bay-cart small,
+.service-bay-option small {
+    color: #b9c0ba;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.service-bay-header strong {
+    display: block;
+    margin-top: 2px;
+    font-size: 17px;
+    line-height: 1.05;
+}
+
+.service-bay-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 7px;
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #dfe7df;
+    background: rgba(0,0,0,0.35);
+    cursor: pointer;
+}
+
+.service-bay-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    padding: 10px 11px;
+    max-height: none !important;
+    overflow: hidden !important;
+}
+
+.service-bay-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.service-bay-stat {
+    padding: 9px 10px;
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.035);
+}
+
+.service-bay-stat strong {
+    display: block;
+    margin-top: 3px;
+    font-size: 15px;
+}
+
+.service-bay-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+}
+
+.service-bay-tabs button,
+.service-bay-pay button,
+.service-bay-add,
+.service-bay-cycle button {
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.045);
+    color: #f7f8f4;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.service-bay-tabs button {
+    min-height: 40px;
+    color: #cdd4ce;
+}
+
+.service-bay-tabs button.active {
+    border-color: rgba(255, 196, 31, 0.8);
+    color: #ffcc35;
+    background: rgba(255, 196, 31, 0.12);
+}
+
+.service-bay-page {
+    display: flex;
+    max-width: 100%;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.service-bay-option {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    height: 86px;
+    box-sizing: border-box;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 7px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025));
+    padding: 9px;
+}
+
+.service-bay-option-cycling {
+    height: 124px;
+}
+
+.service-bay-option-service {
+    justify-content: center;
+}
+
+.service-bay-option-service .service-bay-option-head {
+    min-height: 0;
+    grid-template-columns: 34px minmax(0, 1fr) minmax(64px, max-content);
+    align-items: center;
+}
+
+.service-bay-service-action {
+    display: flex;
+    align-items: flex-end;
+    align-self: stretch;
+    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.service-bay-service-action .service-bay-add {
+    min-width: 62px;
+    min-height: 28px;
+    padding: 0 9px;
+}
+
+.service-bay-option.is-current {
+    border-color: rgba(107, 255, 143, 0.28);
+    background: linear-gradient(180deg, rgba(95, 225, 125, 0.075), rgba(255,255,255,0.022));
+}
+
+.service-bay-option-head {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 9px;
+    min-height: 42px;
+}
+
+.service-bay-option-head > i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 9px;
+    color: #6bf28b;
+    background: linear-gradient(180deg, rgba(82, 232, 116, 0.20), rgba(37, 128, 62, 0.16));
+    border: 1px solid rgba(107, 255, 143, 0.18);
+    font-size: 16px;
+    line-height: 1;
+    margin-top: -1px;
+}
+
+.service-bay-option small {
+    font-size: 9px;
+    line-height: 1;
+}
+
+.service-bay-option strong {
+    display: block;
+    font-size: 13px;
+    line-height: 1.05;
+}
+
+.service-bay-option p {
+    display: -webkit-box;
+    margin: 3px 0 0;
+    color: #c4c9c4;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+.service-bay-option-footer {
+    display: grid;
+    grid-template-columns: minmax(94px, 112px) minmax(54px, auto) max-content;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px;
+    margin-top: 7px;
+    min-width: 0;
+}
+
+.service-bay-price {
+    min-width: 54px;
+    color: #6bff8f;
+    font-size: 14px;
+    font-weight: 950;
+    line-height: 1;
+    text-align: right;
+}
+
+.service-bay-add {
+    min-width: 88px;
+    min-height: 32px;
+    color: #07100a;
+    background: linear-gradient(180deg, #ffd44a, #d99d00);
+    border-color: rgba(255, 210, 64, 0.9);
+}
+
+.service-bay-option-actions button,
+.service-bay-payment button,
+.service-bay-pay button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.service-bay-option-actions button i,
+.service-bay-payment button i,
+.service-bay-pay button i {
+    font-size: 11px;
+    line-height: 1;
+}
+
+.service-bay-cycle {
+    display: grid;
+    width: 112px;
+    grid-template-columns: 24px minmax(48px, 1fr) 24px;
+    align-items: center;
+    gap: 4px;
+}
+
+.service-bay-cycle button {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    font-size: 11px;
+}
+
+.service-bay-cycle span {
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 900;
+    font-size: 13px;
+    line-height: 1;
+    color: #ffcc35;
+}
+
+.service-bay-installed {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.service-bay-installed div {
+    padding: 7px 8px;
+    border-radius: 7px;
+    background: rgba(255,255,255,0.035);
+}
+
+.service-bay-installed strong {
+    display: block;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.service-bay-cart {
+    flex: 0 0 auto;
+    border: 1px solid rgba(107, 242, 139, 0.25);
+    border-radius: 9px;
+    background: rgba(33, 85, 46, 0.13);
+    padding: 9px 10px 10px;
+}
+
+.service-bay-cart-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.service-bay-cart-head span {
+    color: #6bff8f;
+    font-size: 10px;
+    font-weight: 950;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.service-bay-cart-list {
+    display: block;
+    max-height: 64px;
+    overflow-y: auto;
+    margin: 7px 0 6px;
+    padding: 1px 2px 1px 0;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.14);
+}
+
+.service-bay-cart-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 19px;
+    align-items: center;
+    gap: 6px;
+    min-height: 24px;
+    padding: 4px 4px 4px 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.055);
+    border-radius: 0;
+    background: transparent;
+    font-size: 10.5px;
+}
+
+.service-bay-cart-item span {
+    display: block;
+    min-width: 0;
+}
+
+.service-bay-cart-item b,
+.service-bay-cart-item small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.service-bay-cart-item b {
+    color: #f4f6f0;
+    font-size: 10.5px;
+    line-height: 1.05;
+}
+
+.service-bay-cart-item small {
+    margin-top: 2px;
+    color: #aeb7b0;
+    font-size: 9px;
+    line-height: 1;
+}
+
+.service-bay-cart-item button {
+    width: 18px;
+    height: 18px;
+    border: 0;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.075);
+    color: #fff;
+    cursor: pointer;
+    font-size: 10px;
+}
+
+.service-bay-empty {
+    color: #aeb7b0;
+    font-size: 12px;
+    padding: 5px 0;
+}
+
+.service-bay-total {
+    display: grid;
+    gap: 2px;
+    padding-top: 5px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.service-bay-total div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+}
+
+.service-bay-total strong {
+    color: #6bff8f;
+    font-size: 17px;
+}
+
+.service-bay-pay {
+    display: grid;
+    grid-template-columns: 1fr 0.7fr;
+    gap: 7px;
+    margin-top: 8px;
+}
+
+.service-bay-pay button {
+    min-height: 34px;
+}
+
+.service-bay-pay button:first-child {
+    color: #07100a;
+    background: linear-gradient(180deg, #62ef86, #22ad4c);
+    border-color: rgba(93, 240, 134, 0.8);
+}
+
+.service-bay-hint {
+    color: #96a09a;
+    font-size: 11px;
+    line-height: 1.35;
+    margin: 0;
+}
+.service-bay-payment {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 7px;
+    margin-top: 8px;
+}
+
+.service-bay-payment button {
+    min-height: 30px;
+    border-radius: 7px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.05);
+    color: #cdd4ce;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.service-bay-payment button.active {
+    border-color: rgba(107, 255, 143, 0.8);
+    color: #6bff8f;
+    background: rgba(72, 210, 101, 0.14);
+}
+/* Compact service bay summary */
+.service-bay-summary {
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025));
+    padding: 7px 8px;
+}
+
+.service-bay-summary-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.service-bay-summary-head small,
+.service-bay-status-strip small,
+.service-bay-installed-strip small,
+.service-bay-current {
+    color: #b9c0ba;
+    font-size: 9px;
+    font-weight: 950;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+}
+
+.service-bay-summary-head strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
+    line-height: 1.05;
+}
+
+.service-bay-summary-head span {
+    padding: 4px 7px;
+    border-radius: 999px;
+    color: #74f28f;
+    background: rgba(70, 220, 100, 0.12);
+    font-size: 11px;
+    font-weight: 950;
+}
+
+.service-bay-status-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    margin-top: 7px;
+}
+
+.service-bay-status-strip span,
+.service-bay-installed-strip span {
+    min-width: 0;
+    padding: 6px 7px;
+    border-radius: 7px;
+    background: rgba(0,0,0,0.22);
+}
+
+.service-bay-status-strip strong,
+.service-bay-installed-strip strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 1.12;
+}
+
+.service-bay-installed-strip {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+    margin-top: 6px;
+}
+
+.service-bay-hint {
+    margin-top: -2px;
+}
+
+.service-bay-option-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-left: 0;
+    min-width: 0;
+}
+
+.service-bay-remove {
+    min-width: 72px;
+    min-height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 120, 92, 0.45);
+    color: #ffd6cc;
+    background: rgba(180, 45, 30, 0.18);
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.service-bay-current {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 8px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.045);
+    font-size: 10px;
+}
+
+.service-bay-add,
+.service-bay-remove {
+    min-width: 58px;
+    min-height: 28px;
+    padding: 0 8px;
+    border-radius: 7px;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.service-bay-remove {
+    min-width: 64px;
+}
+
+/* Service bay spec sheet and preview controls */
+.service-bay-summary-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 10px;
+}
+
+.service-bay-summary-column {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.service-bay-summary-column span {
+    display: grid;
+    grid-template-columns: minmax(44px, 0.75fr) minmax(0, 1fr);
+    align-items: baseline;
+    min-height: 18px;
+    gap: 6px;
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.045);
+}
+
+.service-bay-summary-column span:last-child {
+    border-bottom: 0;
+}
+
+.service-bay-summary-column small {
+    overflow: hidden;
+    color: #aeb7b0;
+    font-size: 8.5px;
+    font-weight: 950;
+    letter-spacing: 0.055em;
+    line-height: 1;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.service-bay-summary-column strong {
+    overflow: hidden;
+    color: #f4f6f0;
+    font-size: 11px;
+    font-weight: 950;
+    line-height: 1.05;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.service-bay-option-head {
+    align-items: start;
+}
+
+.service-bay-option-footer-simple {
+    display: flex;
+    grid-template-columns: minmax(52px, 1fr) max-content;
+    justify-content: flex-end;
+    margin-top: 6px;
+}
+
+.service-bay-option-footer-cycle {
+    grid-template-columns: minmax(112px, 1fr) max-content;
+    gap: 5px;
+    margin-top: 6px;
+}
+
+.service-bay-preview {
+    min-width: 58px;
+    min-height: 28px;
+    padding: 0 8px;
+    border-radius: 7px;
+    border: 1px solid rgba(148, 228, 255, 0.42);
+    color: #d7f7ff;
+    background: rgba(72, 150, 185, 0.17);
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.service-bay-option-actions .service-bay-add,
+.service-bay-option-actions .service-bay-remove,
+.service-bay-option-actions .service-bay-preview {
+    flex: 0 0 auto;
+}
+/* Scrollable service catalog */
+.service-bay-options-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-right: 0;
+    padding-left: 0;
+}
+
+.service-bay-option-copy {
+    min-width: 0;
+}
+
+.service-bay-tile-price {
+    align-self: start;
+    color: #6bff8f;
+    font-size: 14px;
+    font-weight: 950;
+    line-height: 1;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.service-bay-tile-price.is-muted {
+    color: #aeb7b0;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.service-bay-option-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr 0.9fr;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.service-bay-option-meta span {
+    min-width: 0;
+    padding: 4px 5px;
+    border-radius: 6px;
+    background: rgba(0,0,0,0.21);
+}
+
+.service-bay-option-meta small {
+    display: block;
+    overflow: hidden;
+    color: #aeb7b0;
+    font-size: 7.6px;
+    font-weight: 950;
+    letter-spacing: 0.045em;
+    line-height: 1;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.service-bay-option-meta strong {
+    display: block;
+    overflow: hidden;
+    margin-top: 2px;
+    color: #f4f6f0;
+    font-size: 10px;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.service-bay-option-meta .is-upgrade strong,
+.service-bay-option-meta .is-change strong {
+    color: #ffcc35;
+}
+
+.service-bay-option-meta .is-current strong {
+    color: #6bff8f;
+}
+
+.service-bay-option-meta .is-remove strong {
+    color: #ffd6cc;
+}
+
+.service-bay-option-actions button:disabled,
+.service-bay-payment button:disabled,
+.service-bay-pay button:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+}
+
+.service-bay-option-footer-cycle .service-bay-cycle {
+    min-width: 112px;
+    width: 100%;
+    grid-template-columns: 24px minmax(52px, 1fr) 24px;
+}
+
+.service-bay-option-footer-cycle .service-bay-option-actions button {
+    gap: 4px;
+    padding-right: 7px;
+    padding-left: 7px;
+}
+
+.service-bay-option-footer-cycle .service-bay-current {
+    min-width: 0;
+}
+
+.service-bay-option-cycling .service-bay-add {
+    min-width: 58px;
+}
+
+/* Service bay title icon */
+.service-bay-title {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 9px;
+}
+
+.service-bay-title > div {
+    min-width: 0;
+}
+
+.service-bay-title small {
+    font-size: 17px;
+    line-height: 1.05;
+    letter-spacing: 0;
+}
+
+.service-bay-title strong {
+    margin-top: 2px;
+    color: #b9c0ba;
+    font-size: 10px;
+    line-height: 1.1;
+}
+
+.service-bay-title-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    border-radius: 8px;
+    color: #07100a;
+    background: linear-gradient(180deg, #ffd44a, #d99d00);
+    border: 1px solid rgba(255, 210, 64, 0.9);
+    box-shadow: 0 0 12px rgba(230, 171, 0, 0.22);
+}
+/* Stable service bay option text */
+.service-bay-option-copy p {
+    min-height: 26px;
+}
+/* Match service bay tab icon layout */
+.service-bay-tabs button {
+    display: flex;
+    min-width: 0;
+    min-height: 43px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 5px 4px;
+    line-height: 1.05;
+}
+
+.service-bay-tabs button i {
+    display: block;
+    font-size: 13px;
+    line-height: 1;
+}
+/* Keep long vehicle spec labels readable */
+.service-bay-summary-column span {
+    grid-template-columns: minmax(70px, 0.95fr) minmax(0, 1fr);
+    gap: 4px;
+}
+
+.service-bay-summary-column small {
+    font-size: 7.4px;
+    letter-spacing: 0.015em;
+    text-overflow: clip;
+}
+/* Match compact vehicle spec value text */
+.service-bay-summary-column small,
+.service-bay-summary-column strong {
+    font-size: 8px;
+    line-height: 1.18;
+}
+
+.service-bay-summary-column span {
+    align-items: center;
+    min-height: 17px;
+}
+/* In-menu service bay install progress */
+.service-bay-install-progress {
+    margin: 7px 0 8px;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 201, 40, 0.36);
+    background: linear-gradient(180deg, rgba(255, 201, 40, 0.11), rgba(5, 18, 10, 0.32));
+    box-shadow: inset 0 1px rgba(255,255,255,0.08), 0 0 14px rgba(230, 171, 0, 0.12);
+}
+
+.service-bay-install-head,
+.service-bay-install-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.service-bay-install-head small {
+    color: #ffcc35;
+    font-size: 8.5px;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.service-bay-install-head strong,
+.service-bay-install-foot b {
+    color: #6bff8f;
+    font-size: 10px;
+    font-weight: 950;
+}
+
+.service-bay-install-label {
+    overflow: hidden;
+    margin-top: 4px;
+    color: #f4f6f0;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.service-bay-install-track {
+    position: relative;
+    overflow: hidden;
+    height: 9px;
+    margin-top: 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.service-bay-install-fill {
+    display: block;
+    width: 0%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #63f489, #ffd44a);
+    box-shadow: 0 0 10px rgba(107, 255, 143, 0.45);
+    transition: width 80ms linear;
+}
+
+.service-bay-install-foot {
+    margin-top: 4px;
+    color: #aeb7b0;
+    font-size: 9px;
+    line-height: 1;
+}
+
+.service-bay-processing .service-bay-options-scroll,
+.service-bay-processing .service-bay-tabs,
+.service-bay-processing .service-bay-cart-list {
+    opacity: 0.72;
+}
+
+/* Final service bay alignment and work order polish */
+.service-bay-summary,
+.service-bay-tabs,
+.service-bay-options-scroll,
+.service-bay-cart {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.service-bay-cart-item:last-child {
+    border-bottom: 0;
+}
+
+.service-bay-cart-item span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.service-bay-cart-item strong {
+    color: #f4f6f0;
+    font-size: 10.5px;
+    line-height: 1;
+}
+
+.service-bay-install-fill {
+    background: #6bff8f;
+    box-shadow: 0 0 10px rgba(107, 255, 143, 0.4);
+}

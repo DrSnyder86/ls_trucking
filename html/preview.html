@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LS Trucking UI Preview</title>
+    <link rel="stylesheet" href="preview.css">
+</head>
+<body>
+    <aside class="preview-toolbar">
+        <div>
+            <small>LS Trucking</small>
+            <h1>UI Preview</h1>
+            <p>Local browser harness for the FiveM NUI.</p>
+        </div>
+
+        <section class="preview-control-group">
+            <h2>Viewport</h2>
+            <div class="preview-segmented">
+                <button type="button" data-preview-viewport="full" class="active">Full</button>
+                <button type="button" data-preview-viewport="desktop">Desktop</button>
+                <button type="button" data-preview-viewport="tall">Tall</button>
+                <button type="button" data-preview-viewport="compact">Compact</button>
+            </div>
+        </section>
+
+        <section class="preview-control-group">
+            <h2>Dispatch</h2>
+            <button type="button" data-preview-action="dispatch">Tablet Home</button>
+            <button type="button" data-preview-action="dispatch-active">Active Job</button>
+            <button type="button" data-preview-action="dispatch-contractor">Contractor Tab</button>
+            <button type="button" data-preview-action="dispatch-warning">Warning State</button>
+        </section>
+
+        <section class="preview-control-group">
+            <h2>Receiver</h2>
+            <button type="button" data-preview-action="mini">Receiver Mini</button>
+            <button type="button" data-preview-action="mini-standby">Receiver Standby</button>
+            <button type="button" data-preview-action="dock">Receiver Dock</button>
+            <button type="button" data-preview-action="mini-warning">Receiver Warning</button>
+        </section>
+
+        <section class="preview-control-group">
+            <h2>Service Bay</h2>
+            <button type="button" data-preview-action="service-stock">Stock Vehicle</button>
+            <button type="button" data-preview-action="service">Partial Upgrades</button>
+            <button type="button" data-preview-action="service-cart">Full Cart</button>
+            <button type="button" data-preview-action="service-processing">Installing</button>
+        </section>
+
+        <section class="preview-control-group">
+            <h2>Stress</h2>
+            <button type="button" data-preview-action="loop-dispatch">Loop Dispatch</button>
+            <button type="button" data-preview-action="loop-service">Loop Service</button>
+            <button type="button" data-preview-action="stop-loop" class="secondary">Stop Loop</button>
+            <button type="button" data-preview-action="close" class="secondary">Close UI</button>
+        </section>
+
+        <div class="preview-log" id="previewLog">Ready.</div>
+    </aside>
+
+    <main class="preview-stage">
+        <div id="previewViewport" class="preview-viewport viewport-full">
+            <iframe id="nuiFrame" title="LS Trucking NUI Preview" src="index.html"></iframe>
+        </div>
+    </main>
+
+    <script src="preview.js"></script>
+</body>
+</html>
