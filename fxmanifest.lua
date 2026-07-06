@@ -13,6 +13,9 @@ lua54 'yes'
 shared_scripts {
     '@ox_lib/init.lua',
     'config/config.lua',
+    'locales/*.lua',
+    'shared/locale.lua',
+    'config/service_bay.lua',
     'config/random_events.lua',
     'config/vehicles.lua',
     'config/route_trailers.lua',
@@ -30,6 +33,7 @@ server_scripts {
     'server/depot_vehicles.lua',
     'server/cargo.lua',
     'server/routes.lua',
+    'server/service_bay.lua',
     'server/admin.lua',
     'server/dispatch_data.lua',
     'server/job_blips.lua',
@@ -50,6 +54,7 @@ client_scripts {
     'client/route_state.lua',
     'client/routes.lua',
     'client/contractor_ui.lua',
+    'client/service_bay.lua',
     'client/job_blips.lua',
     'client/main.lua'
 }
@@ -60,13 +65,21 @@ files {
     'html/index.html',
     'html/style.css',
     'html/css/*.css',
-    'html/app.js',
+    'html/vendor/fontawesome/css/*.css',
+    'html/vendor/fontawesome/webfonts/*.woff2',
+    'html/locales/*.js',
+    'html/js/*.js',
+    'html/service_bay.js',
     'html/sounds/*.wav',
     'images/.gitkeep',
     'images/*.png',
     'images/*.jpg',
     'images/*.jpeg',
     'images/*.webp',
+    'images/**/*.png',
+    'images/**/*.jpg',
+    'images/**/*.jpeg',
+    'images/**/*.webp',
     'inventory_images/*.png',
     'data/**/*.meta'
 }
