@@ -1,8 +1,0 @@
-﻿/* LS Trucking UI styles are split by cascade order. Keep imports in this order. */
-@import url("css/00-core.css");
-@import url("css/10-dialogs.css");
-@import url("css/20-receiver-app.css");
-@import url("css/30-dispatch-contractor.css");
-@import url("css/40-receiver-dock-final.css");
-@import url("css/50-trailer-editor.css");
-@import url("css/60-dispatch-home.css");
