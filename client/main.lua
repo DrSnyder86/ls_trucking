@@ -55,6 +55,7 @@ local Routes = LS_Trucking and LS_Trucking.Routes or {}
 local ContractorUI = LS_Trucking and LS_Trucking.ContractorUI or {}
 local TrailerCargoEditor = LS_Trucking and LS_Trucking.TrailerCargoEditor or {}
 local TrailerCargoTester = LS_Trucking and LS_Trucking.TrailerCargoTester or {}
+local ServiceBay = LS_Trucking and LS_Trucking.ServiceBay or {}
 
 local function GetConfigCoords3(coords)
     if not coords then return nil end
@@ -388,9 +389,10 @@ local function ShowFreightDialog(header, lines, closeLabel)
     SendNUIMessage({
         action = 'showFreightDialog',
         mode = 'info',
+        locale = Config.Locale or 'en',
         header = header or 'Los Santos Freight Co.',
         content = lines or '',
-        closeLabel = closeLabel or 'Close'
+        closeLabel = closeLabel
     })
 end
 
@@ -413,10 +415,11 @@ local function ShowFreightConfirm(header, lines, confirmLabel, cancelLabel)
     SendNUIMessage({
         action = 'showFreightDialog',
         mode = 'confirm',
+        locale = Config.Locale or 'en',
         header = header or 'Los Santos Freight Co.',
         content = lines or '',
-        confirmLabel = confirmLabel or 'Confirm',
-        cancelLabel = cancelLabel or 'Cancel'
+        confirmLabel = confirmLabel,
+        cancelLabel = cancelLabel
     })
 
     local result = Citizen.Await(p)
@@ -438,7 +441,7 @@ local function ShowFreightHandoff(mode, pedLabel, manifest)
     SendNUIMessage({
         action = 'showFreightHandoff',
         mode = mode,
-        header = mode == 'trailer' and 'Receiver Delivery Handoff' or 'Pickup Manifest Handoff',
+        locale = Config.Locale or 'en',
         pedLabel = pedLabel or 'Freight Clerk',
         signerName = currentDriverInfo and currentDriverInfo.name or GetPlayerName(PlayerId()) or 'Assigned Driver',
         contracts = { manifest }
@@ -462,7 +465,7 @@ local function ShowFreightCancelDialog(repLoss, reasons)
     SetNuiFocus(true, true)
     SendNUIMessage({
         action = 'showFreightCancelDialog',
-        header = 'Cancel Freight Route',
+        locale = Config.Locale or 'en',
         repLoss = repLoss or 0,
         reasons = reasons or {}
     })
@@ -487,8 +490,8 @@ end
 
 local function ApplyExtras(vehicle, extras)
     if not vehicle or vehicle == 0 or not extras then return end
-    for extraId, enabled in pairs(extras) do
-        extraId = tonumber(extraId)
+    for extraKey, enabled in pairs(extras) do
+        local extraId = tonumber(extraKey)
         if extraId and DoesExtraExist(vehicle, extraId) then SetVehicleExtra(vehicle, extraId, enabled and 0 or 1) end
     end
 end
@@ -557,6 +560,87 @@ RegisterNetEvent('ls_trucking:client:syncVehicleKeyOwner', function(plate, owner
     RemoveKeys(vehicle, plate)
 end)
 
+local function CoerceServiceBoolean(value)
+    if value == true or value == 1 or value == '1' or value == 'true' then return true end
+    if value == false or value == 0 or value == '0' or value == 'false' then return false end
+    return nil
+end
+
+local function GetTurboStageConfig(stage)
+    stage = math.max(0, math.floor(tonumber(stage) or 0))
+    if stage <= 0 then return nil end
+
+    local serviceBay = Config.ServiceBay or {}
+    local stages = serviceBay.TurboStages or {}
+    if type(stages) ~= 'table' then return nil end
+
+    for _, cfg in ipairs(stages) do
+        if math.floor(tonumber(cfg.level) or 0) == stage then return cfg end
+    end
+
+    return nil
+end
+
+local function ResolveTurboStageFromProps(props, fallbackTurbo)
+    if type(props) ~= 'table' then return fallbackTurbo and 1 or 0 end
+
+    local stage = tonumber(props.lsfcTurboStage or props.turboStage)
+    if stage then return math.max(0, math.floor(stage)) end
+
+    local turbo = CoerceServiceBoolean(props.turbo)
+    if turbo ~= nil then return turbo and 1 or 0 end
+
+    local toggles = props.toggles
+    if type(toggles) == 'table' then
+        turbo = CoerceServiceBoolean(toggles['18'])
+        if turbo ~= nil then return turbo and 1 or 0 end
+        turbo = CoerceServiceBoolean(toggles[18])
+        if turbo ~= nil then return turbo and 1 or 0 end
+    end
+
+    return fallbackTurbo and 1 or 0
+end
+
+local function GetVehicleTurboStage(vehicle)
+    if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then return 0 end
+
+    local stage = nil
+    if Entity then
+        local state = Entity(vehicle).state
+        stage = tonumber(state.lsfcTurboStage or state.turboStage)
+        if stage then return math.max(0, math.floor(stage)) end
+        if state.lsfcTurboInstalled == true then return 1 end
+    end
+
+    return IsToggleModOn(vehicle, 18) and 1 or 0
+end
+
+local function ApplyTurboStage(vehicle, stage)
+    if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then return end
+
+    stage = math.max(0, math.floor(tonumber(stage) or 0))
+    local turboEnabled = stage > 0
+    local cfg = GetTurboStageConfig(stage) or {}
+
+    SetVehicleModKit(vehicle, 0)
+    ToggleVehicleMod(vehicle, 18, turboEnabled)
+
+    if Entity then
+        local state = Entity(vehicle).state
+        state:set('lsfcTurboInstalled', turboEnabled, true)
+        state:set('lsfcTurboStage', stage, true)
+    end
+
+    if stage <= 1 then
+        SetVehicleEnginePowerMultiplier(vehicle, 0.0)
+        SetVehicleEngineTorqueMultiplier(vehicle, 1.0)
+        return
+    end
+
+    SetVehicleEnginePowerMultiplier(vehicle, tonumber(cfg.power) or 0.0)
+    SetVehicleEngineTorqueMultiplier(vehicle, tonumber(cfg.torque) or 1.0)
+end
+
 local function GetVehicleProps(vehicle)
     if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then return {} end
     SetVehicleModKit(vehicle, 0)
@@ -564,6 +648,14 @@ local function GetVehicleProps(vehicle)
     local pearl, wheel = GetVehicleExtraColours(vehicle)
     local nr, ng, nb = GetVehicleNeonLightsColour(vehicle)
     local sr, sg, sb = GetVehicleTyreSmokeColor(vehicle)
+    local turboInstalled = IsToggleModOn(vehicle, 18)
+    local turboStage = GetVehicleTurboStage(vehicle)
+    if Entity then
+        local turboState = Entity(vehicle).state.lsfcTurboInstalled
+        if turboState == true then turboInstalled = true end
+    end
+    if turboStage > 0 then turboInstalled = true end
+
     local props = {
         model = GetEntityModel(vehicle),
         plate = GetVehicleNumberPlateText(vehicle),
@@ -582,10 +674,14 @@ local function GetVehicleProps(vehicle)
         tyreSmokeColor = { sr, sg, sb },
         neonEnabled = { IsVehicleNeonLightEnabled(vehicle, 0), IsVehicleNeonLightEnabled(vehicle, 1), IsVehicleNeonLightEnabled(vehicle, 2), IsVehicleNeonLightEnabled(vehicle, 3) },
         neonColor = { nr, ng, nb },
+        lsfcLastServiceMileage = Entity and (tonumber(Entity(vehicle).state.lsfcLastServiceMileage) or 0.0) or 0.0,
+        tyresCanBurst = GetVehicleTyresCanBurst(vehicle),
+        lsfcTurboStage = turboStage,
+        turbo = turboInstalled,
         mods = {}, toggles = {}, extras = {}
     }
     for i = 0, 49 do props.mods[tostring(i)] = GetVehicleMod(vehicle, i) end
-    props.toggles['18'] = IsToggleModOn(vehicle, 18)
+    props.toggles['18'] = turboInstalled
     props.toggles['20'] = IsToggleModOn(vehicle, 20)
     props.toggles['22'] = IsToggleModOn(vehicle, 22)
     for i = 0, 20 do if DoesExtraExist(vehicle, i) then props.extras[tostring(i)] = IsVehicleExtraTurnedOn(vehicle, i) end end
@@ -605,17 +701,68 @@ local function ApplyVehicleProps(vehicle, props)
     if props.windowTint then SetVehicleWindowTint(vehicle, props.windowTint) end
     if props.wheelType then SetVehicleWheelType(vehicle, props.wheelType) end
     if props.mods then for modType, modIndex in pairs(props.mods) do SetVehicleMod(vehicle, tonumber(modType), tonumber(modIndex), false) end end
-    if props.toggles then for modType, enabled in pairs(props.toggles) do ToggleVehicleMod(vehicle, tonumber(modType), enabled == true) end end
-    if props.extras then for extraId, enabled in pairs(props.extras) do extraId = tonumber(extraId) if extraId and DoesExtraExist(vehicle, extraId) then SetVehicleExtra(vehicle, extraId, enabled and 0 or 1) end end end
+    if props.toggles then for modType, enabled in pairs(props.toggles) do ToggleVehicleMod(vehicle, tonumber(modType), enabled == true or enabled == 1 or enabled == '1' or enabled == 'true') end end
+    if props.turbo ~= nil then
+        local turboEnabled = CoerceServiceBoolean(props.turbo) == true
+        ApplyTurboStage(vehicle, ResolveTurboStageFromProps(props, turboEnabled))
+    elseif props.lsfcTurboStage ~= nil or props.turboStage ~= nil then
+        ApplyTurboStage(vehicle, ResolveTurboStageFromProps(props, false))
+    end
+    if props.extras then
+        for extraKey, enabled in pairs(props.extras) do
+            local extraId = tonumber(extraKey)
+            if extraId and DoesExtraExist(vehicle, extraId) then SetVehicleExtra(vehicle, extraId, enabled and 0 or 1) end
+        end
+    end
     if props.livery and props.livery >= 0 then SetVehicleLivery(vehicle, props.livery) end
     if props.neonEnabled then for i = 0, 3 do SetVehicleNeonLightEnabled(vehicle, i, props.neonEnabled[i + 1] == true) end end
     if props.neonColor then SetVehicleNeonLightsColour(vehicle, props.neonColor[1] or 255, props.neonColor[2] or 255, props.neonColor[3] or 255) end
     if props.tyreSmokeColor then SetVehicleTyreSmokeColor(vehicle, props.tyreSmokeColor[1] or 255, props.tyreSmokeColor[2] or 255, props.tyreSmokeColor[3] or 255) end
+    if props.tyresCanBurst ~= nil then SetVehicleTyresCanBurst(vehicle, props.tyresCanBurst == true) end
+    if Entity then
+        local state = Entity(vehicle).state
+        state:set('lsfcLastServiceMileage', tonumber(props.lsfcLastServiceMileage) or 0.0, true)
+        if props.tyresCanBurst ~= nil then state:set('lsfcTyresCanBurst', props.tyresCanBurst == true, true) end
+        state:set('lsfcTurboStage', ResolveTurboStageFromProps(props, false), true)
+    end
     SetVehicleDirtLevel(vehicle, props.dirtLevel or 0.0)
     SetVehicleBodyHealth(vehicle, props.bodyHealth or 1000.0)
     SetVehicleEngineHealth(vehicle, props.engineHealth or 1000.0)
     SetVehiclePetrolTankHealth(vehicle, props.tankHealth or 1000.0)
 end
+
+CreateThread(function()
+    local boostedVehicle = 0
+
+    while true do
+        local waitTime = 1000
+        local ped = PlayerPedId()
+        local vehicle = GetVehiclePedIsIn(ped, false)
+        local boostActive = false
+
+        if vehicle ~= 0 and DoesEntityExist(vehicle) and GetPedInVehicleSeat(vehicle, -1) == ped then
+            local stage = GetVehicleTurboStage(vehicle)
+            if stage > 1 then
+                local cfg = GetTurboStageConfig(stage) or {}
+                SetVehicleEnginePowerMultiplier(vehicle, tonumber(cfg.power) or 0.0)
+                SetVehicleEngineTorqueMultiplier(vehicle, tonumber(cfg.torque) or 1.0)
+                boostedVehicle = vehicle
+                boostActive = true
+                waitTime = 0
+            end
+        end
+
+        if not boostActive and boostedVehicle ~= 0 then
+            if DoesEntityExist(boostedVehicle) then
+                SetVehicleEnginePowerMultiplier(boostedVehicle, 0.0)
+                SetVehicleEngineTorqueMultiplier(boostedVehicle, 1.0)
+            end
+            boostedVehicle = 0
+        end
+
+        Wait(waitTime)
+    end
+end)
 
 local function ClampVehicleHealth(value, fallback)
     value = tonumber(value)
@@ -1259,6 +1406,9 @@ local function UpdateMiniUI(passive)
     if not Config.MiniUIEnabled then HideMiniUI() return end
 
     local payload = BuildReceiverPayload(passive == true)
+    payload.locale = Config.Locale or 'en'
+    payload.config = payload.config or {}
+    payload.config.locale = Config.Locale or 'en'
 
     if activeContract and Config.ReceiverDockEnabled ~= false and not receiverDockUserHidden then
         SendNUIMessage({ action = 'showMiniDock', contract = payload })
@@ -1587,7 +1737,7 @@ CreateThread(function()
 
                 activeContract.loadChecklist = activeContract.loadChecklist or { truckSecure = false, trailerSecure = false }
                 local connectionWasSecure = activeContract.loadChecklist.truckSecure == true
-                if connectionWasSecure then PlayUISound('trailerDisconnect') end
+                if connectionWasSecure and not intentionalDrop then PlayUISound('trailerDisconnect') end
 
                 if not intentionalDrop then
                     activeContract.loadChecklist.truckSecure = false
@@ -2187,6 +2337,7 @@ if DepotVehicles.ConfigureClient then
         LoadModel = LoadModel,
         SetVehicleOptions = SetVehicleOptions,
         ApplyVehicleProps = ApplyVehicleProps,
+        ApplyTurboStage = ApplyTurboStage,
         ApplyVehicleHealthState = ApplyVehicleHealthState,
         ApplyExtras = ApplyExtras,
         SetFuel = SetFuel,
@@ -2202,6 +2353,8 @@ if DepotVehicles.ConfigureClient then
         UpdateMiniUI = UpdateMiniUI
     })
 end
+
+
 
 local function SpawnTrailerOnly(vehicleData, routeTrailer, trailerDepot)
     return DepotVehicles.SpawnTrailerOnly and DepotVehicles.SpawnTrailerOnly(vehicleData, routeTrailer, trailerDepot) or false
@@ -2538,7 +2691,11 @@ local function SetupRouteTargets()
     if not activeContract then return end
     if activeContract.type == 'van' or activeContract.type == 'boxtruck' then
         for index, stop in ipairs(activeContract.dropoffs or {}) do
-            AddSphereZone(('dropoff_%s'):format(index), stop.coords, 2.0, { { name = ('ls_trucking_dropoff_%s'):format(index), label = ('Deliver Cargo - %s'):format(stop.label), icon = 'fa-solid fa-box-open', distance = 2.5, canInteract = function() return activeContract and activeContract.loaded and activeContract.currentStop == index and carryingCargo end, onSelect = function()
+            local dropoffTarget = Config.DropoffTarget or {}
+            local targetCoords = vector3(stop.coords.x, stop.coords.y, stop.coords.z + (tonumber(dropoffTarget.HeightOffset) or 0.75))
+            local targetRadius = math.max(1.5, tonumber(dropoffTarget.Radius) or 3.5)
+            local targetDistance = math.max(Config.TargetDistance or 2.5, tonumber(dropoffTarget.Distance) or 3.5)
+            AddSphereZone(('dropoff_%s'):format(index), targetCoords, targetRadius, { { name = ('ls_trucking_dropoff_%s'):format(index), label = ('Deliver Cargo - %s'):format(stop.label), icon = 'fa-solid fa-box-open', distance = targetDistance, canInteract = function() return activeContract and activeContract.loaded and activeContract.currentStop == index and carryingCargo end, onSelect = function()
                 if not activeContract or activeContract.currentStop ~= index then return end
                 if not Progress('Checking delivery spot...', Config.Progress.deliverCargo, { dict = 'anim@heists@box_carry@', clip = 'idle' }) then return end
                 local result = lib.callback.await('ls_trucking:server:deliverCargoOne', false)
@@ -2601,7 +2758,9 @@ if LS_Trucking.TrailerDropMarker and LS_Trucking.TrailerDropMarker.ConfigureClie
         CreateRouteBlip = CreateRouteBlip,
         Notify = Notify,
         DispatchChatter = DispatchChatter,
-        UpdateMiniUI = UpdateMiniUI
+        UpdateMiniUI = UpdateMiniUI,
+        Progress = Progress,
+        PlayUISound = PlayUISound
     })
 end
 
@@ -3005,8 +3164,9 @@ local function BuildDispatchUIData()
     local data = lib.callback.await('ls_trucking:server:getDispatchData', false)
     if not data or not data.allowed then return nil, data and data.message or 'Unable to open trucking dispatch.' end
     currentDriverInfo = data.player or currentDriverInfo
+    if currentDriverInfo and currentDriverInfo.citizenid and RouteHistory.SetCharacter then RouteHistory.SetCharacter(currentDriverInfo.citizenid) end
     data.reuse = GetReuseData()
-    data.config = { allowVehicleReuseAfterRoute = Config.AllowVehicleReuseAfterRoute, requireSameTypeForVehicleReuse = Config.RequireSameTypeForVehicleReuse, radioFrequency = Config.RadioFrequency, uiSounds = Config.UI or {} }
+    data.config = { allowVehicleReuseAfterRoute = Config.AllowVehicleReuseAfterRoute, requireSameTypeForVehicleReuse = Config.RequireSameTypeForVehicleReuse, radioFrequency = Config.RadioFrequency, locale = Config.Locale or 'en', uiSounds = Config.UI or {} }
     data.dispatchHome = BuildDispatchHomeMapData()
     data.lastRouteSummary = RouteHistory.GetLast()
     data.routeHistory = RouteHistory.GetHistory()
@@ -3041,7 +3201,7 @@ local function RefreshDispatchUI(delayMs, attempts)
 end
 
 local function GetContractorBoardRefreshMs()
-    local minutes = tonumber(Config.PrivateContractor and Config.PrivateContractor.ContractBoardRefreshMinutes) or 30
+    local minutes = tonumber(Config.PrivateContractor and Config.PrivateContractor.ContractBoardRefreshMinutes) or 60
     return math.max(60000, math.floor(minutes * 60000))
 end
 
@@ -3068,6 +3228,7 @@ LS_Trucking.RequestReceiverAccess = function()
 
     if access and access.player then
         currentDriverInfo = access.player or currentDriverInfo
+        if currentDriverInfo and currentDriverInfo.citizenid and RouteHistory.SetCharacter then RouteHistory.SetCharacter(currentDriverInfo.citizenid) end
     end
 
     if Config.RequireJob and (not access or not access.allowed) then
@@ -3317,9 +3478,9 @@ RegisterNUICallback('startContract', function(data, cb)
     local currentPlate = reuseVehicle and GetJobVehiclePlate() or nil
     if not contractType then cb({ success = false }) return end
     if activeContract then Notify('You already have an active job. Cancel it from the Current Job panel first.', 'error') cb({ success = false }) return end
-    if reuseVehicle and not CanReuseVehicle(contractType) then Notify('Your current vehicle cannot be reused for this contract type.', 'error') cb({ success = false }) return end
+    if reuseVehicle and not CanReuseVehicle(contractType) then Notify(T('error.vehicle_reuse_type'), 'error') cb({ success = false }) return end
     if not reuseVehicle and spawnedVehicle and DoesEntityExist(spawnedVehicle) then Notify('Store or return your current vehicle before starting another contract.', 'error') cb({ success = false }) return end
-    if not reuseVehicle and not RequireNearDepotRequestArea('You need to be closer to the company vehicle spawn area to start a contract.') then cb({ success = false }) return end
+    if not reuseVehicle and not RequireNearDepotRequestArea(T('error.need_company_spawn_area')) then cb({ success = false }) return end
     if not LS_Trucking.BeginContractRequest(('Contract request transmitted for %s service. Dispatch is reviewing route and vehicle availability.'):format(contractType)) then cb({ success = false }) return end
     local result = lib.callback.await('ls_trucking:server:createContract', false, contractType, vehicleIndex, reuseVehicle, currentPlate, priorityKey, previewRouteIndex)
     LS_Trucking.ResolveContractRequest(result, result and result.success and ('Dispatch approved %s. Contract %s confirmed. Vehicle release and GPS authorized.'):format(result.contract and result.contract.routeLabel or 'the selected route', result.contractId or 'pending') or nil)
@@ -3505,7 +3666,7 @@ RegisterNUICallback('openActiveManifest', function(_, cb)
     cb(true)
 end)
 
-local function IsStaleVehicleCheckoutMessage(message)
+function LS_Trucking.IsStaleVehicleCheckoutMessage(message)
     message = tostring(message or ''):lower()
     return message:find('vehicle checked out', 1, true) ~= nil
         or message:find('vehicle out', 1, true) ~= nil
@@ -3513,14 +3674,14 @@ local function IsStaleVehicleCheckoutMessage(message)
         or message:find('only one private contractor vehicle', 1, true) ~= nil
 end
 
-local function TryReleaseStaleVehicleCheckout()
+function LS_Trucking.TryReleaseStaleVehicleCheckout()
     if spawnedVehicle and DoesEntityExist(spawnedVehicle) then return false end
 
     local result = lib.callback.await('ls_trucking:server:releaseStaleVehicleCheckout', false)
     return result and result.success and result.released == true
 end
 
-local function CloseDispatchForVehicleSpawn()
+function LS_Trucking.CloseDispatchForVehicleSpawn()
     dispatchUIVisible = false
     StopTabletAnimForDispatchClose()
     SetNuiFocus(fullReceiverVisible, fullReceiverVisible)
@@ -3536,7 +3697,7 @@ RegisterNUICallback('spawnGarageVehicle', function(data, cb)
     if not RequireNearDepotRequestArea('You need to be closer to the company garage area to request a vehicle.') then cb({ success = false }) return end
     if not Progress('Requesting company vehicle...', Config.Progress.spawnGarageVehicle, { dict = 'missheistdockssetup1clipboard@base', clip = 'base' }) then cb({ success = false }) return end
     local result = lib.callback.await('ls_trucking:server:spawnGarageVehicle', false, data.vehicleType, data.vehicleIndex)
-    if (not result or not result.success) and IsStaleVehicleCheckoutMessage(result and result.message) and TryReleaseStaleVehicleCheckout() then
+    if (not result or not result.success) and LS_Trucking.IsStaleVehicleCheckoutMessage(result and result.message) and LS_Trucking.TryReleaseStaleVehicleCheckout() then
         result = lib.callback.await('ls_trucking:server:spawnGarageVehicle', false, data.vehicleType, data.vehicleIndex)
     end
     if not result or not result.success then Notify(result and result.message or 'Unable to spawn garage vehicle.', 'error') cb({ success = false }) return end
@@ -3545,11 +3706,32 @@ RegisterNUICallback('spawnGarageVehicle', function(data, cb)
         cb({ success = false })
         return
     end
-    CloseDispatchForVehicleSpawn()
+    LS_Trucking.CloseDispatchForVehicleSpawn()
     cb({ success = true })
 end)
-RegisterNUICallback('returnGarageVehicle', function(_, cb) dispatchUIVisible = false StopTabletAnimForDispatchClose() SetNuiFocus(fullReceiverVisible, fullReceiverVisible) SetKeepInput(fullReceiverVisible) if fullReceiverVisible then StartReceiverAnim() end SendNUIMessage({ action = 'close' }) ReturnCompanyVehicle() cb(true) end)
+RegisterNUICallback('returnGarageVehicle', function(_, cb)
+    LS_Trucking.CloseDispatchForVehicleSpawn()
+    ReturnCompanyVehicle()
+    cb(true)
+end)
 
+
+if ServiceBay.ConfigureClient then
+    ServiceBay.ConfigureClient({
+        Notify = Notify,
+        SetKeepInput = SetKeepInput,
+        PlayUISound = PlayUISound,
+        GetSpawnedVehicle = function() return spawnedVehicle end,
+        GetGarageVehicle = function() return garageVehicle end,
+        GetContractorVehicle = function() return contractorVehicle end,
+        GetVehicleProps = GetVehicleProps,
+        ApplyVehicleProps = ApplyVehicleProps,
+        GetTurboStage = GetVehicleTurboStage,
+        ApplyTurboStage = ApplyTurboStage,
+        BuildCurrentVehicleState = BuildCurrentVehicleState,
+        SetFuel = SetFuel
+    })
+end
 if ContractorUI.RegisterClient then
     ContractorUI.RegisterClient({
         Notify = Notify,
@@ -3560,15 +3742,15 @@ if ContractorUI.RegisterClient then
         GetContractorVehicle = function() return contractorVehicle end,
         RequireNearDepotRequestArea = RequireNearDepotRequestArea,
         Progress = Progress,
-        IsStaleVehicleCheckoutMessage = IsStaleVehicleCheckoutMessage,
-        TryReleaseStaleVehicleCheckout = TryReleaseStaleVehicleCheckout,
+        IsStaleVehicleCheckoutMessage = LS_Trucking.IsStaleVehicleCheckoutMessage,
+        TryReleaseStaleVehicleCheckout = LS_Trucking.TryReleaseStaleVehicleCheckout,
         SpawnContractorVehicle = SpawnContractorVehicle,
         StoreContractorVehicle = StoreContractorVehicle,
         BuildCurrentVehicleState = BuildCurrentVehicleState,
         BeginContractRequest = function(message) return LS_Trucking.BeginContractRequest(message) end,
         ResolveContractRequest = function(result, message) return LS_Trucking.ResolveContractRequest(result, message) end,
         StartLocalContract = StartLocalContract,
-        CloseDispatch = CloseDispatchForVehicleSpawn
+        CloseDispatch = LS_Trucking.CloseDispatchForVehicleSpawn
     })
 end
 
@@ -3667,7 +3849,7 @@ CreateThread(function()
 end)
 
 
-local function AdminCommandEnabled()
+function LS_Trucking.AdminCommandEnabled()
     local allowed = lib.callback.await('ls_trucking:server:canUseAdminCommand', false)
     if allowed then return true end
 
@@ -3675,7 +3857,7 @@ local function AdminCommandEnabled()
     return false
 end
 
-local function ForceJobCleanup(message, keepVehicle)
+function LS_Trucking.ForceJobCleanup(message, keepVehicle)
     if message then Notify(message, 'warning') end
 
     TriggerServerEvent('ls_trucking:server:cancelContract', '__system_cleanup')
@@ -3696,23 +3878,23 @@ local function ForceJobCleanup(message, keepVehicle)
 end
 
 RegisterCommand('lstruck_resetjob', function()
-    if not AdminCommandEnabled() then return end
-    ForceJobCleanup('Admin: active trucking job has been force reset.', false)
+    if not LS_Trucking.AdminCommandEnabled() then return end
+    LS_Trucking.ForceJobCleanup('Admin: active trucking job has been force reset.', false)
 end, false)
 
 RegisterCommand('lstruck_clearpeds', function()
-    if not AdminCommandEnabled() then return end
+    if not LS_Trucking.AdminCommandEnabled() then return end
     CleanupActiveContractPeds(false)
     Notify('Admin: active contract peds cleared.', 'success')
 end, false)
 
 RegisterCommand('lstruck_giveitems', function()
-    if not AdminCommandEnabled() then return end
+    if not LS_Trucking.AdminCommandEnabled() then return end
     TriggerServerEvent('ls_trucking:server:debugGiveItems')
 end, false)
 
 RegisterCommand('lstruck_summary', function()
-    if not AdminCommandEnabled() then return end
+    if not LS_Trucking.AdminCommandEnabled() then return end
 
     if not activeContract then
         ShowFreightDialog('Admin Route Summary', 'No active trucking contract.', 'Close')
@@ -3734,7 +3916,7 @@ RegisterCommand('lstruck_summary', function()
 end, false)
 
 RegisterCommand('lstraileredit', function(_, args)
-    if not AdminCommandEnabled() then return end
+    if not LS_Trucking.AdminCommandEnabled() then return end
 
     local trailerKey = args and args[1] or 'flatbed_crates'
     if TrailerCargoEditor.Open then
@@ -3745,7 +3927,7 @@ RegisterCommand('lstraileredit', function(_, args)
 end, false)
 
 RegisterCommand('lstrailertest', function(_, args)
-    if not AdminCommandEnabled() then return end
+    if not LS_Trucking.AdminCommandEnabled() then return end
 
     local trailerKey = args and args[1] or 'flatbed_crates'
     if TrailerCargoTester.Spawn then
@@ -3756,7 +3938,7 @@ RegisterCommand('lstrailertest', function(_, args)
 end, false)
 
 RegisterCommand('lstrailerclear', function()
-    if not AdminCommandEnabled() then return end
+    if not LS_Trucking.AdminCommandEnabled() then return end
 
     if TrailerCargoTester.Clear then
         TrailerCargoTester.Clear(false)
@@ -3782,7 +3964,7 @@ CreateThread(function()
 
             if missingVehicleTicks >= 3 then
                 missingVehicleTicks = 0
-                ForceJobCleanup('Freight job cancelled: the company vehicle could not be found.', false)
+                LS_Trucking.ForceJobCleanup('Freight job cancelled: the company vehicle could not be found.', false)
             end
 
             if activeContract and activeContract.type == 'trailer' and activeContract.trailerDepot then
@@ -3794,7 +3976,7 @@ CreateThread(function()
 
                 if missingTrailerTicks >= 3 then
                     missingTrailerTicks = 0
-                    ForceJobCleanup('Freight job cancelled: the assigned trailer could not be found.', false)
+                    LS_Trucking.ForceJobCleanup('Freight job cancelled: the assigned trailer could not be found.', false)
                 end
             else
                 missingTrailerTicks = 0

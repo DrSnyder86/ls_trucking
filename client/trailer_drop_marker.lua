@@ -5,6 +5,8 @@ local clientContext = {}
 local settleStartedAt = 0
 local confirmPending = false
 local retryAfter = 0
+local oldDetachWarnAt = 0
+local disconnectPending = false
 
 local function Ctx()
     return clientContext or {}
@@ -176,6 +178,13 @@ CreateThread(function()
             and Call('IsAssignedTrailerAttached') == true then
             DisableControlAction(0, 74, true)
             DisableControlAction(2, 74, true)
+
+            if GetGameTimer() >= oldDetachWarnAt
+                and (IsDisabledControlPressed(0, 74) or IsDisabledControlPressed(2, 74)) then
+                oldDetachWarnAt = GetGameTimer() + 4500
+                Call('Notify', 'Use the rear truck target to disconnect this secured contract trailer.', 'warning')
+            end
+
             waitTime = 0
         end
 
@@ -201,6 +210,8 @@ function TrailerDropMarker.CanDisconnectTrailer()
 end
 
 function TrailerDropMarker.DisconnectTrailer()
+    if disconnectPending then return false end
+
     if not TrailerDropMarker.CanDisconnectTrailer() then
         Call('Notify', 'Position the secured trailer inside the receiving marker before disconnecting.', 'error')
         return false
@@ -212,7 +223,34 @@ function TrailerDropMarker.DisconnectTrailer()
         return false
     end
 
+    disconnectPending = true
+
+    local duration = (Config.Progress and (Config.Progress.disconnectTrailer or Config.Progress.secureTruckLoad)) or 3000
+    local ok = true
+    local progress = Ctx().Progress
+    if progress then
+        ok = progress('Disconnecting trailer lines...', duration, {
+            dict = 'mini@repair',
+            clip = 'fixing_a_ped'
+        }) == true
+    else
+        Wait(duration)
+    end
+
+    if not ok then
+        disconnectPending = false
+        return false
+    end
+
+    if not TrailerDropMarker.CanDisconnectTrailer() then
+        disconnectPending = false
+        Call('Notify', 'Trailer release was interrupted. Recheck the trailer position and try again.', 'error')
+        return false
+    end
+
     DetachVehicleFromTrailer(vehicle)
+    Call('PlayUISound', 'trailerDisconnect')
+    disconnectPending = false
     return true
 end
 

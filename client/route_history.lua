@@ -8,6 +8,57 @@ local ROUTE_HISTORY_KVP = 'ls_trucking_route_history'
 
 local lastRouteSummary = nil
 local routeHistory = {}
+local currentCharacterId = nil
+local currentLastKey = LAST_ROUTE_SUMMARY_KVP
+local currentHistoryKey = ROUTE_HISTORY_KVP
+
+local function NormalizeCharacterId(value)
+    value = tostring(value or '')
+    value = value:gsub('%s+', '')
+    if value == '' then return nil end
+    return value
+end
+
+local function BuildCharacterKey(baseKey, characterId)
+    characterId = NormalizeCharacterId(characterId)
+    if not characterId then return baseKey end
+    return ('%s:%s'):format(baseKey, characterId:gsub('[^%w_%-:]', '_'))
+end
+
+local function EntryBelongsToCharacter(entry)
+    if not currentCharacterId or not entry or not entry.citizenid then return true end
+    return tostring(entry.citizenid) == currentCharacterId
+end
+
+local function LoadFromCurrentKeys()
+    lastRouteSummary = nil
+    routeHistory = {}
+
+    local raw = GetResourceKvpString(currentLastKey)
+    if raw and raw ~= '' then
+        local ok, decoded = pcall(json.decode, raw)
+        if ok and type(decoded) == 'table' and EntryBelongsToCharacter(decoded) then
+            lastRouteSummary = decoded
+        end
+    end
+
+    local historyRaw = GetResourceKvpString(currentHistoryKey)
+    if historyRaw and historyRaw ~= '' then
+        local ok, decoded = pcall(json.decode, historyRaw)
+        if ok and type(decoded) == 'table' then
+            for _, entry in ipairs(decoded) do
+                if EntryBelongsToCharacter(entry) then
+                    routeHistory[#routeHistory + 1] = entry
+                    if #routeHistory >= ROUTE_HISTORY_LIMIT then break end
+                end
+            end
+        end
+    end
+
+    if not lastRouteSummary and routeHistory[1] then
+        lastRouteSummary = routeHistory[1]
+    end
+end
 
 function RouteHistory.GetClientTimestamp()
     local function pad(number)
@@ -40,36 +91,43 @@ function RouteHistory.GetClientTimestamp()
     return 'Current Session'
 end
 
-function RouteHistory.Load()
-    local raw = GetResourceKvpString(LAST_ROUTE_SUMMARY_KVP)
+function RouteHistory.Load(characterId)
+    currentCharacterId = NormalizeCharacterId(characterId)
+    currentLastKey = BuildCharacterKey(LAST_ROUTE_SUMMARY_KVP, currentCharacterId)
+    currentHistoryKey = BuildCharacterKey(ROUTE_HISTORY_KVP, currentCharacterId)
+    LoadFromCurrentKeys()
+end
 
-    if raw and raw ~= '' then
-        local ok, decoded = pcall(json.decode, raw)
-
-        if ok and type(decoded) == 'table' then
-            lastRouteSummary = decoded
-        end
-    end
-
-    local historyRaw = GetResourceKvpString(ROUTE_HISTORY_KVP)
-    if historyRaw and historyRaw ~= '' then
-        local ok, decoded = pcall(json.decode, historyRaw)
-        if ok and type(decoded) == 'table' then
-            routeHistory = decoded
-        end
-    end
+function RouteHistory.SetCharacter(characterId)
+    local normalized = NormalizeCharacterId(characterId)
+    if normalized == currentCharacterId then return end
+    RouteHistory.Load(normalized)
 end
 
 function RouteHistory.GetLast()
-    return lastRouteSummary
+    if lastRouteSummary and EntryBelongsToCharacter(lastRouteSummary) then return lastRouteSummary end
+    return nil
 end
 
 function RouteHistory.GetHistory()
-    return routeHistory
+    if not currentCharacterId then return routeHistory end
+
+    local filtered = {}
+    for _, entry in ipairs(routeHistory or {}) do
+        if EntryBelongsToCharacter(entry) then filtered[#filtered + 1] = entry end
+    end
+    return filtered
 end
 
 function RouteHistory.Save(data)
     if not data or type(data) ~= 'table' then return end
+
+    local dataCharacterId = NormalizeCharacterId(data.citizenid) or currentCharacterId
+    if dataCharacterId and dataCharacterId ~= currentCharacterId then
+        RouteHistory.SetCharacter(dataCharacterId)
+    end
+
+    if currentCharacterId then data.citizenid = currentCharacterId end
 
     lastRouteSummary = data
     data.historyId = data.historyId or ('%s:%s'):format(tostring(data.contractId or 'route'), tostring(data.completedAt or RouteHistory.GetClientTimestamp()))
@@ -79,7 +137,7 @@ function RouteHistory.Save(data)
 
     for _, entry in ipairs(routeHistory or {}) do
         local entryId = entry and (entry.historyId or ('%s:%s'):format(tostring(entry.contractId or 'route'), tostring(entry.completedAt or '')))
-        if entry and entryId and not seen[entryId] then
+        if entry and entryId and not seen[entryId] and EntryBelongsToCharacter(entry) then
             entry.historyId = entryId
             nextHistory[#nextHistory + 1] = entry
             seen[entryId] = true
@@ -88,8 +146,8 @@ function RouteHistory.Save(data)
     end
 
     routeHistory = nextHistory
-    SetResourceKvp(LAST_ROUTE_SUMMARY_KVP, json.encode(data))
-    SetResourceKvp(ROUTE_HISTORY_KVP, json.encode(routeHistory))
+    SetResourceKvp(currentLastKey, json.encode(data))
+    SetResourceKvp(currentHistoryKey, json.encode(routeHistory))
 
     SendNUIMessage({
         action = 'updateRouteHistory',

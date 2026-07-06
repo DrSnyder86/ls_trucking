@@ -113,8 +113,8 @@ end
 local function ApplyExtras(vehicle, extras)
     if not vehicle or vehicle == 0 or not extras then return end
 
-    for extraId, enabled in pairs(extras) do
-        extraId = tonumber(extraId)
+    for extraKey, enabled in pairs(extras) do
+        local extraId = tonumber(extraKey)
         if extraId and DoesExtraExist(vehicle, extraId) then
             SetVehicleExtra(vehicle, extraId, enabled and 0 or 1)
         end

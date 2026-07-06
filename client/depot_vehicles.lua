@@ -319,6 +319,60 @@ function DepotVehicles.SpawnTrailerOnly(vehicleData, routeTrailer, trailerDepot)
     return true
 end
 
+local function DecodeVehicleProps(props)
+    if type(props) == 'string' and props ~= '' then
+        local ok, decoded = pcall(json.decode, props)
+        if ok and type(decoded) == 'table' then return decoded end
+        return nil
+    end
+    if type(props) == 'table' then return props end
+    return nil
+end
+
+local function CoerceBoolean(value)
+    if value == true or value == 1 or value == '1' or value == 'true' then return true end
+    if value == false or value == 0 or value == '0' or value == 'false' then return false end
+    return nil
+end
+
+local function GetSavedTurboStage(props)
+    props = DecodeVehicleProps(props)
+    if not props then return nil end
+
+    local stage = tonumber(props.lsfcTurboStage or props.turboStage)
+    if stage then return math.max(0, math.floor(stage)) end
+
+    local turbo = CoerceBoolean(props.turbo)
+    if turbo ~= nil then return turbo and 1 or 0 end
+
+    local toggles = props.toggles
+    if type(toggles) == 'table' then
+        turbo = CoerceBoolean(toggles['18'])
+        if turbo ~= nil then return turbo and 1 or 0 end
+        turbo = CoerceBoolean(toggles[18])
+        if turbo ~= nil then return turbo and 1 or 0 end
+    end
+
+    return nil
+end
+
+local function ApplySavedTurboState(vehicle, props)
+    local stage = GetSavedTurboStage(props)
+    if stage == nil or not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then return end
+
+    local ctx = Ctx()
+    if ctx.ApplyTurboStage then
+        ctx.ApplyTurboStage(vehicle, stage)
+        return
+    end
+
+    SetVehicleModKit(vehicle, 0)
+    ToggleVehicleMod(vehicle, 18, stage > 0)
+    if Entity then
+        Entity(vehicle).state:set('lsfcTurboInstalled', stage > 0, true)
+        Entity(vehicle).state:set('lsfcTurboStage', stage, true)
+    end
+end
 local function SpawnBaseVehicle(modelName, spawn, plate, vehicleData, props, fuel, engineHealth, bodyHealth)
     local ctx = Ctx()
     local model = ctx.LoadModel and ctx.LoadModel(modelName)
@@ -330,8 +384,11 @@ local function SpawnBaseVehicle(modelName, spawn, plate, vehicleData, props, fue
     SetVehicleNumberPlateText(vehicle, plate)
     if ctx.SetVehicleOptions then ctx.SetVehicleOptions(vehicle, vehicleData, false) end
     if props and ctx.ApplyVehicleProps then ctx.ApplyVehicleProps(vehicle, props) end
+    ApplySavedTurboState(vehicle, props)
     if ctx.SetFuel then ctx.SetFuel(vehicle, fuel) end
     if ctx.ApplyVehicleHealthState then ctx.ApplyVehicleHealthState(vehicle, engineHealth, bodyHealth) end
+    Wait(100)
+    ApplySavedTurboState(vehicle, props)
     if ctx.GiveKeys then ctx.GiveKeys(vehicle) end
     SetModelAsNoLongerNeeded(model)
 
