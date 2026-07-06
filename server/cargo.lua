@@ -297,31 +297,31 @@ end
 local function PickupCargoOne(ctx, src)
     if not ctx.CheckRateLimit(src, 'pickupCargo', ctx.GetSecurityCooldown('Cargo', 750)) then return ctx.RateLimitResponse() end
     local active = ctx.ActiveContracts[src]
-    if not active then return { success = false, message = 'You do not have an active contract.' } end
-    if active.type == 'trailer' then return { success = false, message = 'Trailer hauling does not use cargo items.' } end
+    if not active then return { success = false, message = T('error.no_active_contract') } end
+    if active.type == 'trailer' then return { success = false, message = T('cargo.trailer_no_items') } end
     local handoff = Config.FreightHandoff or {}
     if handoff.Enabled ~= false and handoff.RequirePickupSignature ~= false and not active.pickupManifestSigned then
-        return { success = false, message = 'Sign the pickup manifest with the freight clerk before collecting cargo.' }
+        return { success = false, message = T('cargo.sign_manifest_first') }
     end
-    if active.cargoPickedUp >= active.requiredCargo then return { success = false, message = 'You already picked up all cargo for this route.' } end
-    if active.cargoInHand then return { success = false, message = 'Load the cargo you already collected before picking up another item.' } end
-    if (active.cargoPickedUp or 0) > (active.loadedCargo or 0) then return { success = false, message = 'Load your current cargo before collecting another item.' } end
+    if active.cargoPickedUp >= active.requiredCargo then return { success = false, message = T('cargo.all_picked_up') } end
+    if active.cargoInHand then return { success = false, message = T('cargo.load_collected_first') } end
+    if (active.cargoPickedUp or 0) > (active.loadedCargo or 0) then return { success = false, message = T('cargo.load_current_first') } end
 
-    local near, nearMessage = ctx.RequireServerNear(src, ctx.GetContractPickupCoords(active), ctx.GetDistanceLimit('Pickup', 12.0), 'You need to be closer to the pickup worker.')
+    local near, nearMessage = ctx.RequireServerNear(src, ctx.GetContractPickupCoords(active), ctx.GetDistanceLimit('Pickup', 12.0), T('cargo.need_pickup_worker'))
     if not near then return { success = false, message = nearMessage } end
 
     local nextIndex = active.cargoPickedUp + 1
     local manifestEntry = active.cargoManifest and active.cargoManifest[nextIndex] or nil
-    if not manifestEntry then return { success = false, message = 'Could not find the next manifest item.' } end
+    if not manifestEntry then return { success = false, message = T('cargo.missing_manifest_item') } end
 
     local cargo = Cargo.GetCargoConfig(active.type, manifestEntry.cargoType)
-    if not cargo or not cargo.item then return { success = false, message = 'Invalid cargo type.' } end
+    if not cargo or not cargo.item then return { success = false, message = T('cargo.invalid_type') } end
 
     local receiver = manifestEntry.receiver or 'Route Receiver'
     local metadata = BuildCargoMetadata(active, manifestEntry, cargo, nextIndex)
 
     local added = ctx.AddPlayerItem(src, cargo.item, 1, metadata)
-    if not added then return { success = false, message = 'Could not add cargo. Check your inventory space.' } end
+    if not added then return { success = false, message = T('cargo.add_inventory_failed') } end
 
     active.cargoPickedUp = active.cargoPickedUp + 1
     active.cargoInHand = true
@@ -333,24 +333,24 @@ end
 local function LoadCargoOne(ctx, src)
     if not ctx.CheckRateLimit(src, 'loadCargo', ctx.GetSecurityCooldown('Cargo', 750)) then return ctx.RateLimitResponse() end
     local active = ctx.ActiveContracts[src]
-    if not active then return { success = false, message = 'You do not have an active contract.' } end
-    if active.type == 'trailer' then return { success = false, message = 'Trailer hauling does not use cargo items.' } end
-    if active.loadedCargo >= active.requiredCargo then return { success = false, message = 'Vehicle already has all required cargo.' } end
-    if not active.cargoInHand then return { success = false, message = 'Collect route cargo before loading the vehicle.' } end
-    if (active.cargoPickedUp or 0) <= (active.loadedCargo or 0) then return { success = false, message = 'There is no picked-up cargo waiting to be loaded.' } end
+    if not active then return { success = false, message = T('error.no_active_contract') } end
+    if active.type == 'trailer' then return { success = false, message = T('cargo.trailer_no_items') } end
+    if active.loadedCargo >= active.requiredCargo then return { success = false, message = T('cargo.vehicle_all_loaded') } end
+    if not active.cargoInHand then return { success = false, message = T('cargo.collect_before_loading') } end
+    if (active.cargoPickedUp or 0) <= (active.loadedCargo or 0) then return { success = false, message = T('cargo.no_picked_up_cargo') } end
 
     local manifestEntry = active.cargoManifest and active.cargoManifest[active.loadedCargo + 1] or nil
-    if not manifestEntry then return { success = false, message = 'Could not find the cargo item to load.' } end
+    if not manifestEntry then return { success = false, message = T('cargo.missing_load_item') } end
 
     local cargo = Cargo.GetCargoConfig(active.type, manifestEntry.cargoType)
-    if not cargo or not cargo.item then return { success = false, message = 'Invalid cargo type.' } end
+    if not cargo or not cargo.item then return { success = false, message = T('cargo.invalid_type') } end
 
-    if ctx.GetInventoryItemCount(src, cargo.item) < 1 then return { success = false, message = ('You need a %s in your inventory.'):format(cargo.label) } end
-    if not ctx.RemovePlayerItem(src, cargo.item, 1) then return { success = false, message = 'Could not remove cargo from your inventory.' } end
+    if ctx.GetInventoryItemCount(src, cargo.item) < 1 then return { success = false, message = T('cargo.need_item_inventory', { item = cargo.label }) } end
+    if not ctx.RemovePlayerItem(src, cargo.item, 1) then return { success = false, message = T('cargo.remove_inventory_failed') } end
 
     local metadata = BuildCargoMetadata(active, manifestEntry, cargo, active.loadedCargo + 1)
     local added = ctx.AddTrunkItem(active.plate, cargo.item, 1, metadata)
-    if not added then ctx.AddPlayerItem(src, cargo.item, 1, metadata) return { success = false, message = 'Could not add cargo to the vehicle trunk.' } end
+    if not added then ctx.AddPlayerItem(src, cargo.item, 1, metadata) return { success = false, message = T('cargo.add_trunk_failed') } end
 
     active.loadedCargo = active.loadedCargo + 1
     active.cargoInHand = false
@@ -369,18 +369,18 @@ end
 local function VerifyLoadedCargo(ctx, src)
     if not ctx.CheckRateLimit(src, 'verifyCargo', ctx.GetSecurityCooldown('Cargo', 750)) then return ctx.RateLimitResponse() end
     local active = ctx.ActiveContracts[src]
-    if not active then return { success = false, message = 'You do not have an active contract.' } end
-    if active.type == 'trailer' then return { success = false, message = 'Trailer hauling does not use cargo boxes.' } end
+    if not active then return { success = false, message = T('error.no_active_contract') } end
+    if active.type == 'trailer' then return { success = false, message = T('cargo.trailer_no_boxes') } end
     if (active.loadedCargo or 0) < (active.requiredCargo or 0) or (active.cargoPickedUp or 0) < (active.requiredCargo or 0) then
-        return { success = false, message = 'Load all route cargo before verifying.' }
+        return { success = false, message = T('cargo.load_all_before_verify') }
     end
-    if active.cargoInHand then return { success = false, message = 'Load the cargo you are carrying before verifying.' } end
+    if active.cargoInHand then return { success = false, message = T('cargo.load_carried_before_verify') } end
 
     local near, nearMessage = ctx.RequireServerNear(
         src,
         ctx.GetContractPickupCoords(active),
         ctx.GetDistanceLimit('LoadVerification', 20.0),
-        'You need to be near the loaded vehicle at the pickup location.'
+        T('cargo.need_loaded_vehicle_pickup')
     )
     if not near then return { success = false, message = nearMessage } end
 
@@ -392,13 +392,13 @@ local function VerifyLoadedCargo(ctx, src)
     end
 
     if next(requiredByItem) == nil then
-        return { success = false, message = 'Cargo verification failed. Invalid route manifest.' }
+        return { success = false, message = T('cargo.verification_invalid_manifest') }
     end
 
     for item, required in pairs(requiredByItem) do
         local trunkCount = ctx.GetInventoryItemCount(ctx.GetTrunkId(active.plate), item)
         if trunkCount < required then
-            return { success = false, message = ('Cargo verification failed. Trunk has %s/%s %s.'):format(trunkCount, required, item) }
+            return { success = false, message = T('cargo.verification_trunk_count', { count = trunkCount, required = required, item = item }) }
         end
     end
 
@@ -413,26 +413,26 @@ end
 local function GrabCargoFromVehicle(ctx, src)
     if not ctx.CheckRateLimit(src, 'grabCargo', ctx.GetSecurityCooldown('Cargo', 750)) then return ctx.RateLimitResponse() end
     local active = ctx.ActiveContracts[src]
-    if not active then return { success = false, message = 'You do not have an active contract.' } end
-    if active.type == 'trailer' then return { success = false, message = 'Trailer cargo cannot be grabbed this way.' } end
-    if not active.cargoVerified then return { success = false, message = 'Verify the loaded cargo before starting deliveries.' } end
-    if active.cargoInHand then return { success = false, message = 'Deliver the cargo you are carrying before grabbing another item.' } end
-    if (active.currentStop or 0) < 1 or (active.currentStop or 0) > (active.totalStops or 0) then return { success = false, message = 'There is no active delivery stop.' } end
+    if not active then return { success = false, message = T('error.no_active_contract') } end
+    if active.type == 'trailer' then return { success = false, message = T('cargo.trailer_cannot_grab') } end
+    if not active.cargoVerified then return { success = false, message = T('cargo.verify_before_delivery') } end
+    if active.cargoInHand then return { success = false, message = T('cargo.deliver_carried_before_grab') } end
+    if (active.currentStop or 0) < 1 or (active.currentStop or 0) > (active.totalStops or 0) then return { success = false, message = T('cargo.no_active_delivery_stop') } end
 
     local manifestEntry = Cargo.GetManifestEntryForStop(active, active.currentStop, active.deliveredAtStop)
-    if not manifestEntry then return { success = false, message = 'Could not find the next delivery item for this stop.' } end
+    if not manifestEntry then return { success = false, message = T('cargo.missing_delivery_item') } end
 
     local cargo = Cargo.GetCargoConfig(active.type, manifestEntry.cargoType)
-    if not cargo or not cargo.item then return { success = false, message = 'Invalid cargo type.' } end
+    if not cargo or not cargo.item then return { success = false, message = T('cargo.invalid_type') } end
 
-    if ctx.GetInventoryItemCount(ctx.GetTrunkId(active.plate), cargo.item) < 1 then return { success = false, message = ('There is no %s in the vehicle trunk.'):format(cargo.label) } end
-    if not ctx.RemoveTrunkItem(active.plate, cargo.item, 1) then return { success = false, message = 'Could not remove cargo from vehicle trunk.' } end
+    if ctx.GetInventoryItemCount(ctx.GetTrunkId(active.plate), cargo.item) < 1 then return { success = false, message = T('cargo.none_in_trunk', { item = cargo.label }) } end
+    if not ctx.RemoveTrunkItem(active.plate, cargo.item, 1) then return { success = false, message = T('cargo.remove_trunk_failed') } end
 
     local receiver = manifestEntry.receiver or 'Route Receiver'
     local metadata = BuildCargoMetadata(active, manifestEntry, cargo, active.deliveredCargo + 1)
 
     local added = ctx.AddPlayerItem(src, cargo.item, 1, metadata)
-    if not added then ctx.AddTrunkItem(active.plate, cargo.item, 1, metadata) return { success = false, message = 'Could not add cargo to your inventory.' } end
+    if not added then ctx.AddTrunkItem(active.plate, cargo.item, 1, metadata) return { success = false, message = T('cargo.add_to_inventory_failed') } end
     active.cargoInHand = true
     return { success = true, label = cargo.label, cargoType = manifestEntry.cargoType, receiver = receiver }
 end
@@ -440,27 +440,27 @@ end
 local function DeliverCargoOne(ctx, src)
     if not ctx.CheckRateLimit(src, 'deliverCargo', ctx.GetSecurityCooldown('Cargo', 750)) then return ctx.RateLimitResponse() end
     local active = ctx.ActiveContracts[src]
-    if not active then return { success = false, message = 'You do not have an active contract.' } end
-    if active.type == 'trailer' then return { success = false, message = 'Trailer jobs are finalized with the receiver.' } end
-    if not active.cargoVerified then return { success = false, message = 'Verify the loaded cargo before making deliveries.' } end
-    if not active.cargoInHand then return { success = false, message = 'Grab cargo from the vehicle before delivering.' } end
+    if not active then return { success = false, message = T('error.no_active_contract') } end
+    if active.type == 'trailer' then return { success = false, message = T('cargo.trailer_finalize_receiver') } end
+    if not active.cargoVerified then return { success = false, message = T('cargo.verify_before_deliveries') } end
+    if not active.cargoInHand then return { success = false, message = T('cargo.grab_before_delivering') } end
 
     local routeData = active.routeData or (Config.Contracts[active.type] and Config.Contracts[active.type].routes and Config.Contracts[active.type].routes[active.routeIndex])
     local publicContract = ctx.GetPublicContractData(active.type, routeData)
     local stop = publicContract.dropoffs and publicContract.dropoffs[active.currentStop]
-    if not stop then return { success = false, message = 'Invalid delivery stop.' } end
+    if not stop then return { success = false, message = T('cargo.invalid_delivery_stop') } end
 
-    local near, nearMessage = ctx.RequireServerNear(src, stop.coords, ctx.GetDistanceLimit('Dropoff', 14.0), 'You need to be closer to the active delivery stop.')
+    local near, nearMessage = ctx.RequireServerNear(src, stop.coords, ctx.GetDistanceLimit('Dropoff', 14.0), T('cargo.need_active_delivery_stop'))
     if not near then return { success = false, message = nearMessage } end
 
     local manifestEntry = Cargo.GetManifestEntryForStop(active, active.currentStop, active.deliveredAtStop)
-    if not manifestEntry then return { success = false, message = 'Could not find the next delivery item for this stop.' } end
+    if not manifestEntry then return { success = false, message = T('cargo.missing_delivery_item') } end
 
     local cargo = Cargo.GetCargoConfig(active.type, manifestEntry.cargoType)
-    if not cargo or not cargo.item then return { success = false, message = 'Invalid cargo type.' } end
+    if not cargo or not cargo.item then return { success = false, message = T('cargo.invalid_type') } end
 
-    if ctx.GetInventoryItemCount(src, cargo.item) < 1 then return { success = false, message = ('You need to grab a %s from the vehicle first.'):format(cargo.label) } end
-    if not ctx.RemovePlayerItem(src, cargo.item, 1) then return { success = false, message = 'Could not remove cargo from your inventory.' } end
+    if ctx.GetInventoryItemCount(src, cargo.item) < 1 then return { success = false, message = T('cargo.need_grab_item', { item = cargo.label }) } end
+    if not ctx.RemovePlayerItem(src, cargo.item, 1) then return { success = false, message = T('cargo.remove_inventory_failed') } end
 
     active.deliveredCargo = active.deliveredCargo + 1
     active.deliveredAtStop = active.deliveredAtStop + 1

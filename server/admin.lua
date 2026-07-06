@@ -19,13 +19,16 @@ local function ResolveCommandTarget(src, args, usage)
     local target = src
     local value = args and args[1] or nil
 
-    if src == 0 and args and args[2] then
-        target = tonumber(args[1]) or 0
+    if src == 0 then
+        target = args and tonumber(args[1]) or 0
+        value = args and args[2] or nil
+    elseif args and args[2] then
+        target = tonumber(args[1]) or src
         value = args[2]
     end
 
     if not target or target <= 0 then
-        print(('[ls_trucking] Usage from console: %s'):format(usage))
+        print(('[ls_trucking] %s'):format(T('admin.console_usage', { usage = usage })))
         return nil, nil
     end
 
@@ -53,7 +56,7 @@ local function RegisterDebugGiveItems(ctx)
 
         local active = ctx.ActiveContracts and ctx.ActiveContracts[src]
         if not active then
-            Notify(src, 'Admin: no active contract to give cargo for.', 'error')
+            Notify(src, T('admin.no_active_contract'), 'error')
             return
         end
 
@@ -66,7 +69,7 @@ local function RegisterDebugGiveItems(ctx)
                 })
             end
 
-            Notify(src, 'Admin: trailer manifest item added.', 'success')
+            Notify(src, T('admin.trailer_manifest_added'), 'success')
             return
         end
 
@@ -92,7 +95,7 @@ local function RegisterDebugGiveItems(ctx)
             end
         end
 
-        Notify(src, ('Admin: added %s cargo item(s).'):format(added), added > 0 and 'success' or 'error')
+        Notify(src, T('admin.cargo_items_added', { count = added }), added > 0 and 'success' or 'error')
     end)
 end
 
@@ -112,7 +115,7 @@ local function RegisterRankCommand(ctx)
             citizenid
         })
 
-        Notify(target, ('Admin: trucking rank set to %s. Reopen dispatch to refresh.'):format(selected.label or selected.rank or requestedRank), 'success')
+        Notify(target, T('admin.rank_set', { rank = selected.label or selected.rank or requestedRank }), 'success')
     end, false)
 end
 
@@ -132,7 +135,7 @@ local function RegisterRepCommand(ctx)
             citizenid
         })
 
-        Notify(target, ('Admin: reputation adjusted by %s.'):format(amount), 'success')
+        Notify(target, T('admin.rep_adjusted', { amount = amount }), 'success')
     end, false)
 end
 
@@ -144,7 +147,7 @@ local function RegisterResetStatsCommand(ctx)
         if src == 0 and args and args[1] then target = tonumber(args[1]) or 0 end
 
         if not target or target <= 0 then
-            print('[ls_trucking] Usage from console: lstruck_resetstats <playerId>')
+            print(('[ls_trucking] %s'):format(T('admin.console_usage', { usage = 'lstruck_resetstats <playerId>' })))
             return
         end
 
@@ -155,7 +158,7 @@ local function RegisterResetStatsCommand(ctx)
             citizenid
         })
 
-        Notify(target, 'Admin: trucking stats reset.', 'success')
+        Notify(target, T('admin.stats_reset'), 'success')
     end, false)
 end
 

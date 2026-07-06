@@ -13,6 +13,7 @@ local Routes = LS_Trucking and LS_Trucking.Routes or {}
 local Admin = LS_Trucking and LS_Trucking.Admin or {}
 local DispatchData = LS_Trucking and LS_Trucking.DispatchData or {}
 local JobBlips = LS_Trucking and LS_Trucking.JobBlips or {}
+local ServiceBay = LS_Trucking and LS_Trucking.ServiceBay or {}
 local DepotVehicleServerContext = nil
 local CargoServerContext = nil
 local RouteServerContext = nil
@@ -20,6 +21,7 @@ local AdminServerContext = nil
 local DispatchDataServerContext = nil
 local JobBlipsServerContext = nil
 local ContractorServerContext = nil
+local ServiceBayServerContext = nil
 local CreateContractForPlayer = nil
 
 -- ls_trucking random route seed: keeps route selection from repeating the same first route after resource starts.
@@ -268,6 +270,27 @@ local function GetPlayerDutyState(src)
     return PlayerDutyStates[src] == true, 'internal'
 end
 
+local function GetWorkAccessFailure(src)
+    if not HasRequiredJob(src) then
+        return T('error.not_trucker', { job = Config.JobName or 'the required job' })
+    end
+
+    if IsDutyRequired() then
+        local onDuty = GetPlayerDutyState(src)
+        if not onDuty then
+            return T('error.must_clock_in')
+        end
+    end
+
+    return nil
+end
+
+local function RequireWorkAccess(src)
+    local message = GetWorkAccessFailure(src)
+    if message then return false, message end
+    return true
+end
+
 local function GetDutyTargetCoords()
     local duty = Config.DutyTarget or Config.DutyLocation or {}
     return duty.coords or (Config.DispatchPed and Config.DispatchPed.coords) or (Config.Depot and Config.Depot.terminal)
@@ -277,8 +300,8 @@ local function AddMoney(src, amount, reason)
     return FrameworkBridge.AddMoney and FrameworkBridge.AddMoney(src, amount, reason) == true
 end
 
-local function RemoveMoney(src, amount, reason)
-    return FrameworkBridge.RemoveMoney and FrameworkBridge.RemoveMoney(src, amount, reason) == true
+local function RemoveMoney(src, amount, reason, accountOverride)
+    return FrameworkBridge.RemoveMoney and FrameworkBridge.RemoveMoney(src, amount, reason, accountOverride) == true
 end
 
 local function GetSecurityConfig()
@@ -315,7 +338,7 @@ local function CheckRateLimit(src, action, cooldownMs)
 end
 
 local function RateLimitResponse()
-    return { success = false, message = 'Please wait a moment before trying that again.' }
+    return { success = false, message = T('error.wait_moment') }
 end
 
 local DatabaseMigrationsReady = false
@@ -497,12 +520,12 @@ local function SanitizeVehicleProps(props)
 
     local maxLength = tonumber((Config.Security and Config.Security.MaxSavedPropsLength) or 24000) or 24000
     if #props > maxLength then
-        return nil, 'Vehicle customization data is too large.'
+        return nil, T('error.vehicle_props_too_large')
     end
 
     local ok, decoded = pcall(json.decode, props)
     if not ok or type(decoded) ~= 'table' then
-        return nil, 'Vehicle customization data is invalid.'
+        return nil, T('error.vehicle_props_invalid')
     end
 
     return props
@@ -566,14 +589,14 @@ local function RequireServerNear(src, coords, distance, message)
 
     local playerCoords = GetSourceCoords(src)
     if not playerCoords then
-        return false, 'Could not verify your position. Try again.'
+        return false, T('error.position_unverified')
     end
 
     if #(playerCoords - targetCoords) <= (distance or 15.0) then
         return true
     end
 
-    return false, message or 'You are too far away.'
+    return false, message or T('error.too_far')
 end
 
 local function GetContractPickupCoords(active)
@@ -679,21 +702,9 @@ local function BuildPlayerPayload(src)
 end
 
 local function GetUIAccess(src)
-    if not HasRequiredJob(src) then
-        return {
-            allowed = false,
-            message = ('You are not employed as %s.'):format(Config.JobName or 'the required job')
-        }
-    end
-
-    if IsDutyRequired() then
-        local onDuty = GetPlayerDutyState(src)
-        if not onDuty then
-            return {
-                allowed = false,
-                message = 'You must clock in at LS Freight Dispatch before using this.'
-            }
-        end
+    local access, message = RequireWorkAccess(src)
+    if not access then
+        return { allowed = false, message = message }
     end
 
     return {
@@ -706,24 +717,24 @@ lib.callback.register('ls_trucking:server:toggleDuty', function(src)
     if not HasRequiredJob(src) then
         return {
             success = false,
-            message = ('You are not employed as %s.'):format(Config.JobName or 'the required job')
+            message = T('error.not_trucker', { job = Config.JobName or 'the required job' })
         }
     end
 
     local dutyConfig = Config.DutyTarget or Config.DutyLocation or {}
     if dutyConfig.enabled == false then
-        return { success = false, message = 'LS Freight duty check-in is disabled.' }
+        return { success = false, message = T('duty.disabled') }
     end
 
     local ok, distanceMessage = RequireServerNear(
         src,
         GetDutyTargetCoords(),
         GetDistanceLimit('Duty', tonumber(dutyConfig.radius) or 5.0),
-        'You need to be at LS Freight Dispatch to change duty status.'
+        T('duty.need_dispatch')
     )
 
     if not ok then
-        return { success = false, message = distanceMessage or 'You need to be at LS Freight Dispatch to change duty status.' }
+        return { success = false, message = distanceMessage or T('duty.need_dispatch') }
     end
 
     local currentDuty, source = GetPlayerDutyState(src)
@@ -736,13 +747,13 @@ lib.callback.register('ls_trucking:server:toggleDuty', function(src)
             return {
                 success = true,
                 onDuty = nextDuty,
-                message = nextDuty and 'You are now on duty with LS Freight.' or 'You are now off duty with LS Freight.'
+                message = nextDuty and T('duty.on') or T('duty.off')
             }
         end
 
         return {
             success = false,
-            message = 'Your framework duty status could not be changed. Use your job duty menu.'
+            message = T('duty.change_failed')
         }
     end
 
@@ -752,7 +763,7 @@ lib.callback.register('ls_trucking:server:toggleDuty', function(src)
     return {
         success = true,
         onDuty = nextDuty,
-        message = nextDuty and 'You are now on duty with LS Freight.' or 'You are now off duty with LS Freight.'
+        message = nextDuty and T('duty.on') or T('duty.off')
     }
 end)
 
@@ -1750,6 +1761,7 @@ ContractorServerContext = {
     GetSecurityCooldown = GetSecurityCooldown,
     RateLimitResponse = RateLimitResponse,
     HasRequiredJob = HasRequiredJob,
+    RequireWorkAccess = RequireWorkAccess,
     GetCitizenId = GetCitizenId,
     GetPlayerTruckingRank = GetPlayerTruckingRank,
     CheckRankRequirement = CheckRankRequirement,
@@ -1781,6 +1793,8 @@ DispatchDataServerContext = {
     BuildContractorPayload = Contractors.BuildPayload,
     BuildCompanyStatsPayload = BuildCompanyStatsPayload,
     EnsureGarageVehicle = EnsureGarageVehicle,
+    RequireServerNear = RequireServerNear,
+    GetDistanceLimit = GetDistanceLimit,
     GetGarageVehicleModel = GetGarageVehicleModel,
     IsDatabaseTrue = Contractors.IsDatabaseTrue
 }
@@ -1788,6 +1802,8 @@ DispatchDataServerContext = {
 if DispatchData.RegisterServer then
     DispatchData.RegisterServer(DispatchDataServerContext)
 end
+
+
 
 JobBlipsServerContext = {
     ActiveContracts = ActiveContracts,
@@ -1810,16 +1826,17 @@ DepotVehicleServerContext = {
     GetSecurityCooldown = GetSecurityCooldown,
     RateLimitResponse = RateLimitResponse,
     HasRequiredJob = HasRequiredJob,
+    RequireWorkAccess = RequireWorkAccess,
     GetSecurityConfig = GetSecurityConfig,
     GetSourceCoords = GetSourceCoords,
     GetConfigCoord3 = GetConfigCoord3,
-    RequireServerNear = RequireServerNear,
-    GetDistanceLimit = GetDistanceLimit,
     GetVehicleConfig = GetVehicleConfig,
     GetPlayerTruckingRank = GetPlayerTruckingRank,
     CheckRankRequirement = CheckRankRequirement,
     GetCitizenId = GetCitizenId,
     EnsureGarageVehicle = EnsureGarageVehicle,
+    RequireServerNear = RequireServerNear,
+    GetDistanceLimit = GetDistanceLimit,
     TrackCheckedOutVehicle = TrackCheckedOutVehicle,
     NormalizePlateText = NormalizePlateText,
     ClampText = ClampText,
@@ -1836,6 +1853,28 @@ if DepotVehicles.RegisterServer then
     DepotVehicles.RegisterServer(DepotVehicleServerContext)
 end
 
+
+ServiceBayServerContext = {
+    CheckRateLimit = CheckRateLimit,
+    GetSecurityCooldown = GetSecurityCooldown,
+    RateLimitResponse = RateLimitResponse,
+    GetUIAccess = GetUIAccess,
+    GetCitizenId = GetCitizenId,
+    GetTruckingStats = GetTruckingStats,
+    RemoveMoney = RemoveMoney,
+    NormalizePlateText = NormalizePlateText,
+    SanitizeVehicleProps = SanitizeVehicleProps,
+    EnsureGarageVehicle = EnsureGarageVehicle,
+    RequireServerNear = RequireServerNear,
+    GetDistanceLimit = GetDistanceLimit,
+    IsDatabaseTrue = Contractors.IsDatabaseTrue,
+    GetContractorProfile = Contractors.GetProfile,
+    GetContractorVehicleById = Contractors.GetVehicleById
+}
+
+if ServiceBay.RegisterServer then
+    ServiceBay.RegisterServer(ServiceBayServerContext)
+end
 RouteServerContext = {
     ActiveContracts = ActiveContracts,
     ReusableVehicles = ReusableVehicles,
@@ -1881,34 +1920,34 @@ end
 
 CreateContractForPlayer = function(src, contractType, vehicleIndex, reuseVehicle, currentPlate, priorityKey, requestedRouteIndex, options)
     options = options or {}
-    if ActiveContracts[src] then return { success = false, message = 'You already have an active contract.' } end
-    if not Config.Contracts[contractType] then return { success = false, message = 'Invalid contract type.' } end
+    if ActiveContracts[src] then return { success = false, message = T('error.already_active_contract') } end
+    if not Config.Contracts[contractType] then return { success = false, message = T('error.invalid_contract_type') } end
     if not reuseVehicle and (CheckedOutVehicles[src] or ReusableVehicles[src]) then
-        return { success = false, message = 'Return or reuse your current company vehicle before starting another contract.' }
+        return { success = false, message = T('error.return_or_reuse_vehicle') }
     end
 
     if not reuseVehicle and not options.skipSpawnDistance then
-        local near, nearMessage = RequireServerNearDepotRequest(src, 'You need to be closer to the company vehicle spawn area.')
+        local near, nearMessage = RequireServerNearDepotRequest(src, T('error.need_company_spawn_area'))
         if not near then return { success = false, message = nearMessage } end
     end
 
     local playerRank = GetPlayerTruckingRank(src)
     local selectedVehicle, resolvedVehicleIndex = GetVehicleConfig(contractType, vehicleIndex)
-    if not selectedVehicle then return { success = false, message = 'Invalid vehicle selected.' } end
+    if not selectedVehicle then return { success = false, message = T('error.invalid_vehicle') } end
 
     local reuseCandidate = nil
     if reuseVehicle then
         reuseCandidate = options.reuseCandidate or GetReusableVehicle(src)
         if not reuseCandidate then
-            return { success = false, message = options.contractor and 'No contractor vehicle is registered for this route.' or 'No reusable company vehicle is registered for you.' }
+            return { success = false, message = options.contractor and T('error.no_contractor_vehicle') or T('error.no_reusable_vehicle') }
         end
 
         if Config.RequireSameTypeForVehicleReuse and reuseCandidate.type ~= contractType then
-            return { success = false, message = 'Your current vehicle cannot be reused for this contract type.' }
+            return { success = false, message = T('error.vehicle_reuse_type') }
         end
 
         if NormalizePlateText(currentPlate) ~= NormalizePlateText(reuseCandidate.plate) then
-            return { success = false, message = 'Your current vehicle plate does not match dispatch records.' }
+            return { success = false, message = T('error.dispatch_plate_mismatch') }
         end
 
         local reusedVehicle, reusedIndex = GetVehicleConfig(contractType, reuseCandidate.index or vehicleIndex)
@@ -1919,18 +1958,18 @@ CreateContractForPlayer = function(src, contractType, vehicleIndex, reuseVehicle
     end
 
     if not CheckRankRequirement(playerRank, selectedVehicle.minRank) then
-        return { success = false, message = ('This vehicle requires trucking rank %s.'):format(selectedVehicle.minRank or 1) }
+        return { success = false, message = T('error.vehicle_rank_required', { rank = selectedVehicle.minRank or 1 }) }
     end
 
     local priority, resolvedPriorityKey = GetPriorityConfig(contractType, priorityKey)
     priority = priority or { label = 'Standard Commercial Route', shortLabel = 'Standard', minRank = 1, payoutMultiplier = 1.0, xpMultiplier = 1.0, repBonus = 0 }
 
     if not CheckRankRequirement(playerRank, priority.minRank) then
-        return { success = false, message = ('This priority load requires trucking rank %s.'):format(priority.minRank or 1) }
+        return { success = false, message = T('error.priority_rank_required', { rank = priority.minRank or 1 }) }
     end
 
     local route, routeIndex = PickRoute(contractType, resolvedPriorityKey, requestedRouteIndex)
-    if not route then return { success = false, message = 'No route configured for this contract type.' } end
+    if not route then return { success = false, message = T('error.no_route_configured') } end
 
     local randomEvent = PickRandomDeliveryEvent(contractType, resolvedPriorityKey)
     local estimatedSeconds = GetEstimatedSeconds(contractType, resolvedPriorityKey, route)
@@ -1945,19 +1984,19 @@ CreateContractForPlayer = function(src, contractType, vehicleIndex, reuseVehicle
     publicContract.randomEvent = PublicRandomEvent(randomEvent)
 
     if not publicContract.pickup or not publicContract.pickup.coords then
-        return { success = false, message = 'Route pickup data is missing.' }
+        return { success = false, message = T('error.route_pickup_missing') }
     end
 
     if contractType == 'trailer' then
         if not publicContract.trailerDrop or not publicContract.trailerDrop.coords then
-            return { success = false, message = 'Trailer delivery data is missing.' }
+            return { success = false, message = T('error.trailer_delivery_missing') }
         end
 
         if not publicContract.trailerDepot or not publicContract.trailerDepot.pickup then
-            return { success = false, message = 'Trailer depot data is missing.' }
+            return { success = false, message = T('error.trailer_depot_missing') }
         end
     elseif not publicContract.dropoffs or not publicContract.dropoffs[1] or not publicContract.dropoffs[1].coords then
-        return { success = false, message = 'Route drop-off data is missing.' }
+        return { success = false, message = T('error.route_dropoff_missing') }
     end
 
     local payoutData = Config.Payouts[contractType]
@@ -1994,7 +2033,7 @@ CreateContractForPlayer = function(src, contractType, vehicleIndex, reuseVehicle
     if contractType ~= 'trailer' then
         cargoManifest = BuildPackageManifest(contractId, route.label, route, contractType, cargoPool)
         if not cargoManifest or #cargoManifest == 0 then
-            return { success = false, message = 'Invalid cargo manifest for this contract.' }
+            return { success = false, message = T('error.invalid_cargo_manifest') }
         end
 
         cargoType = cargoManifest[1].cargoType
@@ -2098,7 +2137,8 @@ end
 
 lib.callback.register('ls_trucking:server:createContract', function(src, contractType, vehicleIndex, reuseVehicle, currentPlate, priorityKey, requestedRouteIndex)
     if not CheckRateLimit(src, 'createContract', GetSecurityCooldown('Contract', 2000)) then return RateLimitResponse() end
-    if not HasRequiredJob(src) then return { success = false, message = 'You are not employed as a trucker.' } end
+    local access, accessMessage = RequireWorkAccess(src)
+    if not access then return { success = false, message = accessMessage } end
 
     return CreateContractForPlayer(src, contractType, vehicleIndex, reuseVehicle, currentPlate, priorityKey, requestedRouteIndex)
 end)
@@ -2126,22 +2166,22 @@ local function ResolveAssignedTrailerEntity(src, active, providedNetId)
     providedNetId = tonumber(providedNetId)
 
     if trackedNetId and providedNetId and trackedNetId ~= providedNetId then
-        return nil, 'The trailer in the placement marker is not your assigned route trailer.'
+        return nil, T('trailer.net_id_mismatch')
     end
 
     local netId = trackedNetId or providedNetId
-    if not netId or netId <= 0 then return nil, 'Assigned trailer telemetry is unavailable.' end
+    if not netId or netId <= 0 then return nil, T('trailer.telemetry_unavailable') end
 
     local entity = NetworkGetEntityFromNetworkId(netId)
     if not entity or entity == 0 or not DoesEntityExist(entity) then
-        return nil, 'The assigned trailer could not be found by the receiving yard.'
+        return nil, T('trailer.not_found_yard')
     end
 
     local expectedModel = active and active.routeTrailer and active.routeTrailer.model
     if expectedModel then
         local expectedHash = type(expectedModel) == 'number' and expectedModel or joaat(expectedModel)
         if GetEntityModel(entity) ~= expectedHash then
-            return nil, 'Incorrect trailer detected in the receiving marker.'
+            return nil, T('trailer.incorrect_marker')
         end
     end
 
@@ -2158,7 +2198,7 @@ local function ValidateTrailerMarkerPlacement(src, active, providedNetId)
 
     local drop = active.routeData and active.routeData.trailerDrop
     local dropCoords = drop and drop.coords
-    if not dropCoords then return false, 'This route does not have a valid trailer placement marker.' end
+    if not dropCoords then return false, T('trailer.invalid_placement_marker') end
 
     local trailerCoords = GetEntityCoords(entity)
     local dx = trailerCoords.x - dropCoords.x
@@ -2168,11 +2208,11 @@ local function ValidateTrailerMarkerPlacement(src, active, providedNetId)
         + math.max(0.0, tonumber(marker.ServerTolerance) or 0.75)
 
     if distance > tolerance then
-        return false, ('Position the assigned trailer inside the receiving marker (%.1fm remaining).'):format(distance)
+        return false, T('trailer.position_marker', { distance = ('%.1f'):format(distance) })
     end
 
     if GetEntitySpeed and GetEntitySpeed(entity) > (math.max(0.01, tonumber(marker.MaxSettleSpeed) or 0.15) + 0.10) then
-        return false, 'The trailer must be stationary before the yard can accept it.'
+        return false, T('trailer.must_be_stationary')
     end
 
     return true
@@ -2192,11 +2232,11 @@ lib.callback.register('ls_trucking:server:authorizePickupHandoff', function(src,
     if not CheckRateLimit(src, 'pickupHandoff', GetSecurityCooldown('Cargo', 1000)) then return RateLimitResponse() end
 
     local active = ActiveContracts[src]
-    if not active then return { success = false, message = 'You do not have an active contract.' } end
-    if active.type == 'trailer' then return { success = false, message = 'Trailer loads are released through the trailer depot checklist.' } end
+    if not active then return { success = false, message = T('error.no_active_contract') } end
+    if active.type == 'trailer' then return { success = false, message = T('freight.trailer_depot_checklist') } end
 
     if type(signatureData) ~= 'table' or tostring(signatureData.contractId or '') ~= tostring(active.id or '') then
-        return { success = false, message = 'The selected manifest does not match your active contract.' }
+        return { success = false, message = T('freight.manifest_mismatch') }
     end
 
     if active.pickupManifestSigned and active.pickupSignature then
@@ -2204,10 +2244,10 @@ lib.callback.register('ls_trucking:server:authorizePickupHandoff', function(src,
     end
 
     if IsFreightHandoffRequired('RequirePickupSignature') and signatureData.signatureAccepted ~= true then
-        return { success = false, message = 'Driver authorization is required before cargo can be released.' }
+        return { success = false, message = T('freight.pickup_signature_required') }
     end
 
-    local near, nearMessage = RequireServerNear(src, GetContractPickupCoords(active), GetDistanceLimit('Pickup', 12.0), 'You need to be closer to the pickup worker.')
+    local near, nearMessage = RequireServerNear(src, GetContractPickupCoords(active), GetDistanceLimit('Pickup', 12.0), T('cargo.need_pickup_worker'))
     if not near then return { success = false, message = nearMessage } end
 
     active.pickupManifestSigned = true
@@ -2216,15 +2256,15 @@ lib.callback.register('ls_trucking:server:authorizePickupHandoff', function(src,
 end)
 
 local function ConfirmTrailerDropState(src, active, trailerNetId)
-    if not active then return false, 'You do not have an active contract.' end
-    if active.type ~= 'trailer' then return false, 'This is not a trailer contract.' end
-    if not active.trailerHooked then return false, 'The trailer has not been cleared for delivery.' end
+    if not active then return false, T('error.no_active_contract') end
+    if active.type ~= 'trailer' then return false, T('trailer.not_contract') end
+    if not active.trailerHooked then return false, T('trailer.not_cleared') end
     if active.trailerDropped then return true end
 
     local drop = active.routeData and active.routeData.trailerDrop
     local dropCoords = drop and drop.coords
     local distance = math.max(GetDistanceLimit('TrailerDrop', 35.0), tonumber(drop and drop.radius) or 0.0)
-    local nearDrop, nearMessage = RequireServerNear(src, dropCoords, distance, 'You need to be inside the receiving yard drop zone.')
+    local nearDrop, nearMessage = RequireServerNear(src, dropCoords, distance, T('trailer.need_receiving_yard'))
     if not nearDrop then return false, nearMessage end
 
     local placed, placementMessage = ValidateTrailerMarkerPlacement(src, active, trailerNetId)
@@ -2238,11 +2278,11 @@ end
 lib.callback.register('ls_trucking:server:markTrailerHooked', function(src)
     if not CheckRateLimit(src, 'markTrailerHooked', GetSecurityCooldown('Trailer', 1000)) then return RateLimitResponse() end
     local a = ActiveContracts[src]
-    if not a then return { success = false, message = 'You do not have an active contract.' } end
-    if a.type ~= 'trailer' then return { success = false, message = 'This is not a trailer contract.' } end
+    if not a then return { success = false, message = T('error.no_active_contract') } end
+    if a.type ~= 'trailer' then return { success = false, message = T('trailer.not_contract') } end
     if a.trailerHooked then return { success = true, alreadyHooked = true } end
 
-    local near, nearMessage = RequireServerNear(src, a.trailerDepot and a.trailerDepot.pickup, GetDistanceLimit('TrailerPickup', 120.0), 'You need to be closer to the assigned trailer depot.')
+    local near, nearMessage = RequireServerNear(src, a.trailerDepot and a.trailerDepot.pickup, GetDistanceLimit('TrailerPickup', 120.0), T('trailer.need_depot'))
     if not near then return { success = false, message = nearMessage } end
 
     a.stage = 'Deliver trailer'
@@ -2255,8 +2295,8 @@ lib.callback.register('ls_trucking:server:confirmTrailerDropped', function(src, 
     if not CheckRateLimit(src, 'confirmTrailerDropped', GetSecurityCooldown('Trailer', 1000)) then return RateLimitResponse() end
 
     local a = ActiveContracts[src]
-    if not a then return { success = false, message = 'You do not have an active contract.' } end
-    if a.type ~= 'trailer' then return { success = false, message = 'This is not a trailer contract.' } end
+    if not a then return { success = false, message = T('error.no_active_contract') } end
+    if a.type ~= 'trailer' then return { success = false, message = T('trailer.not_contract') } end
 
     local dropped, dropMessage = ConfirmTrailerDropState(src, a, trailerNetId)
     if not dropped then return { success = false, message = dropMessage } end
@@ -2267,26 +2307,26 @@ end)
 lib.callback.register('ls_trucking:server:finalizeTrailerDelivery', function(src, damageData, signatureData)
     if not CheckRateLimit(src, 'finalizeTrailer', GetSecurityCooldown('Trailer', 1000)) then return RateLimitResponse() end
     local a = ActiveContracts[src]
-    if not a then return { success = false, message = 'You do not have an active contract.' } end
-    if a.type ~= 'trailer' then return { success = false, message = 'This is not a trailer contract.' } end
-    if not a.trailerHooked then return { success = false, message = 'Hook up and clear the trailer load before finalizing.' } end
+    if not a then return { success = false, message = T('error.no_active_contract') } end
+    if a.type ~= 'trailer' then return { success = false, message = T('trailer.not_contract') } end
+    if not a.trailerHooked then return { success = false, message = T('trailer.hook_before_finalize') } end
 
     local dropped, dropMessage = ConfirmTrailerDropState(src, a)
-    if not dropped then return { success = false, message = dropMessage or 'Confirm the trailer drop inside the receiving yard first.' } end
+    if not dropped then return { success = false, message = dropMessage or T('trailer.confirm_drop_first') } end
 
     if a.stage == 'Route complete' then return { success = true, alreadyFinalized = true, signature = a.deliverySignature } end
 
     local receiverCoords = a.routeData and a.routeData.receiverPed and a.routeData.receiverPed.coords
-    local nearReceiver, nearMessage = RequireServerNear(src, receiverCoords, GetDistanceLimit('Receiver', 14.0), 'You need to be closer to the receiver.')
+    local nearReceiver, nearMessage = RequireServerNear(src, receiverCoords, GetDistanceLimit('Receiver', 14.0), T('trailer.need_receiver'))
     if not nearReceiver then return { success = false, message = nearMessage } end
 
     if IsFreightHandoffRequired('RequireTrailerSignature') and not a.deliverySignature then
         if type(signatureData) ~= 'table' or tostring(signatureData.contractId or '') ~= tostring(a.id or '') then
-            return { success = false, message = 'The selected manifest does not match your active trailer contract.' }
+            return { success = false, message = T('trailer.manifest_mismatch') }
         end
 
         if signatureData.signatureAccepted ~= true then
-            return { success = false, message = 'Driver authorization is required before the receiver can close this delivery.' }
+            return { success = false, message = T('trailer.signature_required_close') }
         end
 
         local receiverLabel = a.routeData and a.routeData.receiverPed and a.routeData.receiverPed.label

@@ -4,21 +4,21 @@ local Routes = {}
 local serverRegistered = false
 
 local function GetRouteCompletionIssue(active)
-    if not active then return 'You do not have an active contract.' end
+    if not active then return T('error.no_active_contract') end
 
     if active.type == 'trailer' then
-        if not active.trailerHooked then return 'Trailer load has not been cleared for delivery.' end
-        if not active.trailerDropped then return 'Trailer drop has not been confirmed in the receiving yard.' end
-        if active.stage ~= 'Route complete' then return 'Trailer delivery has not been finalized with the receiver.' end
-        if (active.loadedCargo or 0) > 0 then return 'Trailer cargo has not been cleared.' end
+        if not active.trailerHooked then return T('route.trailer_load_not_cleared') end
+        if not active.trailerDropped then return T('route.trailer_drop_not_confirmed') end
+        if active.stage ~= 'Route complete' then return T('route.trailer_not_finalized') end
+        if (active.loadedCargo or 0) > 0 then return T('route.trailer_cargo_not_cleared') end
         return nil
     end
 
-    if not active.cargoVerified then return 'Loaded cargo has not been verified.' end
-    if (active.deliveredCargo or 0) < (active.requiredCargo or 0) then return 'Not all cargo has been delivered.' end
-    if (active.loadedCargo or 0) > 0 then return 'Cargo is still listed in the vehicle.' end
-    if (active.currentStop or 0) <= (active.totalStops or 0) then return 'The delivery route is not complete.' end
-    if active.cargoInHand then return 'Deliver your current cargo before completing the route.' end
+    if not active.cargoVerified then return T('route.cargo_not_verified') end
+    if (active.deliveredCargo or 0) < (active.requiredCargo or 0) then return T('route.not_all_cargo_delivered') end
+    if (active.loadedCargo or 0) > 0 then return T('route.cargo_still_in_vehicle') end
+    if (active.currentStop or 0) <= (active.totalStops or 0) then return T('route.not_complete') end
+    if active.cargoInHand then return T('route.deliver_current_before_complete') end
 
     return nil
 end
@@ -27,13 +27,13 @@ local function CompleteRouteForPlayer(ctx, src, contractId)
     local activeContracts = ctx.ActiveContracts
     local active = activeContracts[src]
 
-    if not active or active.id ~= contractId then return { success = false, message = 'You do not have this active contract.' } end
-    if active.routeCompleted then return { success = false, message = 'This route has already been completed.' } end
+    if not active or active.id ~= contractId then return { success = false, message = T('route.no_matching_contract') } end
+    if active.routeCompleted then return { success = false, message = T('route.already_completed') } end
 
     local issue = GetRouteCompletionIssue(active)
     if issue then return { success = false, message = issue } end
 
-    local near, nearMessage = ctx.RequireServerNear(src, ctx.GetCompletionCoords(active), ctx.GetDistanceLimit('Completion', 35.0), 'You are too far from the completed delivery point.')
+    local near, nearMessage = ctx.RequireServerNear(src, ctx.GetCompletionCoords(active), ctx.GetDistanceLimit('Completion', 35.0), T('route.too_far_completion'))
     if not near then return { success = false, message = nearMessage } end
 
     local paidRoute = nil
@@ -53,7 +53,7 @@ local function CompleteRouteForPlayer(ctx, src, contractId)
         end
 
         if not ctx.AddMoney(src, finalPayout, 'ls-trucking-route-complete') then
-            return { success = false, message = 'Payment system is unavailable. Try again after the economy resource is running.' }
+            return { success = false, message = T('error.payment_unavailable') }
         end
 
         active.paid = true
@@ -149,7 +149,7 @@ local function CancelContractForPlayer(ctx, src, reason)
         if cancelFee > 0 then
             if not ctx.RemoveMoney(src, cancelFee, 'ls-trucking-contractor-cancel') then
                 cancelFee = 0
-                TriggerClientEvent('ls_trucking:client:notify', src, 'Cancellation fee could not be charged because the economy system is unavailable.', 'error')
+                TriggerClientEvent('ls_trucking:client:notify', src, T('route.cancel_fee_unavailable'), 'error')
             end
         end
 
@@ -181,7 +181,7 @@ local function CleanupPendingContractStart(ctx, src)
     end
 
     if not active.pendingClientStartUntil then
-        return { success = false, message = 'Active route has already started. Cancel it normally.' }
+        return { success = false, message = T('route.already_started_cancel_normally') }
     end
 
     ctx.CleanupContractCargo(src)
@@ -207,7 +207,7 @@ function Routes.RegisterServer(ctx)
 
         local result = CompleteRouteForPlayer(ctx, src, contractId)
         if not result or not result.success then
-            ctx.NotifySecurityFailure(src, result and result.message or 'Unable to complete route.')
+            ctx.NotifySecurityFailure(src, result and result.message or T('route.complete_failed'))
         end
     end)
 

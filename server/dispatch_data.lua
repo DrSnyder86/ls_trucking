@@ -85,14 +85,14 @@ function DispatchData.BuildPayload(ctx, src)
     ctx = ctx or {}
 
     if not ctx.CheckRateLimit(src, 'dispatch', ctx.GetSecurityCooldown('Dispatch', 500)) then
-        return { allowed = false, message = 'Please wait a moment before reopening dispatch.' }
+        return { allowed = false, message = T('dispatch.wait_reopen') }
     end
 
     local access = ctx.GetUIAccess and ctx.GetUIAccess(src) or nil
     if access then
         if not access.allowed then return access end
     elseif not ctx.HasRequiredJob(src) then
-        return { allowed = false, message = 'You are not employed as a trucker.' }
+        return { allowed = false, message = T('error.not_trucker', { job = Config.JobName or 'the required job' }) }
     end
 
     local citizenid = ctx.GetCitizenId(src)

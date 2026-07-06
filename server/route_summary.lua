@@ -51,6 +51,7 @@ function RouteSummary.BuildCompletedPayload(src, active, paidRoute, getCharacter
         deliverySignature = active.deliverySignature,
         safeSpeed = active.safeSpeed,
         driverName = driverName,
+        citizenid = paidRoute.citizenid,
         jobText = paidRoute.jobText,
         completedAt = os.date('%Y-%m-%d %H:%M:%S'),
         contractor = active.contractor == true,

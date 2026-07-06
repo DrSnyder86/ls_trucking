@@ -35,13 +35,25 @@ local function IsServerDistanceDisabled(ctx)
     return false
 end
 
+local function RequireWorkAccess(ctx, src)
+    if ctx.RequireWorkAccess then
+        return ctx.RequireWorkAccess(src)
+    end
+
+    if ctx.HasRequiredJob and not ctx.HasRequiredJob(src) then
+        return false, T('error.not_trucker', { job = Config.JobName or 'the required job' })
+    end
+
+    return true
+end
+
 function DepotVehicles.RequireNearDepotRequest(ctx, src, message)
     ctx = ctx or {}
     if IsServerDistanceDisabled(ctx) then return true end
 
     local playerCoords = ctx.GetSourceCoords and ctx.GetSourceCoords(src) or nil
     if not playerCoords then
-        return false, 'Could not verify your position. Try again.'
+        return false, T('error.position_unverified')
     end
 
     local hasTarget = false
@@ -57,7 +69,7 @@ function DepotVehicles.RequireNearDepotRequest(ctx, src, message)
     end
 
     if not hasTarget then return true end
-    return false, message or 'You are too far away.'
+    return false, message or T('error.too_far')
 end
 
 local function ClampVehicleHealth(value, fallback)
@@ -68,7 +80,7 @@ end
 
 local function ReleaseStaleVehicleCheckout(ctx, src)
     if ctx.ActiveContracts[src] then
-        return { success = false, message = 'Finish or cancel your active job before clearing vehicle checkout state.' }
+        return { success = false, message = T('contractor.clear_active_job_first') }
     end
 
     local citizenid = ctx.GetCitizenId(src)
@@ -110,25 +122,26 @@ function DepotVehicles.RegisterServer(ctx)
 
     lib.callback.register('ls_trucking:server:spawnGarageVehicle', function(src, vehicleType, vehicleIndex)
         if not ctx.CheckRateLimit(src, 'spawnGarageVehicle', ctx.GetSecurityCooldown('Contract', 2000)) then return ctx.RateLimitResponse() end
-        if not ctx.HasRequiredJob(src) then return { success = false, message = 'You are not employed as a trucker.' } end
-        if ctx.ActiveContracts[src] then return { success = false, message = 'Finish or cancel your active job before requesting a garage vehicle.' } end
-        if ctx.CheckedOutVehicles[src] or ctx.ReusableVehicles[src] then return { success = false, message = 'You already have a company vehicle checked out.' } end
+        local access, accessMessage = RequireWorkAccess(ctx, src)
+        if not access then return { success = false, message = accessMessage } end
+        if ctx.ActiveContracts[src] then return { success = false, message = T('garage.active_job_spawn') } end
+        if ctx.CheckedOutVehicles[src] or ctx.ReusableVehicles[src] then return { success = false, message = T('garage.company_checked_out') } end
 
-        local near, nearMessage = DepotVehicles.RequireNearDepotRequest(ctx, src, 'You need to be closer to the company garage area.')
+        local near, nearMessage = DepotVehicles.RequireNearDepotRequest(ctx, src, T('garage.need_area'))
         if not near then return { success = false, message = nearMessage } end
 
         vehicleIndex = tonumber(vehicleIndex) or 1
         local vehicleData, resolvedIndex = ctx.GetVehicleConfig(vehicleType, vehicleIndex)
-        if not vehicleData then return { success = false, message = 'Invalid garage vehicle.' } end
+        if not vehicleData then return { success = false, message = T('garage.invalid_vehicle') } end
 
         local playerRank = ctx.GetPlayerTruckingRank(src)
         if not ctx.CheckRankRequirement(playerRank, vehicleData.minRank) then
-            return { success = false, message = ('This company vehicle requires trucking rank %s.'):format(vehicleData.minRank or 1) }
+            return { success = false, message = T('garage.rank_required', { rank = vehicleData.minRank or 1 }) }
         end
 
         local citizenid = ctx.GetCitizenId(src)
         local row = ctx.EnsureGarageVehicle(citizenid, vehicleType, resolvedIndex)
-        if not row then return { success = false, message = 'Could not load garage vehicle.' } end
+        if not row then return { success = false, message = T('garage.load_failed') } end
 
         MySQL.update.await('UPDATE trucking_garage SET stored = 0 WHERE citizenid = ? AND vehicle_type = ? AND vehicle_index = ?', { citizenid, vehicleType, resolvedIndex })
         ctx.TrackCheckedOutVehicle(src, vehicleType, resolvedIndex, row.plate, 'garage')
@@ -137,20 +150,20 @@ function DepotVehicles.RegisterServer(ctx)
 
     lib.callback.register('ls_trucking:server:returnGarageVehicle', function(src, vehicleType, vehicleIndex, plate, props)
         if not ctx.CheckRateLimit(src, 'returnGarageVehicle', ctx.GetSecurityCooldown('ReturnVehicle', 2000)) then return ctx.RateLimitResponse() end
-        if not ctx.HasRequiredJob(src) then return { success = false, message = 'You are not employed as a trucker.' } end
-        if ctx.ActiveContracts[src] then return { success = false, message = 'Finish or cancel your active job before returning this vehicle.' } end
+        if ctx.HasRequiredJob and not ctx.HasRequiredJob(src) then return { success = false, message = T('error.not_trucker', { job = Config.JobName or 'the required job' }) } end
+        if ctx.ActiveContracts[src] then return { success = false, message = T('garage.active_job_return') } end
 
-        local near, nearMessage = ctx.RequireServerNear(src, Config.Depot and (Config.Depot.vehicleReturn or Config.Depot.terminal), ctx.GetDistanceLimit('VehicleReturn', 35.0), 'You need to be closer to the company vehicle return point.')
+        local near, nearMessage = ctx.RequireServerNear(src, Config.Depot and (Config.Depot.vehicleReturn or Config.Depot.terminal), ctx.GetDistanceLimit('VehicleReturn', 35.0), T('garage.need_return_point'))
         if not near then return { success = false, message = nearMessage } end
 
         vehicleIndex = tonumber(vehicleIndex) or 1
         local citizenid = ctx.GetCitizenId(src)
         local row = ctx.EnsureGarageVehicle(citizenid, vehicleType, vehicleIndex)
-        if not row then return { success = false, message = 'Could not save garage vehicle.' } end
+        if not row then return { success = false, message = T('garage.save_failed') } end
 
         local safePlate = ctx.ClampText(plate or row.plate, 16)
         if ctx.NormalizePlateText(safePlate) ~= ctx.NormalizePlateText(row.plate) then
-            return { success = false, message = 'This vehicle plate does not match your company garage record.' }
+            return { success = false, message = T('garage.plate_mismatch') }
         end
 
         local savedProps, propsError = ctx.SanitizeVehicleProps(props)
@@ -168,7 +181,7 @@ function DepotVehicles.RegisterServer(ctx)
                 if bonus > 0 then
                     if not ctx.AddMoney(src, bonus, 'ls-trucking-return-bonus') then
                         bonus = 0
-                        TriggerClientEvent('ls_trucking:client:notify', src, 'Return bonus could not be paid because the economy system is unavailable.', 'error')
+                        TriggerClientEvent('ls_trucking:client:notify', src, T('garage.return_bonus_failed'), 'error')
                     end
                 end
                 checkedOut.bonusPaid = true
@@ -182,27 +195,28 @@ function DepotVehicles.RegisterServer(ctx)
 
     lib.callback.register('ls_trucking:server:spawnContractorVehicle', function(src, vehicleId)
         if not ctx.CheckRateLimit(src, 'contractorSpawnVehicle', ctx.GetSecurityCooldown('Contract', 2000)) then return ctx.RateLimitResponse() end
-        if not ctx.HasRequiredJob(src) then return { success = false, message = 'You are not employed as a trucker.' } end
-        if ctx.ActiveContracts[src] then return { success = false, message = 'Finish or cancel your active job before requesting a contractor vehicle.' } end
-        if ctx.CheckedOutVehicles[src] or ctx.ReusableVehicles[src] then return { success = false, message = 'You already have a vehicle checked out.' } end
+        local access, accessMessage = RequireWorkAccess(ctx, src)
+        if not access then return { success = false, message = accessMessage } end
+        if ctx.ActiveContracts[src] then return { success = false, message = T('contractor.active_job_spawn') } end
+        if ctx.CheckedOutVehicles[src] or ctx.ReusableVehicles[src] then return { success = false, message = T('contractor.vehicle_checked_out') } end
 
-        local near, nearMessage = DepotVehicles.RequireNearDepotRequest(ctx, src, 'You need to be closer to the contractor vehicle pickup area.')
+        local near, nearMessage = DepotVehicles.RequireNearDepotRequest(ctx, src, T('contractor.need_pickup_area'))
         if not near then return { success = false, message = nearMessage } end
 
         local citizenid = ctx.GetCitizenId(src)
         local profile = ctx.GetContractorProfile(citizenid)
-        if not ctx.IsDatabaseTrue(profile.licensed) then return { success = false, message = 'Purchase a private contractor license first.' } end
+        if not ctx.IsDatabaseTrue(profile.licensed) then return { success = false, message = T('contractor.license_required') } end
 
         local row = ctx.GetContractorVehicleById(citizenid, vehicleId)
-        if not row then return { success = false, message = 'Contractor vehicle not found.' } end
+        if not row then return { success = false, message = T('contractor.vehicle_not_found') } end
 
         local outRow = ctx.GetContractorOutVehicle(citizenid)
         if outRow and tonumber(outRow.id) ~= tonumber(row.id) then
-            return { success = false, message = 'Only one private contractor vehicle can be out at a time.' }
+            return { success = false, message = T('contractor.only_one_out') }
         end
 
         local vehicleData = Config.JobVehicles[row.vehicle_type] and Config.JobVehicles[row.vehicle_type][tonumber(row.vehicle_index) or 1]
-        if not vehicleData then return { success = false, message = 'Contractor vehicle config is missing.' } end
+        if not vehicleData then return { success = false, message = T('contractor.config_missing') } end
 
         local hasSavedProps = row.props ~= nil and tostring(row.props) ~= '' and tostring(row.props) ~= 'null'
         local engineHealth = ClampVehicleHealth(row.engine_health, 1000.0)
@@ -239,19 +253,19 @@ function DepotVehicles.RegisterServer(ctx)
 
     lib.callback.register('ls_trucking:server:storeContractorVehicle', function(src, vehicleId, plate, props, fuel, engineHealth, bodyHealth, mileage)
         if not ctx.CheckRateLimit(src, 'contractorStoreVehicle', ctx.GetSecurityCooldown('ReturnVehicle', 2000)) then return ctx.RateLimitResponse() end
-        if not ctx.HasRequiredJob(src) then return { success = false, message = 'You are not employed as a trucker.' } end
-        if ctx.ActiveContracts[src] then return { success = false, message = 'Finish or cancel your active job before storing this vehicle.' } end
+        if ctx.HasRequiredJob and not ctx.HasRequiredJob(src) then return { success = false, message = T('error.not_trucker', { job = Config.JobName or 'the required job' }) } end
+        if ctx.ActiveContracts[src] then return { success = false, message = T('contractor.active_job_store') } end
 
-        local near, nearMessage = ctx.RequireServerNear(src, Config.Depot and (Config.Depot.vehicleReturn or Config.Depot.terminal), ctx.GetDistanceLimit('VehicleReturn', 35.0), 'You need to be closer to the contractor vehicle return point.')
+        local near, nearMessage = ctx.RequireServerNear(src, Config.Depot and (Config.Depot.vehicleReturn or Config.Depot.terminal), ctx.GetDistanceLimit('VehicleReturn', 35.0), T('contractor.need_return_point'))
         if not near then return { success = false, message = nearMessage } end
 
         local citizenid = ctx.GetCitizenId(src)
         local row = ctx.GetContractorVehicleById(citizenid, vehicleId)
-        if not row then return { success = false, message = 'Contractor vehicle not found.' } end
+        if not row then return { success = false, message = T('contractor.vehicle_not_found') } end
 
         local safePlate = ctx.ClampText(plate or row.plate, 16)
         if ctx.NormalizePlateText(safePlate) ~= ctx.NormalizePlateText(row.plate) then
-            return { success = false, message = 'This vehicle plate does not match your contractor fleet record.' }
+            return { success = false, message = T('contractor.fleet_plate_mismatch') }
         end
 
         local savedProps, propsError = ctx.SanitizeVehicleProps(props)
@@ -276,12 +290,12 @@ function DepotVehicles.RegisterServer(ctx)
         })
 
         ctx.ClearVehicleSession(src)
-        return { success = true, mileage = mileage, message = 'Contractor vehicle stored. Fuel, condition, and mileage saved.' }
+        return { success = true, mileage = mileage, message = T('contractor.stored') }
     end)
 
     lib.callback.register('ls_trucking:server:releaseStaleVehicleCheckout', function(src)
         if not ctx.CheckRateLimit(src, 'releaseStaleVehicleCheckout', ctx.GetSecurityCooldown('ReturnVehicle', 2000)) then return ctx.RateLimitResponse() end
-        if not ctx.HasRequiredJob(src) then return { success = false, message = 'You are not employed as a trucker.' } end
+        if ctx.HasRequiredJob and not ctx.HasRequiredJob(src) then return { success = false, message = T('error.not_trucker', { job = Config.JobName or 'the required job' }) } end
 
         return ReleaseStaleVehicleCheckout(ctx, src)
     end)

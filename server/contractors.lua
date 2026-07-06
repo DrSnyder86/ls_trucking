@@ -9,6 +9,18 @@ local function Ctx()
     return serverContext or {}
 end
 
+local function RequireWorkAccess(ctx, src)
+    if ctx.RequireWorkAccess then
+        return ctx.RequireWorkAccess(src)
+    end
+
+    if ctx.HasRequiredJob and not ctx.HasRequiredJob(src) then
+        return false, T('error.not_trucker', { job = Config.JobName or 'the required job' })
+    end
+
+    return true
+end
+
 function Contractors.GetConfig()
     return Config.PrivateContractor or {}
 end
@@ -382,7 +394,7 @@ local function GetSelectedDailyRoute(profile)
 end
 
 local function GetBoardRefreshSeconds()
-    local minutes = tonumber(Contractors.GetConfig().ContractBoardRefreshMinutes) or 30
+    local minutes = tonumber(Contractors.GetConfig().ContractBoardRefreshMinutes) or 60
     return math.max(60, math.floor(minutes * 60))
 end
 
@@ -395,30 +407,45 @@ local function GetStableHash(value)
     return hash
 end
 
+local function NextBoardRandom(state, maxValue)
+    maxValue = math.max(1, math.floor(tonumber(maxValue) or 1))
+    state = ((tonumber(state) or 1) * 1103515245 + 12345) % 2147483647
+    return state, (state % maxValue) + 1
+end
+
 local function GetBoardRouteIndexes(citizenid, contractType, priorityKey, routeCount, limit, excludedIndex)
     routeCount = tonumber(routeCount) or 0
     if routeCount <= 0 then return {} end
 
-    limit = math.min(routeCount, math.floor(tonumber(limit) or 5))
-    if limit <= 0 then return {} end
     excludedIndex = tonumber(excludedIndex)
 
-    local refreshBucket = math.floor(os.time() / GetBoardRefreshSeconds())
-    local seed = ('%s:%s:%s:%s:board'):format(citizenid or 'driver', contractType or 'route', priorityKey or 'standard', refreshBucket)
-    local scored = {}
+    local candidates = {}
     for index = 1, routeCount do
         if not excludedIndex or routeCount == 1 or index ~= excludedIndex then
-            scored[#scored + 1] = { index = index, score = GetStableHash(('%s:%s'):format(seed, index)) }
+            candidates[#candidates + 1] = index
         end
     end
 
-    table.sort(scored, function(a, b)
-        if a.score == b.score then return a.index < b.index end
-        return a.score < b.score
-    end)
+    limit = math.min(#candidates, math.floor(tonumber(limit) or 5))
+    if limit <= 0 then return {} end
+
+    local refreshBucket = math.floor(os.time() / GetBoardRefreshSeconds())
+    local seed = GetStableHash(('%s:%s:%s:%s:%s:board'):format(
+        citizenid or 'driver',
+        contractType or 'route',
+        priorityKey or 'standard',
+        routeCount,
+        refreshBucket
+    ))
+
+    for i = #candidates, 2, -1 do
+        local swapIndex
+        seed, swapIndex = NextBoardRandom(seed, i)
+        candidates[i], candidates[swapIndex] = candidates[swapIndex], candidates[i]
+    end
 
     local indexes = {}
-    for i = 1, math.min(limit, #scored) do indexes[#indexes + 1] = scored[i].index end
+    for i = 1, limit do indexes[#indexes + 1] = candidates[i] end
     return indexes
 end
 
@@ -618,98 +645,101 @@ function Contractors.RegisterServer(context)
 
     lib.callback.register('ls_trucking:server:purchaseContractorLicense', function(src)
         if not ctx.CheckRateLimit(src, 'contractorLicense', ctx.GetSecurityCooldown('Contract', 2000)) then return ctx.RateLimitResponse() end
-        if not ctx.HasRequiredJob(src) then return { success = false, message = 'You are not employed as a trucker.' } end
-        if not Contractors.IsEnabled() then return { success = false, message = 'Private contractor work is disabled.' } end
+        local access, accessMessage = RequireWorkAccess(ctx, src)
+        if not access then return { success = false, message = accessMessage } end
+        if not Contractors.IsEnabled() then return { success = false, message = T('contractor.disabled') } end
 
         local citizenid = ctx.GetCitizenId(src)
         local profile = Contractors.GetProfile(citizenid)
-        if Contractors.IsDatabaseTrue(profile.licensed) then return { success = true, message = 'Private contractor license already active.' } end
+        if Contractors.IsDatabaseTrue(profile.licensed) then return { success = true, message = T('contractor.license_active') } end
 
         local playerRank = ctx.GetPlayerTruckingRank(src)
         local unlockRank = tonumber(Contractors.GetConfig().UnlockRank) or 1
         if not ctx.CheckRankRequirement(playerRank, unlockRank) then
-            return { success = false, message = ('Private contractor licensing requires trucking rank %s.'):format(unlockRank) }
+            return { success = false, message = T('contractor.license_rank_required', { rank = unlockRank }) }
         end
 
         local price = tonumber(Contractors.GetConfig().LicenseCost) or 0
         if not ctx.RemoveMoney(src, price, 'ls-trucking-contractor-license') then
-            return { success = false, message = ('You need $%s for the private contractor license.'):format(price) }
+            return { success = false, message = T('contractor.license_cost', { price = price }) }
         end
 
         MySQL.update.await('UPDATE trucking_contractor_profiles SET licensed = 1, license_purchased_at = CURRENT_TIMESTAMP WHERE citizenid = ?', { citizenid })
-        return { success = true, message = 'Private contractor license purchased.' }
+        return { success = true, message = T('contractor.license_purchased') }
     end)
 
     lib.callback.register('ls_trucking:server:selectContractorDailyRoute', function(src, routeKey)
         if not ctx.CheckRateLimit(src, 'contractorDailyRoute', ctx.GetSecurityCooldown('Contract', 1500)) then return ctx.RateLimitResponse() end
-        if not ctx.HasRequiredJob(src) then return { success = false, message = 'You are not employed as a trucker.' } end
-        if ctx.ActiveContracts[src] then return { success = false, message = 'Finish or cancel your active route before changing your daily route.' } end
+        local access, accessMessage = RequireWorkAccess(ctx, src)
+        if not access then return { success = false, message = accessMessage } end
+        if ctx.ActiveContracts[src] then return { success = false, message = T('contractor.active_route_daily') } end
 
         local citizenid = ctx.GetCitizenId(src)
         local profile = Contractors.GetProfile(citizenid)
-        if not Contractors.IsDatabaseTrue(profile.licensed) then return { success = false, message = 'Purchase a private contractor license first.' } end
+        if not Contractors.IsDatabaseTrue(profile.licensed) then return { success = false, message = T('contractor.license_required') } end
 
         local route = GetDailyRouteOption(routeKey)
-        if not route then return { success = false, message = 'Invalid dedicated route assignment.' } end
+        if not route then return { success = false, message = T('contractor.invalid_daily_route') } end
 
         local playerRank = ctx.GetPlayerTruckingRank(src)
         local minRank = tonumber(route.minRank) or tonumber(Contractors.GetConfig().UnlockRank) or 1
         if not ctx.CheckRankRequirement(playerRank, minRank) then
-            return { success = false, message = ('This route assignment requires trucking rank %s.'):format(minRank) }
+            return { success = false, message = T('contractor.daily_rank_required', { rank = minRank }) }
         end
 
         if profile.daily_route_key and profile.daily_route_key ~= '' and profile.daily_route_key == route.key then
-            return { success = true, message = ('Dedicated daily route already assigned: %s.'):format(route.label or route.key) }
+            return { success = true, message = T('contractor.daily_already_assigned', { route = route.label or route.key }) }
         end
 
         local canChange, changeAt, remaining = GetDailyRouteChangeStatus(profile)
         if not canChange then
             local days = math.max(1, math.ceil((remaining or 0) / 86400))
             local dateText = changeAt and os.date('%Y-%m-%d', changeAt) or 'later'
-            return { success = false, message = ('Dedicated route can be changed in %s day%s (%s).'):format(days, days == 1 and '' or 's', dateText) }
+            return { success = false, message = T('contractor.daily_cooldown', { days = days, plural = days == 1 and '' or 's', date = dateText }) }
         end
 
         MySQL.update.await('UPDATE trucking_contractor_profiles SET daily_route_key = ?, daily_route_selected_at = CURRENT_TIMESTAMP, daily_route_date = ?, daily_route_completed = 0 WHERE citizenid = ?', { route.key, GetDateKey(), citizenid })
-        return { success = true, message = ('Dedicated daily route selected: %s.'):format(route.label or route.key) }
+        return { success = true, message = T('contractor.daily_selected', { route = route.label or route.key }) }
     end)
 
     lib.callback.register('ls_trucking:server:purchaseContractorVehicle', function(src, vehicleType, vehicleIndex)
         if not ctx.CheckRateLimit(src, 'contractorBuyVehicle', ctx.GetSecurityCooldown('Contract', 2000)) then return ctx.RateLimitResponse() end
-        if not ctx.HasRequiredJob(src) then return { success = false, message = 'You are not employed as a trucker.' } end
-        if not Contractors.IsEnabled() then return { success = false, message = 'Private contractor work is disabled.' } end
+        local access, accessMessage = RequireWorkAccess(ctx, src)
+        if not access then return { success = false, message = accessMessage } end
+        if not Contractors.IsEnabled() then return { success = false, message = T('contractor.disabled') } end
 
         local citizenid = ctx.GetCitizenId(src)
         local profile = Contractors.GetProfile(citizenid)
-        if not Contractors.IsDatabaseTrue(profile.licensed) then return { success = false, message = 'Purchase a private contractor license first.' } end
+        if not Contractors.IsDatabaseTrue(profile.licensed) then return { success = false, message = T('contractor.license_required') } end
 
         vehicleIndex = tonumber(vehicleIndex) or 1
         local vehicleData, resolvedIndex = ctx.GetVehicleConfig(vehicleType, vehicleIndex)
-        if not vehicleData then return { success = false, message = 'Invalid contractor vehicle.' } end
+        if not vehicleData then return { success = false, message = T('contractor.invalid_vehicle') } end
         if not TableHasValue(Contractors.GetConfig().VehicleTypes or {}, vehicleType) then
-            return { success = false, message = 'This vehicle type is not available for private contractor purchase.' }
+            return { success = false, message = T('contractor.vehicle_type_unavailable') }
         end
 
         local options = GetVehicleOptions(vehicleData)
-        if not options.enabled then return { success = false, message = 'This vehicle is not available for private contractor purchase.' } end
+        if not options.enabled then return { success = false, message = T('contractor.vehicle_unavailable') } end
 
         local playerRank = ctx.GetPlayerTruckingRank(src)
         local minRank = tonumber(options.minRank) or tonumber(vehicleData.minRank) or 1
         if not ctx.CheckRankRequirement(playerRank, minRank) then
-            return { success = false, message = ('This vehicle requires trucking rank %s.'):format(minRank) }
+            return { success = false, message = T('contractor.vehicle_rank_required', { rank = minRank }) }
         end
 
         local ownedCountRow = MySQL.single.await('SELECT COUNT(*) AS count FROM trucking_contractor_vehicles WHERE citizenid = ?', { citizenid }) or {}
         local maxOwned = tonumber(Contractors.GetConfig().MaxOwnedVehicles) or 6
         if (tonumber(ownedCountRow.count) or 0) >= maxOwned then
-            return { success = false, message = ('Your private fleet is limited to %s vehicles.'):format(maxOwned) }
+            return { success = false, message = T('contractor.fleet_limit', { max = maxOwned }) }
         end
 
         local duplicate = MySQL.single.await('SELECT id FROM trucking_contractor_vehicles WHERE citizenid = ? AND vehicle_type = ? AND vehicle_index = ? LIMIT 1', { citizenid, vehicleType, resolvedIndex })
-        if duplicate then return { success = false, message = 'You already own this contractor vehicle.' } end
+        if duplicate then return { success = false, message = T('contractor.already_own_vehicle') } end
 
         local price = GetVehiclePrice(vehicleType, resolvedIndex, vehicleData)
         if not ctx.RemoveMoney(src, price, 'ls-trucking-contractor-vehicle') then
-            return { success = false, message = ('You need $%s to purchase this vehicle.'):format(price) }
+            return { success = false, message = T('contractor.vehicle_cost', { price = price }) }
         end
 
         MySQL.insert.await([[INSERT INTO trucking_contractor_vehicles (citizenid, vehicle_type, vehicle_index, vehicle_label, vehicle_model, plate, props, fuel, engine_health, body_health, original_price, mileage, stored, out_state) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, 1000, 1000, ?, 0, 1, 0)]], {
@@ -723,30 +753,31 @@ function Contractors.RegisterServer(context)
             price
         })
 
-        return { success = true, message = ('Purchased %s for your private fleet.'):format(vehicleData.label or 'contractor vehicle') }
+        return { success = true, message = T('contractor.vehicle_purchased', { vehicle = vehicleData.label or 'contractor vehicle' }) }
     end)
 
     lib.callback.register('ls_trucking:server:sellContractorVehicle', function(src, vehicleId)
         if not ctx.CheckRateLimit(src, 'contractorSellVehicle', ctx.GetSecurityCooldown('Contract', 2000)) then return ctx.RateLimitResponse() end
-        if not ctx.HasRequiredJob(src) then return { success = false, message = 'You are not employed as a trucker.' } end
-        if not Contractors.IsEnabled() then return { success = false, message = 'Private contractor work is disabled.' } end
-        if ctx.ActiveContracts[src] then return { success = false, message = 'Finish or cancel your active contract before selling a vehicle.' } end
+        local access, accessMessage = RequireWorkAccess(ctx, src)
+        if not access then return { success = false, message = accessMessage } end
+        if not Contractors.IsEnabled() then return { success = false, message = T('contractor.disabled') } end
+        if ctx.ActiveContracts[src] then return { success = false, message = T('contractor.active_contract_sell') } end
 
         local citizenid = ctx.GetCitizenId(src)
         local row = Contractors.GetVehicleById(citizenid, vehicleId)
-        if not row then return { success = false, message = 'Contractor vehicle not found.' } end
+        if not row then return { success = false, message = T('contractor.vehicle_not_found') } end
         if not Contractors.IsDatabaseTrue(row.stored) or Contractors.IsDatabaseTrue(row.out_state) then
-            return { success = false, message = 'Store this contractor vehicle before selling it.' }
+            return { success = false, message = T('contractor.store_before_sale') }
         end
 
         local vehicleData = Config.JobVehicles[row.vehicle_type] and Config.JobVehicles[row.vehicle_type][tonumber(row.vehicle_index) or 1] or {}
         local resalePrice, originalPrice, mileage, depreciationPerMile = GetVehicleResale(row, vehicleData)
         local reserved = MySQL.update.await('UPDATE trucking_contractor_vehicles SET stored = 2 WHERE citizenid = ? AND id = ? AND stored = 1 AND out_state = 0', { citizenid, row.id }) or 0
-        if reserved < 1 then return { success = false, message = 'Vehicle sale could not be completed. Refresh the fleet record and try again.' } end
+        if reserved < 1 then return { success = false, message = T('contractor.sale_failed_refresh') } end
 
         if resalePrice > 0 and not ctx.AddMoney(src, resalePrice, 'ls-trucking-contractor-vehicle-sale') then
             MySQL.update.await('UPDATE trucking_contractor_vehicles SET stored = 1 WHERE citizenid = ? AND id = ? AND stored = 2', { citizenid, row.id })
-            return { success = false, message = 'The payment system could not issue the resale payment. Your vehicle was not sold.' }
+            return { success = false, message = T('contractor.sale_payment_failed') }
         end
 
         MySQL.update.await('DELETE FROM trucking_contractor_vehicles WHERE citizenid = ? AND id = ? AND stored = 2', { citizenid, row.id })
@@ -756,31 +787,32 @@ function Contractors.RegisterServer(context)
             originalPrice = originalPrice,
             mileage = mileage,
             depreciationPerMile = depreciationPerMile,
-            message = ('Sold %s for $%s.'):format(row.vehicle_label or 'contractor vehicle', resalePrice)
+            message = T('contractor.vehicle_sold', { vehicle = row.vehicle_label or 'contractor vehicle', price = resalePrice })
         }
     end)
 
     lib.callback.register('ls_trucking:server:createContractorContract', function(src, vehicleId, priorityKey, requestedRouteIndex, state, requestedDailyRouteKey)
         if not ctx.CheckRateLimit(src, 'createContractorContract', ctx.GetSecurityCooldown('Contract', 2000)) then return ctx.RateLimitResponse() end
-        if not ctx.HasRequiredJob(src) then return { success = false, message = 'You are not employed as a trucker.' } end
-        if not Contractors.IsEnabled() then return { success = false, message = 'Private contractor work is disabled.' } end
+        local access, accessMessage = RequireWorkAccess(ctx, src)
+        if not access then return { success = false, message = accessMessage } end
+        if not Contractors.IsEnabled() then return { success = false, message = T('contractor.disabled') } end
 
         local citizenid = ctx.GetCitizenId(src)
         local profile = Contractors.GetProfile(citizenid)
-        if not Contractors.IsDatabaseTrue(profile.licensed) then return { success = false, message = 'Purchase a private contractor license first.' } end
+        if not Contractors.IsDatabaseTrue(profile.licensed) then return { success = false, message = T('contractor.license_required') } end
 
         vehicleId = tonumber(vehicleId)
         local row = vehicleId and vehicleId > 0 and Contractors.GetVehicleById(citizenid, vehicleId) or nil
         if not row then row = Contractors.GetOutVehicle(citizenid) end
-        if not row then return { success = false, message = 'Contractor vehicle not found.' } end
+        if not row then return { success = false, message = T('contractor.vehicle_not_found') } end
         if Contractors.IsDatabaseTrue(row.stored) and not Contractors.IsDatabaseTrue(row.out_state) then
-            return { success = false, message = 'Spawn this contractor vehicle before starting a contract.' }
+            return { success = false, message = T('contractor.spawn_before_contract') }
         end
 
         state = type(state) == 'table' and state or {}
         local currentPlate = ctx.ClampText(state.plate or row.plate, 16)
         if ctx.NormalizePlateText(currentPlate) ~= ctx.NormalizePlateText(row.plate) then
-            return { success = false, message = 'Your current vehicle plate does not match contractor records.' }
+            return { success = false, message = T('contractor.plate_mismatch') }
         end
 
         local fuel = math.max(0.0, math.min(100.0, tonumber(state.fuel) or tonumber(row.fuel) or 0.0))
@@ -790,8 +822,8 @@ function Contractors.RegisterServer(context)
         local minFuel = tonumber(Contractors.GetConfig().MinFuel) or 0
         local minCondition = tonumber(Contractors.GetConfig().MinCondition) or 0
 
-        if fuel < minFuel then return { success = false, message = ('Contractor contracts require at least %s%% fuel.'):format(minFuel) } end
-        if condition < minCondition then return { success = false, message = ('Contractor contracts require at least %s%% vehicle condition.'):format(minCondition) } end
+        if fuel < minFuel then return { success = false, message = T('contractor.min_fuel', { fuel = minFuel }) } end
+        if condition < minCondition then return { success = false, message = T('contractor.min_condition', { condition = minCondition }) } end
 
         MySQL.update.await('UPDATE trucking_contractor_vehicles SET fuel = ?, engine_health = ?, body_health = ? WHERE citizenid = ? AND id = ?', { fuel, engineHealth, bodyHealth, citizenid, row.id })
 
@@ -807,15 +839,15 @@ function Contractors.RegisterServer(context)
         if selectedDailyRouteKey then
             routeOption = GetSelectedDailyRoute(profile)
             if not routeOption or routeOption.key ~= selectedDailyRouteKey then
-                return { success = false, message = 'Dedicated route assignment is no longer available. Select a daily route again.' }
+                return { success = false, message = T('contractor.daily_unavailable') }
             end
             if profile.daily_route_date ~= GetDateKey() or Contractors.IsDatabaseTrue(profile.daily_route_completed) then
-                return { success = false, message = 'Your dedicated route bonus is already completed for today.' }
+                return { success = false, message = T('contractor.daily_completed') }
             end
 
             routeContractType = routeOption.type or (routeOption.types and routeOption.types[1])
             if row.vehicle_type ~= routeContractType then
-                return { success = false, message = 'Your dedicated route requires the matching contractor vehicle type.' }
+                return { success = false, message = T('contractor.daily_vehicle_type') }
             end
 
             resolvedPriorityKey = routeOption.priorityKey or 'standard'
@@ -830,7 +862,7 @@ function Contractors.RegisterServer(context)
             resolvedRouteIndex = indexes[1] or math.random(1, #routePool)
         end
         if not routePool or not resolvedRouteIndex or not routePool[resolvedRouteIndex] then
-            return { success = false, message = 'Selected contractor route is no longer available.' }
+            return { success = false, message = T('contractor.route_unavailable') }
         end
 
         return ctx.CreateContractForPlayer(src, row.vehicle_type, tonumber(row.vehicle_index) or 1, true, row.plate, resolvedPriorityKey, resolvedRouteIndex, {

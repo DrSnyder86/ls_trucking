@@ -426,11 +426,13 @@ function Framework.AddMoney(src, amount, reason)
     return Framework.IsStandalone()
 end
 
-function Framework.RemoveMoney(src, amount, reason)
+function Framework.RemoveMoney(src, amount, reason, accountOverride)
     amount = math.floor(tonumber(amount) or 0)
     if amount <= 0 then return true end
 
-    local account = GetMoneyAccount()
+    local account = accountOverride or GetMoneyAccount()
+    if account == 'money' then account = 'cash' end
+    if account ~= 'cash' and account ~= 'bank' then account = GetMoneyAccount() end
     local player = Framework.GetPlayer(src)
 
     local balance = GetAccountBalance(player, account)
