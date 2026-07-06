@@ -957,7 +957,7 @@ NUI files are split into smaller JavaScript and CSS modules under:
 
 ## Credits
 
-Created by DrSnyder.
+ls_trucking also includes functionality from the dragcam resource by Jorn, check it out!: https://github.com/Jorn08/dragcam
 
 Resource label:
 
