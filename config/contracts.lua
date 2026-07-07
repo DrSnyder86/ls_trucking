@@ -1,4 +1,4 @@
-Config.ContractsVersion = '1.1.0'
+Config.ContractsVersion = '1.2.0'
 
 Config.Contracts = {
     van = {
@@ -3031,6 +3031,226 @@ Config.Contracts = {
                         scenario = 'WORLD_HUMAN_CLIPBOARD'
                     }
                 },
+                -- LS Scrap
+                {
+                    label = 'Rogers Scrap Haul',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'flatbed_scrap',
+                    trailerContents = 'Scrap',
+                    routeLength = '1.7 mi',
+                    trailerDrop = {
+                        label = 'Rogers Scrap Yard',
+                        coords = vector3(-522.67, -1719.42, 19.26),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Yard Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-535.73, -1718.06, 19.08, 264.26),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Rogers Scrap Haul',
+                    pickupDepot = 'docks',
+                    trailerKey = 'flatbed_scrap',
+                    trailerContents = 'Scrap',
+                    routeLength = '2.2 mi',
+                    trailerDrop = {
+                        label = 'Rogers Scrap Yard',
+                        coords = vector3(-522.67, -1719.42, 19.26),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Yard Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-535.73, -1718.06, 19.08, 264.26),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Rogers Scrap Haul',
+                    pickupDepot = 'harmony',
+                    trailerKey = 'flatbed_scrap',
+                    trailerContents = 'Scrap',
+                    routeLength = '3.8 mi',
+                    trailerDrop = {
+                        label = 'Rogers Scrap Yard',
+                        coords = vector3(-522.67, -1719.42, 19.26),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Yard Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-535.73, -1718.06, 19.08, 264.26),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Rogers Scrap Haul',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'flatbed_scrap2',
+                    trailerContents = 'Scrap',
+                    routeLength = '1.7 mi',
+                    trailerDrop = {
+                        label = 'Rogers Scrap Yard',
+                        coords = vector3(-522.67, -1719.42, 19.26),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Yard Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-535.73, -1718.06, 19.08, 264.26),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Rogers Scrap Haul',
+                    pickupDepot = 'docks',
+                    trailerKey = 'flatbed_scrap2',
+                    trailerContents = 'Scrap',
+                    routeLength = '2.2 mi',
+                    trailerDrop = {
+                        label = 'Rogers Scrap Yard',
+                        coords = vector3(-522.67, -1719.42, 19.26),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Yard Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-535.73, -1718.06, 19.08, 264.26),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Rogers Scrap Haul',
+                    pickupDepot = 'harmony',
+                    trailerKey = 'flatbed_scrap2',
+                    trailerContents = 'Scrap',
+                    routeLength = '3.8 mi',
+                    trailerDrop = {
+                        label = 'Rogers Scrap Yard',
+                        coords = vector3(-522.67, -1719.42, 19.26),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Yard Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-535.73, -1718.06, 19.08, 264.26),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Rogers Scrap Haul',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'flatbed_scrap3',
+                    trailerContents = 'Scrap',
+                    routeLength = '1.7 mi',
+                    trailerDrop = {
+                        label = 'Rogers Scrap Yard',
+                        coords = vector3(-522.67, -1719.42, 19.26),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Yard Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-535.73, -1718.06, 19.08, 264.26),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Rogers Scrap Haul',
+                    pickupDepot = 'docks',
+                    trailerKey = 'flatbed_scrap3',
+                    trailerContents = 'Scrap',
+                    routeLength = '2.2 mi',
+                    trailerDrop = {
+                        label = 'Rogers Scrap Yard',
+                        coords = vector3(-522.67, -1719.42, 19.26),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Yard Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-535.73, -1718.06, 19.08, 264.26),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Rogers Scrap Haul',
+                    pickupDepot = 'harmony',
+                    trailerKey = 'flatbed_scrap3',
+                    trailerContents = 'Scrap',
+                    routeLength = '3.8 mi',
+                    trailerDrop = {
+                        label = 'Rogers Scrap Yard',
+                        coords = vector3(-522.67, -1719.42, 19.26),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Yard Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-535.73, -1718.06, 19.08, 264.26),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                -- Sandy Scrap
+                {
+                    label = 'Sandy Scrap Haul',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'flatbed_scrap',
+                    trailerContents = 'Scrap',
+                    routeLength = '4.9 mi',
+                    trailerDrop = {
+                        label = 'Sandy Recycling Center',
+                        coords = vector3(2350.7, 3038.52, 48.15),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Yard Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(2343.29, 3053.53, 48.15, 269.0),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Sandy Scrap Haul',
+                    pickupDepot = 'docks',
+                    trailerKey = 'flatbed_scrap',
+                    trailerContents = 'Scrap',
+                    routeLength = '5.0 mi',
+                    trailerDrop = {
+                        label = 'Sandy Recycling Center',
+                        coords = vector3(2350.7, 3038.52, 48.15),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Yard Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(2343.29, 3053.53, 48.15, 269.0),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Sandy Scrap Haul',
+                    pickupDepot = 'harmony',
+                    trailerKey = 'flatbed_scrap',
+                    trailerContents = 'Scrap',
+                    routeLength = '1.8 mi',
+                    trailerDrop = {
+                        label = 'Sandy Recycling Center',
+                        coords = vector3(2350.7, 3038.52, 48.15),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Yard Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(2343.29, 3053.53, 48.15, 269.0),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+
+
         }
     }
 }

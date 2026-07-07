@@ -84,7 +84,7 @@ Config.DispatchBlip = {
 }
 
 Config.Depot = {
-    terminal = vector3(-41.54, -2513.28, 6.16),
+    terminal = vector3(-41.54, -2513.28, 6.16), -- -60.101368,-2517.431152,7.297539
     request = vector3(-41.54, -2513.28, 6.16),
     requestRadius = 120.0,
     vehicleSpawn = vector4(-46.58, -2503.58, 6.01, 237.01),
@@ -211,9 +211,9 @@ Config.RadioMessageAudio = {
 }
 
 Config.DispatchHome = {
-    -- To use an actual San Andreas map, add your map image to /images and set this to '../images/your-map.png'.
+    -- To use an actual San Andreas map, add your map image to /images and set this to '../images/your-map.webp'.
     -- Markers use GTA world coords against these bounds, so a north-up full-island image will line up best.
-    MapImage = '../images/photos/locations/MapImage.png',
+    MapImage = '../images/photos/locations/MapImage.webp',
     MapBounds = {
         minX = -6000,
         maxX = 7000,
@@ -225,17 +225,17 @@ Config.DispatchHome = {
     MapZoomMax = 2.8,
     MapZoomStep = 0.25,
     Photos = {
-        -- Use URLs or local NUI paths such as '../images/dispatch_terminal.png'.
-        terminal = '../images/photos/locations/terminal.jpg',
-        vehicleSpawn = '../images/photos/locations/vehicleSpawn.jpg',
-        garageSpawn = '../images/photos/locations/garageSpawn.jpg',
-        vanPickup = '../images/photos/locations/vanPickup.png',
-        boxTruckPickup = '../images/photos/locations/boxTruckPickup.jpg',
-        trailerDepot = '../images/photos/locations/trailerDepot.png',
+        -- Use URLs or local NUI paths such as '../images/photos/locations/terminal.webp'.
+        terminal = '../images/photos/locations/terminal.webp',
+        vehicleSpawn = '../images/photos/locations/vehicleSpawn.webp',
+        garageSpawn = '../images/photos/locations/garageSpawn.webp',
+        vanPickup = '../images/photos/locations/vanPickup.webp',
+        boxTruckPickup = '../images/photos/locations/boxTruckPickup.webp',
+        trailerDepot = '../images/photos/locations/trailerDepot.webp',
         trailerDepots = {
-            docks = '../images/photos/locations/docks.jpg',
-            harmony = '../images/photos/locations/harmony.jpg',
-            lsport = '../images/photos/locations/lsport.jpg',
+            docks = '../images/photos/locations/docks.webp',
+            harmony = '../images/photos/locations/harmony.webp',
+            lsport = '../images/photos/locations/lsport.webp',
         }
     }
 }
