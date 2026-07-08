@@ -81,28 +81,24 @@ The script is built around a dispatch tablet for selecting work, a handheld rece
 ## Main Features
 
 - Dispatch tablet with operations home, contracts, current job, garage, contractor, company, and route history views.
-- Interactive dispatch home map with local location photos.
-- Company contracts for van, box truck, and trailer freight.
+- Interactive dispatch home map with company locations.
+- Rank progression with 10 default ranks.
+- Company contracts for Van (Go Postal packages), Box Truck (Post Ops Crates) , and Trailer (LSF Co) deliveries.
 - Private contractor license system with owned vehicles and higher-risk private payouts.
-- Dedicated daily contractor route assignments with cooldown and bonus rewards.
-- Company garage and private fleet support with saved vehicle props, fuel, engine health, body health, upgrades, and turbo stage state.
-- LSFC Service Bay for garage and private fleet vehicles.
-- Service bay work orders for drivetrain repair, body repair, full service, upgrades, appearance changes, commercial tires, and staged turbo tuning.
-- Body repair handles visible body deformation, panels, windows, doors, dirt, and body health while preserving mechanical state when appropriate.
-- Staged turbo levels support configurable power and torque multipliers.
-- Service bay discounts based on trucking reputation and optional contractor reputation.
+- Dedicated daily contractor route assignment and bonus rewards.
+- Company garage and private fleet support.
+- LSFC Service Bay for garaged and private fleet vehicles with discounts based on reputation.
+- Payout multipliers for early deliveries, clean trailer bonus, and mileage.
 - Handheld receiver UI with route, manifest, load, vehicle, dispatch log, and settings pages.
+- Remote vehicle control panel inside the receiver ui for doors, locks, engine, interior/hazard lights and location.
+- Realistic trailer connect/disconnect sounds and service bay impact gun sounds.
 - Compact dock UI for always-available active route status.
 - Cargo collection, trunk loading, delivery handoff, cargo condition, and route completion tracking.
-- Trailer hookup, load checklist, secure/load verification, receiver signoff, drop validation, and disconnect flow.
+- Trailer lines hookup, load checklist, secure/load verification, receiver signoff, drop validation, and disconnect flow.
 - Flatbed cargo prop system with an in-game admin editor and test spawner.
-- Random delivery events such as rush orders, audits, reroutes, dock delays, customer call-aheads, and schedule changes.
-- Rank progression with 10 default ranks.
+- Random delivery events such as rush orders, audits, reroutes, dock delays, customer call-aheads, and schedule changes can affect timing, payout and reputation.
 - Framework adapters for QB-Core, Qbox, ESX, ND_Core, and standalone fallback.
 - Inventory, fuel, key, and target compatibility bridges.
-- Localized player-facing text through Lua and NUI locale files.
-- Local dispatch, vehicle, and trailer photo assets.
-- Local Font Awesome icon assets for NUI icons.
 
 ---
 
