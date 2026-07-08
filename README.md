@@ -7,7 +7,7 @@
 **Default receiver key:** `F2`
 **Default dispatch key:** `F3`
 
-Los Santos Freight Co. Trucking is a full freight career resource for FiveM. It includes company freight contracts, private contractor progression, garage vehicles, owned contractor fleets, active route receiver tools, trailer hauling, route history, random delivery events, local photo assets, optional streamed LSFC vehicle/trailer liveries, and an LSFC service bay for repairs, upgrades, appearance work, and staged turbo tuning.
+Los Santos Freight Co. is a full delivery career resource for FiveM offering package delivery, crate delivery and trailer deliveries. It aims to fit the needs of both the casual player and long term players with the use of rank progression and reputation. Work your way up the ladder to unlock vehicles, contract types, higher payouts and contractor access. It features company contracts, private contractor licensing/progression, garage vehicles, owned contractor fleets, active route mini ui, handheld receiver, route history, random delivery events, leaderboards, optional streamed LSFC vehicle/trailer liveries, and an LSFC service bay for repairs, upgrades, appearance work, and staged turbo tuning.
 
 The script is built around a dispatch tablet for selecting work, a handheld receiver for active route operations, a compact dock UI for quick route status, and a service bay UI for maintaining LSFC garage and private fleet vehicles.
 
