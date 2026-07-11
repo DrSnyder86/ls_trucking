@@ -7,7 +7,7 @@
 **Default receiver key:** `F2`
 **Default dispatch key:** `F3`
 
-Los Santos Freight Co. is a full delivery career resource for FiveM offering package delivery, crate delivery and trailer deliveries. It aims to fit the needs of both the casual player and long term players with the use of rank progression and reputation. Work your way up the ladder to unlock vehicles, contract types, higher payouts and contractor access. It features company contracts, private contractor licensing/progression, garage vehicles, owned contractor fleets, active route mini ui, handheld receiver, route history, random delivery events, leaderboards, optional streamed LSFC vehicle/trailer liveries, and an LSFC service bay for repairs, upgrades, appearance work, and staged turbo tuning.
+Los Santos Freight Co. is a full delivery career resource for FiveM offering package delivery, crate delivery and trailer deliveries. It aims to fit the needs of both the casual player and long term players with the use of rank progression and reputation. Originally designed to be a moderate improvement over qb/qbx type trucker jobs to remove the old style mundane route system while still maintaining playability and semi-realistic job flow. Work your way up the ladder to unlock vehicles, contract types, higher payouts and contractor access. Features include company contracts, private contractor licensing/progression, garage vehicles, owned contractor fleets, active route mini ui, handheld receiver, route history, random delivery events, leaderboards, optional streamed LSFC vehicle/trailer liveries, and an LSFC service bay for repairs, upgrades, appearance work, and staged turbo tuning. Your casual players can jump right in and start a delivery route with a standard provided company vehicle while career players may want to use a vehicle from the company garage that may be upgraded and saved.
 
 The script is built around a dispatch tablet for selecting work, a handheld receiver for active route operations, a compact dock UI for quick route status, and a service bay UI for maintaining LSFC garage and private fleet vehicles.
 
@@ -90,6 +90,7 @@ The script is built around a dispatch tablet for selecting work, a handheld rece
 - LSFC Service Bay for garaged and private fleet vehicles with discounts based on reputation.
 - Payout multipliers for early deliveries, clean trailer bonus, and mileage.
 - Handheld receiver UI with route, manifest, load, vehicle, dispatch log, and settings pages.
+- Request a route from dispatch at anytime through the reciver on the load page.
 - Remote vehicle control panel inside the receiver ui for doors, locks, engine, interior/hazard lights and location.
 - Realistic trailer connect/disconnect sounds and service bay impact gun sounds.
 - Compact dock UI for always-available active route status.
@@ -370,6 +371,36 @@ Install helper files:
 
 ---
 
+## Required vehicle.meta trailer support
+
+The `data` folder includes vehicle.meta files for vanilla tractor trucks with edited trailer tables. LSF Co uses additional available vanilla trailer assets not available in the original game and therefore not enabled and attachable by default. This enables all current vanilla gta tractor trucks used in this script to attach and haul all trailer types. If you added and are using your own custom vehicles, the vehicle.meta files must have support for the trailers listed below. Trailer models listed under `<trailers>` will appear in traffic if your vehicle is listed in the popgroups while models listed under `<additionalTrailers>` will not appear in traffic however will still attach.
+
+vehicles.meta trailer snippet:
+
+<trailers>
+<Item>docktrailer</Item>
+<Item>trailers</Item>
+<Item>trailers2</Item>
+<Item>trailers3</Item>
+<Item>tanker</Item>
+<Item>tanker2</Item>
+<Item>trailerlogs</Item>
+<Item>tr2</Item>
+<Item>trflat</Item>
+</trailers>
+<additionalTrailers>
+<Item>freighttrailer</Item>
+<Item>armytanker</Item>
+<Item>armytrailer</Item>
+<Item>tr4</Item>
+<Item>tvtrailer</Item>
+<Item>tvtrailer2</Item>
+<Item>trailerlarge</Item>
+<Item>trailers4</Item> 
+</additionalTrailers>
+
+---
+
 ## Player Commands
 
 - `/trucking` - opens the Los Santos Freight Co. dispatch tablet.
@@ -563,7 +594,7 @@ Receiver pages:
 
 - Current Route - active objective, notice, destination, ETA, alerts, cargo, payout, route progress, cancel route.
 - Manifest - contract data and stop/package data.
-- Load - cargo state and load priority/request tools.
+- Load - verify, cargo state and load priority/request tools.
 - Vehicle - assigned vehicle data, fuel, condition, GPS, locks, engine, lights, doors, hood, trunk, hazards, locate.
 - Dispatch Log - radio traffic and route completion summary history.
 - Settings - player info, rank, XP, reputation, receiver assignment, model/firmware, dock model, movement toggle, dock toggle.
@@ -857,6 +888,9 @@ Good places to start:
 - Check `Config.SpawnOccupancy`.
 - Check company/contractor vehicle stored state in the database if needed.
 
+### Trailer will not attach
+- Ensure your vehicle has the required trailer tables in vehicles.meta.
+  
 ### Cargo cannot be loaded or delivered
 
 - Confirm the cargo item exists in your inventory resource.
@@ -930,24 +964,30 @@ NUI files are split into smaller JavaScript and CSS modules under:
 
 ## Recommended Vehicle Links
 
-- Linerunner - https://www.gta5-mods.com/vehicles/mtl-linerunner-replace-lore-friendly
-- Tanker - https://www.gta5-mods.com/vehicles/vapid-tanker-addon-replace
-- Longpath - https://www.gta5-mods.com/vehicles/jobuilt-longpath-t1000-add-on
-- Juggernaut - https://www.gta5-mods.com/vehicles/jobuilt-juggernaut-add-on
-- Pounder Liveries - https://www.gta5-mods.com/vehicles/pounder-lore-friendly-liveries
-- Hauler 270 - https://www.gta5-mods.com/vehicles/jobuilt-hauler-270-add-on-replace-liveries-template-sounds
-- Cerberus 200/300 - https://www.gta5-mods.com/vehicles/mtl-cerberus-200-300-add-on-liveries-template
-- Speedo Express - https://fenton.tebex.io/package/7280833
-- Steed 1500 - https://www.gta5-mods.com/vehicles/vapid-steed-1500-add-on-liveries
-- Jogger - https://marketplace.cfx.re/packages/7227454-benefactor-jogger-12-van-set-free
-- Mule 4x4 - https://www.gta5-mods.com/vehicles/maibatsu-mule-4x4-addon
-- Yankee - https://www.gta5-mods.com/vehicles/vapid-new-yankee-add-on-replace
-- Steed and Yankee - https://www.gta5-mods.com/vehicles/vapid-steed-and-yankee-improvements-add-on-liveries
-- Esperta - https://fivem.gabzv.com/package/6500332
-- Gabz Vehicles - https://fivem.gabzv.com/package/6500369
-- Onx Vehicle Bundle - https://store.onx.gg/package/7364987
-- Biff - https://www.gta5-mods.com/vehicles/hvy-biff-semi-add-on
-- Roadkiller - https://www.gta5-mods.com/vehicles/brute-roadkiller-add-on
+### FREE
+- Improved Trailers - https://www.gta5-mods.com/vehicles/improved-trailer-pack-add-on-replace-liveries-legacy
+- Linerunner        - https://www.gta5-mods.com/vehicles/mtl-linerunner-replace-lore-friendly
+- Tanker            - https://www.gta5-mods.com/vehicles/vapid-tanker-addon-replace
+- Longpath          - https://www.gta5-mods.com/vehicles/jobuilt-longpath-t1000-add-on
+- Juggernaut        - https://www.gta5-mods.com/vehicles/jobuilt-juggernaut-add-on
+- Pounder Liveries  - https://www.gta5-mods.com/vehicles/pounder-lore-friendly-liveries
+- Hauler 270        - https://www.gta5-mods.com/vehicles/jobuilt-hauler-270-add-on-replace-liveries-template-sounds
+- Cerberus 200/300  - https://www.gta5-mods.com/vehicles/mtl-cerberus-200-300-add-on-liveries-template
+- Speedo            - https://www.gta5-mods.com/vehicles/improved-vapid-speedo-replace-add-on-liveries
+- Speedo Express    - https://fenton.tebex.io/package/7280833
+- Steed 1500        - https://www.gta5-mods.com/vehicles/vapid-steed-1500-add-on-liveries
+- Jogger            - https://marketplace.cfx.re/packages/7227454-benefactor-jogger-12-van-set-free
+- Mule 4x4          - https://www.gta5-mods.com/vehicles/maibatsu-mule-4x4-addon
+- Yankee            - https://www.gta5-mods.com/vehicles/vapid-new-yankee-add-on-replace
+- Steed and Yankee  - https://www.gta5-mods.com/vehicles/vapid-steed-and-yankee-improvements-add-on-liveries
+- Esperta           - https://fivem.gabzv.com/package/6500332
+- Biff              - https://www.gta5-mods.com/vehicles/hvy-biff-semi-add-on
+- Roadkiller        - https://www.gta5-mods.com/vehicles/brute-roadkiller-add-on
+- Benson            - https://www.gta5-mods.com/vehicles/vapid-benson-mapped-add-on-replace
+
+### PAID
+- Gabz Vehicles     - https://fivem.gabzv.com/package/6500369
+- Onx Vehicles      - https://store.onx.gg/package/7364987
 
 ---
 
@@ -955,7 +995,7 @@ NUI files are split into smaller JavaScript and CSS modules under:
 
 Parts of the LSFC UI were created and refined with AI assistance. I used OpenAI Codex as a coding assistant to review the existing resource, suggest cleanup, edit HTML/CSS/JavaScript/Lua, build the service bay UI, add locale support, convert config photo links to local assets, and update documentation. Final direction, testing, feature choices, and approval were handled by me.
 
-Tools used included FiveM/GTA V for in-game testing, Microsoft Edge for UI preview, ShareX for photos and screenshots, Windows PowerShell, CodeWalker, OpenIV, XnResize, Adobe Photoshop for background removal, Paint.net, VS Code, Notepad++, nv_debug for target coordinates, Node.js/npm, Prettier, ESLint, Stylelint, html-validate, Lua/luac, Scoop, and locally bundled Font Awesome assets.
+Tools used included FiveM/GTA V for in-game testing, Microsoft Edge for UI preview, ShareX for photos and screenshots, Windows PowerShell, CodeWalker, OpenIV, XnResize, Adobe Photoshop, Paint.net, VS Code, Notepad++, nv_debug for target coordinates, Node.js/npm, Prettier, ESLint, Stylelint, html-validate, Lua/luac, Scoop, and locally bundled Font Awesome assets.
 
 Roughly, this UI and cleanup pass took about 40-50 user instructions/prompts and around 120-160 AI-assisted workspace actions, including file reviews, code edits, validation checks, syntax checks, and UI polish passes. These numbers are estimates, since many AI actions were inspection or verification steps rather than direct code changes.
 
@@ -963,9 +1003,11 @@ Roughly, this UI and cleanup pass took about 40-50 user instructions/prompts and
 
 ## Credits
 
-- ls_trucking also includes functionality from the dragcam resource by Jorn, check it out!: https://github.com/Jorn08/dragcam
+ls_trucking also includes functionality from the cool dragcam resource by Jorn: https://github.com/Jorn08/dragcam
 
-- Some vehicle images provided by https://images.sky-systems.net/
+Some vehicle images provided by: https://images.sky-systems.net/
+
+---
 
 ## License
 
