@@ -377,27 +377,27 @@ The `data` folder includes vehicle.meta files for vanilla tractor trucks with ed
 
 vehicles.meta trailer snippet:
 
-<!-- <trailers>
-<Item>docktrailer</Item>
-<Item>trailers</Item>
-<Item>trailers2</Item>
-<Item>trailers3</Item>
-<Item>tanker</Item>
-<Item>tanker2</Item>
-<Item>trailerlogs</Item>
-<Item>tr2</Item>
-<Item>trflat</Item>
-</trailers>
-<additionalTrailers>
-<Item>freighttrailer</Item>
-<Item>armytanker</Item>
-<Item>armytrailer</Item>
-<Item>tr4</Item>
-<Item>tvtrailer</Item>
-<Item>tvtrailer2</Item>
-<Item>trailerlarge</Item>
-<Item>trailers4</Item> 
-</additionalTrailers> -->
+- <trailers>
+- <Item>docktrailer</Item>
+- <Item>trailers</Item>
+- <Item>trailers2</Item>
+- <Item>trailers3</Item>
+- <Item>tanker</Item>
+- <Item>tanker2</Item>
+- <Item>trailerlogs</Item>
+- <Item>tr2</Item>
+- <Item>trflat</Item>
+- </trailers>
+- <additionalTrailers>
+- <Item>freighttrailer</Item>
+- <Item>armytanker</Item>
+- <Item>armytrailer</Item>
+- <Item>tr4</Item>
+- <Item>tvtrailer</Item>
+- <Item>tvtrailer2</Item>
+- <Item>trailerlarge</Item>
+- <Item>trailers4</Item> 
+- </additionalTrailers>
 
 ---
 
