@@ -375,29 +375,50 @@ Install helper files:
 
 The `data` folder includes vehicle.meta files for vanilla tractor trucks with edited trailer tables. LSF Co uses additional available vanilla trailer assets not available in the original game and therefore not enabled and attachable by default. This enables all current vanilla gta tractor trucks used in this script to attach and haul all trailer types. If you added and are using your own custom vehicles, the vehicle.meta files must have support for the trailers listed below. Trailer models listed under `<trailers>` will appear in traffic if your vehicle is listed in the popgroups while models listed under `<additionalTrailers>` will not appear in traffic however will still attach.
 
+Trailers used in this script:
+
+- docktrailer
+- trailers
+- trailers2
+- trailers3
+- trailers4
+- tanker
+- tanker2
+- trailerlogs
+- tr2
+- tr3
+- tr4
+- trflat
+- freighttrailer
+- armytanker
+- armytrailer
+- tvtrailer
+- tvtrailer2
+- trailerlarge
+
 vehicles.meta trailer snippet:
 
-- <trailers>
-- <Item>docktrailer</Item>
-- <Item>trailers</Item>
-- <Item>trailers2</Item>
-- <Item>trailers3</Item>
-- <Item>tanker</Item>
-- <Item>tanker2</Item>
-- <Item>trailerlogs</Item>
-- <Item>tr2</Item>
-- <Item>trflat</Item>
-- </trailers>
-- <additionalTrailers>
-- <Item>freighttrailer</Item>
-- <Item>armytanker</Item>
-- <Item>armytrailer</Item>
-- <Item>tr4</Item>
-- <Item>tvtrailer</Item>
-- <Item>tvtrailer2</Item>
-- <Item>trailerlarge</Item>
-- <Item>trailers4</Item> 
-- </additionalTrailers>
+<trailers>
+<Item>docktrailer</Item>
+<Item>trailers</Item>
+<Item>trailers2</Item>
+<Item>trailers3</Item>
+<Item>tanker</Item>
+<Item>tanker2</Item>
+<Item>trailerlogs</Item>
+<Item>tr2</Item>
+<Item>trflat</Item>
+</trailers>
+<additionalTrailers>
+<Item>freighttrailer</Item>
+<Item>armytanker</Item>
+<Item>armytrailer</Item>
+<Item>tr4</Item>
+<Item>tvtrailer</Item>
+<Item>tvtrailer2</Item>
+<Item>trailerlarge</Item>
+<Item>trailers4</Item> 
+</additionalTrailers>
 
 ---
 
