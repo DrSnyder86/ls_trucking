@@ -377,7 +377,7 @@ The `data` folder includes vehicle.meta files for vanilla tractor trucks with ed
 
 vehicles.meta trailer snippet:
 
-<trailers>
+<!-- <trailers>
 <Item>docktrailer</Item>
 <Item>trailers</Item>
 <Item>trailers2</Item>
@@ -397,7 +397,7 @@ vehicles.meta trailer snippet:
 <Item>tvtrailer2</Item>
 <Item>trailerlarge</Item>
 <Item>trailers4</Item> 
-</additionalTrailers>
+</additionalTrailers> -->
 
 ---
 
