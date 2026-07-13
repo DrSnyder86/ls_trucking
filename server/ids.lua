@@ -16,12 +16,11 @@ local function randomCharacter(characters)
 end
 
 function Ids.GeneratePlateSuffix(length)
-    length = length or 5
+    length = math.max(1, tonumber(length) or 5)
 
-    local chars = {
-        randomCharacter(PLATE_LETTERS),
-        randomCharacter(PLATE_DIGITS)
-    }
+    local chars = {}
+    if length >= 1 then chars[1] = randomCharacter(PLATE_LETTERS) end
+    if length >= 2 then chars[2] = randomCharacter(PLATE_DIGITS) end
 
     for i = 3, length do
         chars[i] = randomCharacter(PLATE_CHARACTERS)
@@ -38,7 +37,8 @@ end
 function Ids.GeneratePlate(prefix)
     prefix = normalizePlateText(prefix or 'LSF')
     if prefix == '' then prefix = 'LSF' end
-    return ('%s%s'):format(prefix, Ids.GeneratePlateSuffix(5))
+    if #prefix > 3 then prefix = prefix:sub(1, 3) end
+    return ('%s%s'):format(prefix, Ids.GeneratePlateSuffix(8 - #prefix))
 end
 
 function Ids.GenerateContractId(src)

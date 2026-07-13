@@ -68,7 +68,7 @@ local function ValidateVehicle(ctx, src, vehicleData)
     if not citizenid or citizenid == '' then return false, T('service.character_unknown') end
 
     local source = NormalizeSource(vehicleData.source)
-    local plate = ctx.NormalizePlateText and ctx.NormalizePlateText(vehicleData.plate) or tostring(vehicleData.plate or ''):upper():gsub('%s+', '')
+    local plate = ctx.CanonicalPlateText and ctx.CanonicalPlateText(vehicleData.plate) or tostring(vehicleData.plate or ''):upper():gsub('%s+', '')
     if plate == '' then return false, T('service.plate_unreadable') end
 
     if source == 'contractor' then
@@ -76,7 +76,7 @@ local function ValidateVehicle(ctx, src, vehicleData)
         if id <= 0 then return false, T('service.contractor_record_missing') end
         local row = ctx.GetContractorVehicleById and ctx.GetContractorVehicleById(citizenid, id) or nil
         if not row then return false, T('service.contractor_not_owned') end
-        local rowPlate = ctx.NormalizePlateText and ctx.NormalizePlateText(row.plate) or tostring(row.plate or ''):upper():gsub('%s+', '')
+        local rowPlate = ctx.CanonicalPlateText and ctx.CanonicalPlateText(row.plate) or tostring(row.plate or ''):upper():gsub('%s+', '')
         if rowPlate ~= plate then return false, T('service.contractor_plate_mismatch') end
         return true, citizenid, source, row
     end
@@ -87,7 +87,7 @@ local function ValidateVehicle(ctx, src, vehicleData)
 
     local row = ctx.EnsureGarageVehicle and ctx.EnsureGarageVehicle(citizenid, vehicleType, vehicleIndex) or nil
     if not row then return false, T('service.garage_unverified') end
-    local rowPlate = ctx.NormalizePlateText and ctx.NormalizePlateText(row.plate) or tostring(row.plate or ''):upper():gsub('%s+', '')
+    local rowPlate = ctx.CanonicalPlateText and ctx.CanonicalPlateText(row.plate) or tostring(row.plate or ''):upper():gsub('%s+', '')
     if rowPlate ~= plate then return false, T('service.garage_plate_mismatch') end
     return true, citizenid, source, row
 end
@@ -239,13 +239,14 @@ function ServiceBay.RegisterServer(ctx)
         local valid, citizenid, source, row = ValidateVehicle(ctx, src, data.vehicle)
         if not valid then return { success = false, message = citizenid or source or 'Service bay access denied.' } end
 
-        local props, propsError = ctx.SanitizeVehicleProps and ctx.SanitizeVehicleProps(data.props) or nil, nil
+        local canonicalPlate = ctx.CanonicalPlateText and ctx.CanonicalPlateText(row and row.plate) or tostring((row and row.plate) or ''):upper():gsub('%s+', '')
+        local props, propsError = nil, nil
         if ctx.SanitizeVehicleProps then
-            props, propsError = ctx.SanitizeVehicleProps(data.props)
+            props, propsError = ctx.SanitizeVehicleProps(data.props, canonicalPlate)
         end
         if propsError then return { success = false, message = propsError } end
 
-        local plate = tostring((data.vehicle or {}).plate or (row and row.plate) or '')
+        local plate = canonicalPlate
         if source == 'contractor' then
             local fuel = math.max(0.0, math.min(100.0, tonumber(data.fuel) or tonumber(row.fuel) or 100.0))
             local engineHealth = ClampHealth(data.engineHealth, tonumber(row.engine_health) or 1000.0)

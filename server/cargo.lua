@@ -120,6 +120,31 @@ local function BuildCargoMetadata(active, manifestEntry, cargo, packageNumber)
     }
 end
 
+local function AddLoadedCargoLedger(active, item, amount)
+    if not active or not item then return end
+
+    amount = math.max(1, tonumber(amount) or 1)
+    active.loadedCargoItems = active.loadedCargoItems or {}
+    active.loadedCargoItems[item] = (active.loadedCargoItems[item] or 0) + amount
+end
+
+local function GetLoadedCargoLedgerCount(active, item)
+    if not active or not item or not active.loadedCargoItems then return 0 end
+    return tonumber(active.loadedCargoItems[item]) or 0
+end
+
+local function RemoveLoadedCargoLedger(active, item, amount)
+    if not active or not item or not active.loadedCargoItems then return false end
+
+    amount = math.max(1, tonumber(amount) or 1)
+    local current = tonumber(active.loadedCargoItems[item]) or 0
+    if current < amount then return false end
+
+    active.loadedCargoItems[item] = current - amount
+    if active.loadedCargoItems[item] <= 0 then active.loadedCargoItems[item] = nil end
+    return true
+end
+
 function Cargo.ManifestText(manifest)
     if not manifest or #manifest == 0 then return 'No manifest entries.' end
 
@@ -352,6 +377,7 @@ local function LoadCargoOne(ctx, src)
     local added = ctx.AddTrunkItem(active.plate, cargo.item, 1, metadata)
     if not added then ctx.AddPlayerItem(src, cargo.item, 1, metadata) return { success = false, message = T('cargo.add_trunk_failed') } end
 
+    AddLoadedCargoLedger(active, cargo.item, 1)
     active.loadedCargo = active.loadedCargo + 1
     active.cargoInHand = false
     local ready = active.loadedCargo >= active.requiredCargo
@@ -364,6 +390,116 @@ local function LoadCargoOne(ctx, src)
     end
 
     return { success = true, loaded = active.loadedCargo, required = active.requiredCargo, ready = ready, verified = active.cargoVerified == true, currentStop = active.currentStop }
+end
+
+local function AutoLoadCargoOne(ctx, src)
+    if not ctx.CheckRateLimit(src, 'autoLoadCargo', ctx.GetSecurityCooldown('Cargo', 750)) then return ctx.RateLimitResponse() end
+    local active = ctx.ActiveContracts[src]
+    if not active then return { success = false, message = T('error.no_active_contract') } end
+    if active.type == 'trailer' then return { success = false, message = T('cargo.trailer_no_items') } end
+    if active.loadedCargo >= active.requiredCargo then return { success = false, message = T('cargo.vehicle_all_loaded') } end
+    if active.cargoInHand then return { success = false, message = T('cargo.load_collected_first') } end
+
+    local handoff = Config.FreightHandoff or {}
+    if handoff.Enabled ~= false and handoff.RequirePickupSignature ~= false and not active.pickupManifestSigned then
+        return { success = false, message = T('cargo.sign_manifest_first') }
+    end
+
+    local loadConfig = Config.CargoLoading or {}
+    local loadDistance = math.max(
+        tonumber(loadConfig.PauseRadius) or 28.0,
+        ctx.GetDistanceLimit and ctx.GetDistanceLimit('LoadVerification', 20.0) or 20.0
+    )
+    local near, nearMessage = ctx.RequireServerNear(src, ctx.GetContractPickupCoords(active), loadDistance, T('cargo.need_loaded_vehicle_pickup'))
+    if not near then return { success = false, message = nearMessage } end
+
+    local nextIndex = (active.loadedCargo or 0) + 1
+    local manifestEntry = active.cargoManifest and active.cargoManifest[nextIndex] or nil
+    if not manifestEntry then return { success = false, message = T('cargo.missing_load_item') } end
+
+    local cargo = Cargo.GetCargoConfig(active.type, manifestEntry.cargoType)
+    if not cargo or not cargo.item then return { success = false, message = T('cargo.invalid_type') } end
+
+    local metadata = BuildCargoMetadata(active, manifestEntry, cargo, nextIndex)
+    local added = ctx.AddTrunkItem(active.plate, cargo.item, 1, metadata)
+    if not added then return { success = false, message = T('cargo.add_trunk_failed') } end
+
+    AddLoadedCargoLedger(active, cargo.item, 1)
+    active.cargoPickedUp = math.max(active.cargoPickedUp or 0, nextIndex)
+    active.loadedCargo = nextIndex
+    active.cargoInHand = false
+    active.cargoVerified = false
+
+    local ready = active.loadedCargo >= active.requiredCargo
+    active.stage = ready and 'Verify loaded cargo' or 'Load cargo into vehicle'
+
+    return {
+        success = true,
+        item = cargo.item,
+        label = cargo.label or manifestEntry.cargoLabel or 'Cargo',
+        cargoType = manifestEntry.cargoType,
+        loaded = active.loadedCargo,
+        required = active.requiredCargo,
+        ready = ready,
+        verified = false,
+        currentStop = active.currentStop
+    }
+end
+
+local function AutoLoadCargoRemaining(ctx, src)
+    if not ctx.CheckRateLimit(src, 'autoLoadCargoRemaining', ctx.GetSecurityCooldown('Cargo', 1000)) then return ctx.RateLimitResponse() end
+    local active = ctx.ActiveContracts[src]
+    if not active then return { success = false, message = T('error.no_active_contract') } end
+    if active.type == 'trailer' then return { success = false, message = T('cargo.trailer_no_items') } end
+    if active.loadedCargo >= active.requiredCargo then return { success = false, message = T('cargo.vehicle_all_loaded') } end
+    if active.cargoInHand then return { success = false, message = T('cargo.load_collected_first') } end
+
+    local handoff = Config.FreightHandoff or {}
+    if handoff.Enabled ~= false and handoff.RequirePickupSignature ~= false and not active.pickupManifestSigned then
+        return { success = false, message = T('cargo.sign_manifest_first') }
+    end
+
+    local loadConfig = Config.CargoLoading or {}
+    local loadDistance = math.max(
+        tonumber(loadConfig.PauseRadius) or 28.0,
+        ctx.GetDistanceLimit and ctx.GetDistanceLimit('LoadVerification', 20.0) or 20.0
+    )
+    local near, nearMessage = ctx.RequireServerNear(src, ctx.GetContractPickupCoords(active), loadDistance, T('cargo.need_loaded_vehicle_pickup'))
+    if not near then return { success = false, message = nearMessage } end
+
+    local loadedThisPass = 0
+    while (active.loadedCargo or 0) < (active.requiredCargo or 0) do
+        local nextIndex = (active.loadedCargo or 0) + 1
+        local manifestEntry = active.cargoManifest and active.cargoManifest[nextIndex] or nil
+        if not manifestEntry then return { success = false, message = T('cargo.missing_load_item') } end
+
+        local cargo = Cargo.GetCargoConfig(active.type, manifestEntry.cargoType)
+        if not cargo or not cargo.item then return { success = false, message = T('cargo.invalid_type') } end
+
+        local metadata = BuildCargoMetadata(active, manifestEntry, cargo, nextIndex)
+        local added = ctx.AddTrunkItem(active.plate, cargo.item, 1, metadata)
+        if not added then return { success = false, message = T('cargo.add_trunk_failed'), loaded = active.loadedCargo, required = active.requiredCargo } end
+
+        AddLoadedCargoLedger(active, cargo.item, 1)
+        active.cargoPickedUp = math.max(active.cargoPickedUp or 0, nextIndex)
+        active.loadedCargo = nextIndex
+        active.cargoInHand = false
+        active.cargoVerified = false
+        loadedThisPass = loadedThisPass + 1
+    end
+
+    local ready = active.loadedCargo >= active.requiredCargo
+    active.stage = ready and 'Verify loaded cargo' or 'Load cargo into vehicle'
+
+    return {
+        success = true,
+        loaded = active.loadedCargo,
+        required = active.requiredCargo,
+        loadedThisPass = loadedThisPass,
+        ready = ready,
+        verified = false,
+        currentStop = active.currentStop
+    }
 end
 
 local function VerifyLoadedCargo(ctx, src)
@@ -397,7 +533,8 @@ local function VerifyLoadedCargo(ctx, src)
 
     for item, required in pairs(requiredByItem) do
         local trunkCount = ctx.GetInventoryItemCount(ctx.GetTrunkId(active.plate), item)
-        if trunkCount < required then
+        local ledgerCount = GetLoadedCargoLedgerCount(active, item)
+        if trunkCount < required and ledgerCount < required then
             return { success = false, message = T('cargo.verification_trunk_count', { count = trunkCount, required = required, item = item }) }
         end
     end
@@ -425,14 +562,31 @@ local function GrabCargoFromVehicle(ctx, src)
     local cargo = Cargo.GetCargoConfig(active.type, manifestEntry.cargoType)
     if not cargo or not cargo.item then return { success = false, message = T('cargo.invalid_type') } end
 
-    if ctx.GetInventoryItemCount(ctx.GetTrunkId(active.plate), cargo.item) < 1 then return { success = false, message = T('cargo.none_in_trunk', { item = cargo.label }) } end
-    if not ctx.RemoveTrunkItem(active.plate, cargo.item, 1) then return { success = false, message = T('cargo.remove_trunk_failed') } end
+    local trunkCount = ctx.GetInventoryItemCount(ctx.GetTrunkId(active.plate), cargo.item)
+    local ledgerCount = GetLoadedCargoLedgerCount(active, cargo.item)
+    if trunkCount < 1 and ledgerCount < 1 then return { success = false, message = T('cargo.none_in_trunk', { item = cargo.label }) } end
+
+    local removedFromTrunk = false
+    if trunkCount >= 1 then
+        if not ctx.RemoveTrunkItem(active.plate, cargo.item, 1) then return { success = false, message = T('cargo.remove_trunk_failed') } end
+        removedFromTrunk = true
+    end
+
+    local removedFromLedger = false
+    if ledgerCount >= 1 then
+        removedFromLedger = RemoveLoadedCargoLedger(active, cargo.item, 1)
+    end
 
     local receiver = manifestEntry.receiver or 'Route Receiver'
     local metadata = BuildCargoMetadata(active, manifestEntry, cargo, active.deliveredCargo + 1)
 
     local added = ctx.AddPlayerItem(src, cargo.item, 1, metadata)
-    if not added then ctx.AddTrunkItem(active.plate, cargo.item, 1, metadata) return { success = false, message = T('cargo.add_to_inventory_failed') } end
+    if not added then
+        if removedFromTrunk then ctx.AddTrunkItem(active.plate, cargo.item, 1, metadata) end
+        if removedFromLedger then AddLoadedCargoLedger(active, cargo.item, 1) end
+        return { success = false, message = T('cargo.add_to_inventory_failed') }
+    end
+
     active.cargoInHand = true
     return { success = true, label = cargo.label, cargoType = manifestEntry.cargoType, receiver = receiver }
 end
@@ -489,6 +643,14 @@ function Cargo.RegisterServer(ctx)
 
     lib.callback.register('ls_trucking:server:loadCargoOne', function(src)
         return LoadCargoOne(ctx, src)
+    end)
+
+    lib.callback.register('ls_trucking:server:autoLoadCargoOne', function(src)
+        return AutoLoadCargoOne(ctx, src)
+    end)
+
+    lib.callback.register('ls_trucking:server:autoLoadCargoRemaining', function(src)
+        return AutoLoadCargoRemaining(ctx, src)
     end)
 
     lib.callback.register('ls_trucking:server:verifyLoadedCargo', function(src)

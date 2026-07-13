@@ -162,11 +162,13 @@ function DepotVehicles.RegisterServer(ctx)
         if not row then return { success = false, message = T('garage.save_failed') } end
 
         local safePlate = ctx.ClampText(plate or row.plate, 16)
-        if ctx.NormalizePlateText(safePlate) ~= ctx.NormalizePlateText(row.plate) then
+        local canonicalPlate = ctx.CanonicalPlateText and ctx.CanonicalPlateText(row.plate) or ctx.NormalizePlateText(row.plate)
+        local currentPlate = ctx.CanonicalPlateText and ctx.CanonicalPlateText(safePlate) or ctx.NormalizePlateText(safePlate)
+        if currentPlate ~= canonicalPlate then
             return { success = false, message = T('garage.plate_mismatch') }
         end
 
-        local savedProps, propsError = ctx.SanitizeVehicleProps(props)
+        local savedProps, propsError = ctx.SanitizeVehicleProps(props, canonicalPlate)
         if propsError then return { success = false, message = propsError } end
 
         local bonus = 0
@@ -174,7 +176,7 @@ function DepotVehicles.RegisterServer(ctx)
         if Config.ReturnVehicleBonusEnabled and checkedOut and not checkedOut.bonusPaid then
             local sameVehicle = checkedOut.type == vehicleType
                 and tonumber(checkedOut.index or 1) == vehicleIndex
-                and ctx.NormalizePlateText(checkedOut.plate) == ctx.NormalizePlateText(safePlate)
+                and (ctx.CanonicalPlateText and ctx.CanonicalPlateText(checkedOut.plate) or ctx.NormalizePlateText(checkedOut.plate)) == currentPlate
 
             if sameVehicle and checkedOut.source == 'completed-route' then
                 bonus = tonumber(Config.ReturnVehicleBonus) or 0
@@ -188,7 +190,7 @@ function DepotVehicles.RegisterServer(ctx)
             end
         end
 
-        MySQL.update.await([[UPDATE trucking_garage SET plate = ?, props = ?, stored = 1 WHERE citizenid = ? AND vehicle_type = ? AND vehicle_index = ?]], { safePlate, savedProps, citizenid, vehicleType, vehicleIndex })
+        MySQL.update.await([[UPDATE trucking_garage SET plate = ?, props = ?, stored = 1 WHERE citizenid = ? AND vehicle_type = ? AND vehicle_index = ?]], { canonicalPlate, savedProps, citizenid, vehicleType, vehicleIndex })
         ctx.ClearVehicleSession(src)
         return { success = true, bonus = bonus }
     end)
@@ -264,11 +266,13 @@ function DepotVehicles.RegisterServer(ctx)
         if not row then return { success = false, message = T('contractor.vehicle_not_found') } end
 
         local safePlate = ctx.ClampText(plate or row.plate, 16)
-        if ctx.NormalizePlateText(safePlate) ~= ctx.NormalizePlateText(row.plate) then
+        local canonicalPlate = ctx.CanonicalPlateText and ctx.CanonicalPlateText(row.plate) or ctx.NormalizePlateText(row.plate)
+        local currentPlate = ctx.CanonicalPlateText and ctx.CanonicalPlateText(safePlate) or ctx.NormalizePlateText(safePlate)
+        if currentPlate ~= canonicalPlate then
             return { success = false, message = T('contractor.fleet_plate_mismatch') }
         end
 
-        local savedProps, propsError = ctx.SanitizeVehicleProps(props)
+        local savedProps, propsError = ctx.SanitizeVehicleProps(props, canonicalPlate)
         if propsError then return { success = false, message = propsError } end
 
         fuel = math.max(0.0, math.min(100.0, tonumber(fuel) or tonumber(row.fuel) or 0.0))
@@ -279,7 +283,7 @@ function DepotVehicles.RegisterServer(ctx)
         mileage = math.min(reportedMileage, storedMileage + 10000.0)
 
         MySQL.update.await([[UPDATE trucking_contractor_vehicles SET plate = ?, props = ?, fuel = ?, engine_health = ?, body_health = ?, mileage = ?, stored = 1, out_state = 0 WHERE citizenid = ? AND id = ?]], {
-            safePlate,
+            canonicalPlate,
             savedProps,
             fuel,
             engineHealth,

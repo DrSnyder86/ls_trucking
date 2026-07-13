@@ -502,6 +502,12 @@ local function NormalizePlateText(plate)
     return TrimString(plate):upper():gsub('%s+', '')
 end
 
+local function CanonicalPlateText(plate)
+    local normalized = NormalizePlateText(plate)
+    if #normalized > 8 then normalized = normalized:sub(1, 8) end
+    return normalized
+end
+
 local function ClampText(value, maxLength)
     value = TrimString(value)
     maxLength = maxLength or 128
@@ -509,7 +515,7 @@ local function ClampText(value, maxLength)
     return value
 end
 
-local function SanitizeVehicleProps(props)
+local function SanitizeVehicleProps(props, canonicalPlate)
     if props == nil or props == '' then return nil end
 
     if type(props) == 'table' then
@@ -528,22 +534,32 @@ local function SanitizeVehicleProps(props)
         return nil, T('error.vehicle_props_invalid')
     end
 
+    if canonicalPlate and canonicalPlate ~= '' then
+        decoded.plate = CanonicalPlateText(canonicalPlate)
+        props = json.encode(decoded)
+        if #props > maxLength then
+            return nil, T('error.vehicle_props_too_large')
+        end
+    end
+
     return props
 end
 
 local function TrackCheckedOutVehicle(src, vehicleType, vehicleIndex, plate, sourceLabel)
     if not src or src <= 0 or not plate or plate == '' then return end
+    local canonicalPlate = CanonicalPlateText(plate)
+    if canonicalPlate == '' then return end
 
     CheckedOutVehicles[src] = {
         type = vehicleType,
         index = tonumber(vehicleIndex) or 1,
-        plate = TrimString(plate),
+        plate = canonicalPlate,
         source = sourceLabel or 'company',
         bonusPaid = false
     }
 
     if Config.Keys and Config.Keys.OwnerOnly ~= false then
-        TriggerClientEvent('ls_trucking:client:syncVehicleKeyOwner', -1, TrimString(plate), src, sourceLabel or 'company')
+        TriggerClientEvent('ls_trucking:client:syncVehicleKeyOwner', -1, canonicalPlate, src, sourceLabel or 'company')
     end
 
     if JobBlips.QueueUpdate then JobBlips.QueueUpdate() end
@@ -890,9 +906,10 @@ local function BuildCompanyStatsPayload(citizenid)
 end
 
 local function GetTrunkId(plate)
-    if Config.GetTrunkInventoryId then return Config.GetTrunkInventoryId(plate) end
+    local canonicalPlate = CanonicalPlateText(plate)
+    if Config.GetTrunkInventoryId then return Config.GetTrunkInventoryId(canonicalPlate) end
     local prefix = (Config.Inventory and Config.Inventory.TrunkPrefix) or 'trunk'
-    return ('%s%s'):format(prefix, plate)
+    return ('%s%s'):format(prefix, canonicalPlate)
 end
 
 local VirtualTrunks = {}
@@ -930,6 +947,7 @@ local function SafeExport(resource, exportName, ...)
 end
 
 local function GetVirtualTrunkCount(plate, item)
+    plate = CanonicalPlateText(plate)
     local trunk = VirtualTrunks[plate]
     if not trunk then return 0 end
     return trunk[item] or 0
@@ -937,6 +955,8 @@ end
 
 local function AddVirtualTrunkItem(plate, item, amount)
     amount = tonumber(amount) or 1
+    plate = CanonicalPlateText(plate)
+    if plate == '' then return false end
     VirtualTrunks[plate] = VirtualTrunks[plate] or {}
     VirtualTrunks[plate][item] = (VirtualTrunks[plate][item] or 0) + amount
     return true
@@ -944,6 +964,7 @@ end
 
 local function RemoveVirtualTrunkItem(plate, item, amount)
     amount = tonumber(amount) or 1
+    plate = CanonicalPlateText(plate)
     local trunk = VirtualTrunks[plate]
     if not trunk or (trunk[item] or 0) < amount then return false end
     trunk[item] = trunk[item] - amount
@@ -952,7 +973,8 @@ local function RemoveVirtualTrunkItem(plate, item, amount)
 end
 
 local function ClearVirtualTrunk(plate)
-    if plate then VirtualTrunks[plate] = nil end
+    plate = CanonicalPlateText(plate)
+    if plate ~= '' then VirtualTrunks[plate] = nil end
 end
 
 local function GetInventoryItemCount(inventory, item)
@@ -1702,15 +1724,58 @@ local function BuildPayoutResult(active)
     }
 end
 
+local function StoredVehiclePlateConflict(plate, garageId, contractorId)
+    plate = CanonicalPlateText(plate)
+    if plate == '' then return false end
+    garageId = tonumber(garageId) or 0
+    contractorId = tonumber(contractorId) or 0
+
+    local garage = MySQL.single.await([[SELECT id FROM trucking_garage WHERE UPPER(LEFT(REPLACE(plate, ' ', ''), 8)) = ? AND id <> ? LIMIT 1]], { plate, garageId })
+    if garage then return true end
+
+    local contractor = MySQL.single.await([[SELECT id FROM trucking_contractor_vehicles WHERE UPPER(LEFT(REPLACE(plate, ' ', ''), 8)) = ? AND id <> ? LIMIT 1]], { plate, contractorId })
+    return contractor ~= nil
+end
+
+local function StoredVehiclePlateExists(plate)
+    return StoredVehiclePlateConflict(plate, 0, 0)
+end
+
+local function GenerateUniqueVehiclePlate(prefix)
+    for _ = 1, 50 do
+        local plate = CanonicalPlateText(Ids.GeneratePlate(prefix))
+        if plate ~= '' and not StoredVehiclePlateExists(plate) then return plate end
+    end
+
+    return CanonicalPlateText(Ids.GeneratePlate(prefix))
+end
+
 local function EnsureGarageVehicle(citizenid, vehicleType, vehicleIndex)
     local vehicleData = Config.JobVehicles[vehicleType] and Config.JobVehicles[vehicleType][vehicleIndex]
     if not vehicleData then return nil end
     local row = MySQL.single.await('SELECT * FROM trucking_garage WHERE citizenid = ? AND vehicle_type = ? AND vehicle_index = ?', { citizenid, vehicleType, vehicleIndex })
     if not row then
         MySQL.insert.await([[INSERT INTO trucking_garage (citizenid, vehicle_type, vehicle_index, vehicle_label, vehicle_model, plate, props, stored) VALUES (?, ?, ?, ?, ?, ?, NULL, 1)]], {
-            citizenid, vehicleType, vehicleIndex, vehicleData.label, GetGarageVehicleModel(vehicleType, vehicleData), Ids.GeneratePlate(vehicleData.platePrefix)
+            citizenid, vehicleType, vehicleIndex, vehicleData.label, GetGarageVehicleModel(vehicleType, vehicleData), GenerateUniqueVehiclePlate(vehicleData.platePrefix)
         })
         row = MySQL.single.await('SELECT * FROM trucking_garage WHERE citizenid = ? AND vehicle_type = ? AND vehicle_index = ?', { citizenid, vehicleType, vehicleIndex })
+    end
+    if row then
+        local canonicalPlate = CanonicalPlateText(row.plate)
+        local needsRepair = canonicalPlate == '' or canonicalPlate ~= tostring(row.plate or '') or StoredVehiclePlateConflict(canonicalPlate, row.id, 0)
+
+        if needsRepair then
+            local repairedPlate = canonicalPlate ~= '' and not StoredVehiclePlateConflict(canonicalPlate, row.id, 0)
+                and canonicalPlate
+                or GenerateUniqueVehiclePlate(vehicleData.platePrefix)
+            local repairedProps = row.props
+            local sanitizedProps, propsError = SanitizeVehicleProps(row.props, repairedPlate)
+            if not propsError then repairedProps = sanitizedProps end
+
+            MySQL.update.await('UPDATE trucking_garage SET plate = ?, props = ? WHERE id = ?', { repairedPlate, repairedProps, row.id })
+            row.plate = repairedPlate
+            row.props = repairedProps
+        end
     end
     return row
 end
@@ -1767,6 +1832,7 @@ ContractorServerContext = {
     CheckRankRequirement = CheckRankRequirement,
     GetRoutePool = GetRoutePool,
     ResolveRouteTrailer = ResolveRouteTrailer,
+    ResolveTrailerDepot = ResolveTrailerDepot,
     GetMileagePayout = GetMileagePayout,
     GetGarageVehicleModel = GetGarageVehicleModel,
     GetVehicleConfig = GetVehicleConfig,
@@ -1774,7 +1840,8 @@ ContractorServerContext = {
     AddMoney = AddMoney,
     ClampText = ClampText,
     NormalizePlateText = NormalizePlateText,
-    GeneratePlate = function(prefix) return Ids.GeneratePlate(prefix) end,
+    CanonicalPlateText = CanonicalPlateText,
+    GeneratePlate = GenerateUniqueVehiclePlate,
     CreateContractForPlayer = function(...) return CreateContractForPlayer(...) end
 }
 
@@ -1839,6 +1906,7 @@ DepotVehicleServerContext = {
     GetDistanceLimit = GetDistanceLimit,
     TrackCheckedOutVehicle = TrackCheckedOutVehicle,
     NormalizePlateText = NormalizePlateText,
+    CanonicalPlateText = CanonicalPlateText,
     ClampText = ClampText,
     SanitizeVehicleProps = SanitizeVehicleProps,
     AddMoney = AddMoney,
@@ -1863,6 +1931,7 @@ ServiceBayServerContext = {
     GetTruckingStats = GetTruckingStats,
     RemoveMoney = RemoveMoney,
     NormalizePlateText = NormalizePlateText,
+    CanonicalPlateText = CanonicalPlateText,
     SanitizeVehicleProps = SanitizeVehicleProps,
     EnsureGarageVehicle = EnsureGarageVehicle,
     RequireServerNear = RequireServerNear,
@@ -1946,7 +2015,7 @@ CreateContractForPlayer = function(src, contractType, vehicleIndex, reuseVehicle
             return { success = false, message = T('error.vehicle_reuse_type') }
         end
 
-        if NormalizePlateText(currentPlate) ~= NormalizePlateText(reuseCandidate.plate) then
+        if CanonicalPlateText(currentPlate) ~= CanonicalPlateText(reuseCandidate.plate) then
             return { success = false, message = T('error.dispatch_plate_mismatch') }
         end
 
@@ -2017,10 +2086,11 @@ CreateContractForPlayer = function(src, contractType, vehicleIndex, reuseVehicle
     local plate = options.plate or currentPlate
     if not reuseVehicle or not plate or plate == '' then
         local garage = EnsureGarageVehicle(GetCitizenId(src), contractType, resolvedVehicleIndex)
-        plate = garage and garage.plate or Ids.GeneratePlate(selectedVehicle.platePrefix)
+        plate = garage and garage.plate or GenerateUniqueVehiclePlate(selectedVehicle.platePrefix)
     else
         plate = reuseCandidate and reuseCandidate.plate or plate
     end
+    plate = CanonicalPlateText(plate)
 
     local totalStops = publicContract.dropoffs and #publicContract.dropoffs or 1
     local contractId = Ids.GenerateContractId(src)
@@ -2095,6 +2165,7 @@ CreateContractForPlayer = function(src, contractType, vehicleIndex, reuseVehicle
         cargoItem = cargoConfig and cargoConfig.item or nil,
         cargoLabel = publicContract.cargoLabel or (cargoConfig and cargoConfig.label or nil),
         cargoManifest = cargoManifest,
+        loadedCargoItems = {},
         cargoInHand = false,
         cargoVerified = false,
         pickupManifestSigned = false,

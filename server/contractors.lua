@@ -211,6 +211,7 @@ local function BuildDailyRouteOption(routeConfig, playerRank, explicitRouteIndex
     local stopLabel = ('%s stop%s'):format(stopCount, stopCount == 1 and '' or 's')
     local description = ('%s - %s - %s'):format(TypeLabel(contractType), routeLength, stopLabel)
     local routeTrailer = contractType == 'trailer' and ctx.ResolveRouteTrailer(route, priority) or nil
+    local routeDepot = contractType == 'trailer' and ctx.ResolveTrailerDepot and ctx.ResolveTrailerDepot(route) or nil
 
     if destination then description = ('%s - %s'):format(description, destination) end
 
@@ -240,6 +241,7 @@ local function BuildDailyRouteOption(routeConfig, playerRank, explicitRouteIndex
         trailerLabel = routeTrailer and routeTrailer.label or nil,
         trailerPhoto = routeTrailer and routeTrailer.photo or nil,
         trailerContents = routeTrailer and routeTrailer.contents or nil,
+        trailerDepotLabel = routeDepot and routeDepot.label or nil,
         minRank = minRank,
         unlocked = playerRank == nil or ctx.CheckRankRequirement(playerRank, minRank)
     }
@@ -458,6 +460,7 @@ local function BuildBoardEntry(contractType, priorityKey, routeIndex, route, con
     local destination = GetRouteDestination(contractType, route)
     local stopCount = GetRouteStopCount(contractType, route)
     local routeTrailer = contractType == 'trailer' and ctx.ResolveRouteTrailer(route, priority) or nil
+    local routeDepot = contractType == 'trailer' and ctx.ResolveTrailerDepot and ctx.ResolveTrailerDepot(route) or nil
     local mileageBonus, routeMiles, mileageRate = ctx.GetMileagePayout(route.routeLength)
 
     return {
@@ -476,6 +479,7 @@ local function BuildBoardEntry(contractType, priorityKey, routeIndex, route, con
         trailerLabel = routeTrailer and routeTrailer.label or nil,
         trailerPhoto = routeTrailer and routeTrailer.photo or nil,
         trailerContents = routeTrailer and routeTrailer.contents or nil,
+        trailerDepotLabel = routeDepot and routeDepot.label or nil,
         vehicleId = outVehicle and outVehicle.id or nil,
         vehicleLabel = outVehicle and outVehicle.label or nil,
         canStart = outVehicle ~= nil,
@@ -811,7 +815,9 @@ function Contractors.RegisterServer(context)
 
         state = type(state) == 'table' and state or {}
         local currentPlate = ctx.ClampText(state.plate or row.plate, 16)
-        if ctx.NormalizePlateText(currentPlate) ~= ctx.NormalizePlateText(row.plate) then
+        local canonicalCurrentPlate = ctx.CanonicalPlateText and ctx.CanonicalPlateText(currentPlate) or ctx.NormalizePlateText(currentPlate)
+        local canonicalRowPlate = ctx.CanonicalPlateText and ctx.CanonicalPlateText(row.plate) or ctx.NormalizePlateText(row.plate)
+        if canonicalCurrentPlate ~= canonicalRowPlate then
             return { success = false, message = T('contractor.plate_mismatch') }
         end
 

@@ -5,5 +5,6 @@
 
 Config.GetTrunkInventoryId = function(plate)
     local prefix = (Config.Inventory and Config.Inventory.TrunkPrefix) or 'trunk'
-    return ('%s%s'):format(prefix, plate)
+    local normalizedPlate = tostring(plate or ''):upper():gsub('%s+', '')
+    return ('%s%s'):format(prefix, normalizedPlate)
 end
