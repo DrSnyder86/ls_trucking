@@ -11,11 +11,13 @@ Config.RouteTrailers = {
             -- [1] = true,
             -- [2] = false,
         },
-        contents = 'General Freight',
+        contents = 'Frozen food freight manifest',
         safeSpeed = 75.0,
         instructions = {
+            'Ensure proper reefer operating temperature',
+            'Continuous run mode required',
             'Keep load sealed until receiver signoff.',
-            'Avoid heavy collision damage.',
+            'Avoid heavy collision damage.',          
         },
     },
     reefer2 = {
@@ -27,9 +29,11 @@ Config.RouteTrailers = {
             -- [1] = true,
             -- [2] = false,
         },
-        contents = 'General Freight',
+        contents = 'Fresh produce freight manifest',
         safeSpeed = 75.0,
         instructions = {
+            'Ensure proper reefer operating temperature',
+            'Continuous run mode required',
             'Keep load sealed until receiver signoff.',
             'Avoid heavy collision damage.',
         },
@@ -43,9 +47,11 @@ Config.RouteTrailers = {
             -- [1] = true,
             -- [2] = false,
         },
-        contents = 'General Freight',
+        contents = 'Heated freight manifest',
         safeSpeed = 75.0,
         instructions = {
+            'Ensure proper reefer operating temperature',
+            'Continuous run mode required',
             'Keep load sealed until receiver signoff.',
             'Avoid heavy collision damage.',
         },
@@ -62,6 +68,8 @@ Config.RouteTrailers = {
         contents = 'General Freight',
         safeSpeed = 75.0,
         instructions = {
+            'Ensure proper reefer operating temperature',
+            'Stop/Start operating mode OK',
             'Keep load sealed until receiver signoff.',
             'Avoid heavy collision damage.',
         },
@@ -82,7 +90,7 @@ Config.RouteTrailers = {
         },
     },
     dryvan = {
-        label = 'LSF Cargo Trailer',
+        label = 'LSF Dry Van Trailer',
         model = 'trailers3',
         photo = '../images/photos/trailers/dryvan.webp',
         livery = 0,
@@ -91,7 +99,7 @@ Config.RouteTrailers = {
             -- [2] = true,
         },
         contents = 'Long-Haul Freight',
-        safeSpeed = 72.0,
+        safeSpeed = 75.0,
         instructions = {
             'Maintain extra stopping distance.',
             'Check trailer clearance on tight roads.',
@@ -106,7 +114,7 @@ Config.RouteTrailers = {
             -- [1] = true,
         },
         contents = 'Commercial Freight',
-        safeSpeed = 72.0,
+        safeSpeed = 75.0,
         instructions = {
             'Commercial load. Check seal before departure.',
             'Use wide turns and avoid low-clearance roads.',
@@ -1062,6 +1070,87 @@ Config.RouteTrailers = {
             'Military receiver signoff required.',
         },
     },
+    military_chernobog = {
+        label = 'Military Trailer - Chernobog',
+        model = 'armytrailer',
+        photo = '../images/photos/trailers/military_chernobog.webp',
+        livery = 0,
+        extras = {
+            -- [1] = true,
+        },
+        contents = 'Heavy Military Equipment - Chernobog',
+        safeSpeed = 62.0,
+        instructions = {
+            'Restricted cargo. Request escort if possible.',
+            'Do not transport or unload without clearance.',
+            'Inspect tie-downs before departure.',
+            'Military receiver signoff required.',
+        },
+        cargoProps = {
+            { model = "chernobog", offset = vector3(0.000, -0.620, -0.780), rotation = vector3(0.000, 0.000, 0.000) },
+        },
+    },
+    military_scarab = {
+        label = 'Military Trailer - Scarab',
+        model = 'armytrailer',
+        photo = '../images/photos/trailers/military_scarab.webp',
+        livery = 0,
+        extras = {
+            -- [1] = true,
+        },
+        contents = 'Heavy Military Equipment - Scarab',
+        safeSpeed = 62.0,
+        instructions = {
+            'Restricted cargo. Request escort if possible.',
+            'Do not transport or unload without clearance.',
+            'Inspect tie-downs before departure.',
+            'Military receiver signoff required.',
+        },
+        cargoProps = {
+            { model = "scarab", offset = vector3(0.000, 3.130, -0.780), rotation = vector3(0.000, 0.000, 180.000) },
+            { model = "scarab", offset = vector3(0.000, -3.220, -0.780), rotation = vector3(0.000, 0.000, 360.000) },
+        },
+    },
+    military_rhino = {
+        label = 'Military Trailer - Rhino',
+        model = 'armytrailer',
+        photo = '../images/photos/trailers/military_rhino.webp',
+        livery = 0,
+        extras = {
+            -- [1] = true,
+        },
+        contents = 'Heavy Military Equipment - Rhino',
+        safeSpeed = 62.0,
+        instructions = {
+            'Restricted cargo. Request escort if possible.',
+            'Do not transport or unload without clearance.',
+            'Inspect tie-downs before departure.',
+            'Military receiver signoff required.',
+        },
+        cargoProps = {
+            { model = "rhino", offset = vector3(0.000, -1.270, -0.270), rotation = vector3(0.000, 0.000, 360.000) },
+        },
+    },
+    military_lazer = {
+        label = 'Military Trailer - Lazer',
+        model = 'armytrailer',
+        photo = '../images/photos/trailers/military.webp',
+        livery = 0,
+        extras = {
+            -- [1] = true,
+        },
+        contents = 'Heavy Military Equipment - Lazer',
+        safeSpeed = 62.0,
+        instructions = {
+            'Restricted cargo. Request escort if possible.',
+            'Do not transport or unload without clearance.',
+            'Inspect tie-downs before departure.',
+            'Military receiver signoff required.',
+        },
+        cargoProps = {
+            { model = "lazer", offset = vector3(0.000, -1.900, -0.070), rotation = vector3(0.000, 0.000, 0.000) },
+        },
+    },
     military_flatbed_cargo = {
         label = 'Military Trailer - Secured Cargo',
         model = 'armytrailer',
@@ -1259,7 +1348,8 @@ Config.RouteTrailers = {
         contents = 'Heavy Freight',
         safeSpeed = 65.0,
         instructions = {
-            'Verify seal number before departure.',
+            'Verify tie-downs before departure.',
+            'Use extra braking distance.',
             'Receiver must sign off at the yard.',
         },
     },

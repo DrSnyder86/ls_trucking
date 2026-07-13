@@ -58,25 +58,25 @@ Config.ServiceBay = {
             level = 1,
             label = 'Stage 1 Turbo',
             price = 16000,
-            power = 0.0,
-            torque = 1.0,
-            description = 'Compressor plumbing and safe boost control.'
+            power = 0.50,
+            torque = 0.70,
+            description = 'Turbo kit with ECU/TCU tuning.'
         },
         {
             level = 2,
             label = 'Stage 2 Turbo',
             price = 24000,
-            power = 8.0,
-            torque = 1.12,
-            description = 'Compressor wheel and wastegate tuning.'
+            power = 0.70,
+            torque = 0.90,
+            description = 'Large billet compressor wheels and upgraded bearings.'
         },
         {
             level = 3,
             label = 'Stage 3 Turbo',
             price = 34000,
-            power = 13.0,
+            power = 1.00,
             torque = 1.20,
-            description = 'Performance air-water intercooler.'
+            description = 'High performance air-water intercooler kit.'
         }
     },
     Descriptions = {
@@ -113,14 +113,14 @@ Config.ServiceBay = {
             'Underbody skid plates and panel bracing.',
             'Door and bumper reinforcement.',
             'Chassis bracing and impact zones.',
-            'Armor plating and structural support.'
+            'Full armor plating and structural support.'
         },
         turbo = {
-            'Compressor plumbing and safe boost control.',
-            'Compressor wheel and wastegate tuning.',
-            'Hybrid turbo and fuel-map calibration.'
+            'Turbo kit with ECU/TCU tuning.',
+            'Large billet compressor wheels and upgraded bearings.',
+            'High performance air-water intercooler kit.'
         },
-        tires = '10-ply run flats.'
+        tires = '10-ply commercial run-flats.'
     }
 }
 Config.Security = Config.Security or {}

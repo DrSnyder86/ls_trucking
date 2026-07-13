@@ -178,7 +178,7 @@ Config.RandomDeliveryEvents = {
         {
             id = 'off_peak_window',
             label = 'Off-Peak Window',
-            description = 'Dispatch found a lighter traffic window. ETA was tightened slightly.',
+            description = 'Dispatch found a lighter traffic window. Delivery window was tightened slightly.',
             types = { 'van', 'boxtruck', 'trailer' },
             estimateDeltaSeconds = -120,
             payoutPercent = 0.03,
@@ -262,7 +262,7 @@ Config.RandomDeliveryEvents = {
         {
             id = 'express_clearance',
             label = 'Express Clearance',
-            description = 'Dispatch secured express clearance. ETA tightened and payout increased.',
+            description = 'Dispatch secured express clearance. Expected-by window tightened and payout increased.',
             types = { 'van', 'boxtruck', 'trailer' },
             priorities = { 'priority' },
             estimateDeltaSeconds = -90,
@@ -290,7 +290,7 @@ Config.RandomDeliveryEvents = {
         {
             id = 'urban_delivery_window',
             label = 'Urban Delivery Window',
-            description = 'City receiver opened a narrow delivery window. Clean arrival pays better.',
+            description = 'City receiver opened a narrow ETA window. Clean arrival pays better.',
             types = { 'van', 'boxtruck' },
             priorities = { 'priority' },
             estimateDeltaSeconds = -60,

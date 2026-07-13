@@ -2306,133 +2306,7 @@ Config.Contracts = {
                     }
                 },
 
-                -- Road Construction - Heavy Equipment
-                {
-                    label = 'Great Ocean Road Construction',
-                    pickupDepot = 'lsport',
-                    trailerKey = 'heavy_dozer',
-                    trailerContents = 'HVY Bulldozer',
-                    routeLength = '6.5 mi',
-                    trailerDrop = {
-                        label = 'North Chumash GOH Road Project',
-                        coords = vector3(-2354.93, 4094.6, 33.4),
-                        radius = 22.0
-                    },
-                    receiverPed = {
-                        label = 'Site Foreman',
-                        model = `s_m_m_gaffer_01`,
-                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
-                        scenario = 'WORLD_HUMAN_CLIPBOARD'
-                    }
-                },
-                {
-                    label = 'Great Ocean Road Construction',
-                    pickupDepot = 'lsport',
-                    trailerKey = 'heavy_mixer',
-                    trailerContents = 'HVY Mixer',
-                    routeLength = '6.5 mi',
-                    trailerDrop = {
-                        label = 'North Chumash GOH Road Project',
-                        coords = vector3(-2354.93, 4094.6, 33.4),
-                        radius = 22.0
-                    },
-                    receiverPed = {
-                        label = 'Site Foreman',
-                        model = `s_m_m_gaffer_01`,
-                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
-                        scenario = 'WORLD_HUMAN_CLIPBOARD'
-                    }
-                },
-                {
-                    label = 'Great Ocean Road Construction',
-                    pickupDepot = 'lsport',
-                    trailerKey = 'conc_barriers2',
-                    trailerContents = 'Concrete Construction Barriers',
-                    routeLength = '6.5 mi',
-                    trailerDrop = {
-                        label = 'North Chumash GOH Road Project',
-                        coords = vector3(-2354.93, 4094.6, 33.4),
-                        radius = 22.0
-                    },
-                    receiverPed = {
-                        label = 'Site Foreman',
-                        model = `s_m_m_gaffer_01`,
-                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
-                        scenario = 'WORLD_HUMAN_CLIPBOARD'
-                    }
-                },
-                {
-                    label = 'Great Ocean Road Construction',
-                    pickupDepot = 'lsport',
-                    trailerKey = 'conc_barriers',
-                    trailerContents = 'Concrete Construction Barriers',
-                    routeLength = '6.5 mi',
-                    trailerDrop = {
-                        label = 'North Chumash GOH Road Project',
-                        coords = vector3(-2354.93, 4094.6, 33.4),
-                        radius = 22.0
-                    },
-                    receiverPed = {
-                        label = 'Site Foreman',
-                        model = `s_m_m_gaffer_01`,
-                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
-                        scenario = 'WORLD_HUMAN_CLIPBOARD'
-                    }
-                },
-                {
-                    label = 'Great Ocean Road Construction',
-                    pickupDepot = 'lsport',
-                    trailerKey = 'heavy_roadheader',
-                    trailerContents = 'Road Resurface Header',
-                    routeLength = '6.5 mi',
-                    trailerDrop = {
-                        label = 'North Chumash GOH Road Project',
-                        coords = vector3(-2354.93, 4094.6, 33.4),
-                        radius = 22.0
-                    },
-                    receiverPed = {
-                        label = 'Site Foreman',
-                        model = `s_m_m_gaffer_01`,
-                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
-                        scenario = 'WORLD_HUMAN_CLIPBOARD'
-                    }
-                },
-                {
-                    label = 'Great Ocean Road Construction',
-                    pickupDepot = 'docks',
-                    trailerKey = 'heavy_dozer',
-                    trailerContents = 'HVY Bulldozer',
-                    routeLength = '6.9 mi',
-                    trailerDrop = {
-                        label = 'North Chumash GOH Road Project',
-                        coords = vector3(-2354.93, 4094.6, 33.4),
-                        radius = 22.0
-                    },
-                    receiverPed = {
-                        label = 'Site Foreman',
-                        model = `s_m_m_gaffer_01`,
-                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
-                        scenario = 'WORLD_HUMAN_CLIPBOARD'
-                    }
-                },
-                {
-                    label = 'Great Ocean Road Construction',
-                    pickupDepot = 'docks',
-                    trailerKey = 'heavy_roadheader',
-                    trailerContents = 'Road Resurface Header',
-                    routeLength = '6.9 mi',
-                    trailerDrop = {
-                        label = 'North Chumash GOH Road Project',
-                        coords = vector3(-2354.93, 4094.6, 33.4),
-                        radius = 22.0
-                    },
-                    receiverPed = {
-                        label = 'Site Foreman',
-                        model = `s_m_m_gaffer_01`,
-                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
-                        scenario = 'WORLD_HUMAN_CLIPBOARD'
-                    }
-                },
+                
                 {
                     label = 'North Calafia Construction',
                     pickupDepot = 'docks',
@@ -2976,61 +2850,7 @@ Config.Contracts = {
                         scenario = 'WORLD_HUMAN_CLIPBOARD'
                     }
                 },
-                -- LSDWP Canal Project
-                {
-                    label = 'LSDWP Logistics',
-                    pickupDepot = 'lsport',
-                    trailerKey = 'flatbed_woodpile',
-                    trailerContents = 'Construction Materials - Lumber',
-                    routeLength = '2.5 mi',
-                    trailerDrop = {
-                        label = 'LSDWP Canal Project',
-                        coords = vector3(695.85, -1542.59, 9.71),
-                        radius = 22.0
-                    },
-                    receiverPed = {
-                        label = 'Logistics Officer',
-                        model = `s_m_m_gaffer_01`,
-                        coords = vector4(703.22, -1540.01, 9.71, 113.47),
-                        scenario = 'WORLD_HUMAN_CLIPBOARD'
-                    }
-                },
-                {
-                    label = 'LSDWP Logistics',
-                    pickupDepot = 'docks',
-                    trailerKey = 'flatbed_woodpile',
-                    trailerContents = 'Construction Materials - Lumber',
-                    routeLength = '2.5 mi',
-                    trailerDrop = {
-                        label = 'LSDWP Canal Project',
-                        coords = vector3(695.85, -1542.59, 9.71),
-                        radius = 22.0
-                    },
-                    receiverPed = {
-                        label = 'Logistics Officer',
-                        model = `s_m_m_gaffer_01`,
-                        coords = vector4(703.22, -1540.01, 9.71, 113.47),
-                        scenario = 'WORLD_HUMAN_CLIPBOARD'
-                    }
-                },
-                {
-                    label = 'LSDWP Logistics',
-                    pickupDepot = 'harmony',
-                    trailerKey = 'flatbed_woodpile',
-                    trailerContents = 'Construction Materials - Lumber',
-                    routeLength = '4.5 mi',
-                    trailerDrop = {
-                        label = 'LSDWP Canal Project',
-                        coords = vector3(695.85, -1542.59, 9.71),
-                        radius = 22.0
-                    },
-                    receiverPed = {
-                        label = 'Logistics Officer',
-                        model = `s_m_m_gaffer_01`,
-                        coords = vector4(703.22, -1540.01, 9.71, 113.47),
-                        scenario = 'WORLD_HUMAN_CLIPBOARD'
-                    }
-                },
+                
                 -- LS Scrap
                 {
                     label = 'Rogers Scrap Haul',
@@ -3508,8 +3328,245 @@ Config.PriorityLoads = {
                         coords = vector4(-2347.01, 263.86, 164.58, 65.86),
                         scenario = 'WORLD_HUMAN_CLIPBOARD'
                     }
-                }
-            }
+                },
+                -- Road Construction - Heavy Equipment
+                {
+                    label = 'Great Ocean Road Construction',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'heavy_dozer',
+                    trailerContents = 'HVY Bulldozer',
+                    routeLength = '6.5 mi',
+                    trailerDrop = {
+                        label = 'North Chumash GOH Road Project',
+                        coords = vector3(-2354.93, 4094.6, 33.4),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Site Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Great Ocean Road Construction',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'heavy_mixer',
+                    trailerContents = 'HVY Mixer',
+                    routeLength = '6.5 mi',
+                    trailerDrop = {
+                        label = 'North Chumash GOH Road Project',
+                        coords = vector3(-2354.93, 4094.6, 33.4),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Site Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Great Ocean Road Construction',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'conc_barriers2',
+                    trailerContents = 'Concrete Construction Barriers',
+                    routeLength = '6.5 mi',
+                    trailerDrop = {
+                        label = 'North Chumash GOH Road Project',
+                        coords = vector3(-2354.93, 4094.6, 33.4),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Site Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Great Ocean Road Construction',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'conc_barriers',
+                    trailerContents = 'Concrete Construction Barriers',
+                    routeLength = '6.5 mi',
+                    trailerDrop = {
+                        label = 'North Chumash GOH Road Project',
+                        coords = vector3(-2354.93, 4094.6, 33.4),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Site Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Great Ocean Road Construction',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'heavy_roadheader',
+                    trailerContents = 'Road Resurface Header',
+                    routeLength = '6.5 mi',
+                    trailerDrop = {
+                        label = 'North Chumash GOH Road Project',
+                        coords = vector3(-2354.93, 4094.6, 33.4),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Site Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Great Ocean Road Construction',
+                    pickupDepot = 'docks',
+                    trailerKey = 'heavy_dozer',
+                    trailerContents = 'HVY Bulldozer',
+                    routeLength = '6.9 mi',
+                    trailerDrop = {
+                        label = 'North Chumash GOH Road Project',
+                        coords = vector3(-2354.93, 4094.6, 33.4),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Site Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Great Ocean Road Construction',
+                    pickupDepot = 'docks',
+                    trailerKey = 'heavy_roadheader',
+                    trailerContents = 'Road Resurface Header',
+                    routeLength = '6.9 mi',
+                    trailerDrop = {
+                        label = 'North Chumash GOH Road Project',
+                        coords = vector3(-2354.93, 4094.6, 33.4),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Site Foreman',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-2348.37, 4110.37, 34.95, 177.9),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                -- LSDWP Canal Project
+                {
+                    label = 'LSDWP Logistics',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'flatbed_woodpile',
+                    trailerContents = 'Construction Materials - Lumber',
+                    routeLength = '2.5 mi',
+                    trailerDrop = {
+                        label = 'LSDWP Canal Project',
+                        coords = vector3(695.85, -1542.59, 9.71),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Logistics Officer',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(703.22, -1540.01, 9.71, 113.47),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'LSDWP Logistics',
+                    pickupDepot = 'docks',
+                    trailerKey = 'flatbed_woodpile',
+                    trailerContents = 'Construction Materials - Lumber',
+                    routeLength = '2.5 mi',
+                    trailerDrop = {
+                        label = 'LSDWP Canal Project',
+                        coords = vector3(695.85, -1542.59, 9.71),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Logistics Officer',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(703.22, -1540.01, 9.71, 113.47),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'LSDWP Logistics',
+                    pickupDepot = 'harmony',
+                    trailerKey = 'flatbed_woodpile',
+                    trailerContents = 'Construction Materials - Lumber',
+                    routeLength = '4.5 mi',
+                    trailerDrop = {
+                        label = 'LSDWP Canal Project',
+                        coords = vector3(695.85, -1542.59, 9.71),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Logistics Officer',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(703.22, -1540.01, 9.71, 113.47),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'LSDWP Logistics',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'cement_bags',
+                    trailerContents = 'Construction Materials - Concrete Pipes',
+                    routeLength = '2.5 mi',
+                    trailerDrop = {
+                        label = 'LSDWP Canal Project',
+                        coords = vector3(695.85, -1542.59, 9.71),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Logistics Officer',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(703.22, -1540.01, 9.71, 113.47),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'LSDWP Logistics',
+                    pickupDepot = 'docks',
+                    trailerKey = 'cement_bags',
+                    trailerContents = 'Construction Materials - Concrete Pipes',
+                    routeLength = '2.5 mi',
+                    trailerDrop = {
+                        label = 'LSDWP Canal Project',
+                        coords = vector3(695.85, -1542.59, 9.71),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Logistics Officer',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(703.22, -1540.01, 9.71, 113.47),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'LSDWP Logistics',
+                    pickupDepot = 'harmony',
+                    trailerKey = 'cement_bags',
+                    trailerContents = 'Construction Materials - Concrete Pipes',
+                    routeLength = '4.5 mi',
+                    trailerDrop = {
+                        label = 'LSDWP Canal Project',
+                        coords = vector3(695.85, -1542.59, 9.71),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = 'Logistics Officer',
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(703.22, -1540.01, 9.71, 113.47),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                
+            },
         },
         military = {
             order = 4,
@@ -3523,6 +3580,171 @@ Config.PriorityLoads = {
             badge = 'MIL',
             defaultTrailerKey = 'military',
             routes = {
+                -- Chernobog
+                {
+                    label = 'Fort Zancudo Equipment Haul',
+                    pickupDepot = 'docks',
+                    trailerKey = 'military_chernobog',
+                    trailerContents = 'Heavy Military Equipment - Chernobog',
+                    routeLength = '6.5 mi',
+                    trailerDrop = {
+                        label = 'Fort Zancudo Equipment Hanger',
+                        coords = vector3(-1852.92, 2904.5, 32.81),
+                        radius = 20.0
+                    },
+                    receiverPed = {
+                        label = 'Military Logistics Officer',
+                        model = `s_m_y_marine_03`,
+                        coords = vector4(-1849.01, 2895.51, 32.81, 333.96),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Fort Zancudo Equipment Haul',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'military_chernobog',
+                    trailerContents = 'Heavy Military Equipment - Chernobog',
+                    routeLength = '6.2 mi',
+                    trailerDrop = {
+                        label = 'Fort Zancudo Equipment Hanger',
+                        coords = vector3(-1852.92, 2904.5, 32.81),
+                        radius = 20.0
+                    },
+                    receiverPed = {
+                        label = 'Military Logistics Officer',
+                        model = `s_m_y_marine_03`,
+                        coords = vector4(-1849.01, 2895.51, 32.81, 333.96),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Fort Zancudo Equipment Haul',
+                    pickupDepot = 'harmony',
+                    trailerKey = 'military_chernobog',
+                    trailerContents = 'Heavy Military Equipment - Chernobog',
+                    routeLength = '2.0 mi',
+                    trailerDrop = {
+                        label = 'Fort Zancudo Equipment Hanger',
+                        coords = vector3(-1852.92, 2904.5, 32.81),
+                        radius = 20.0
+                    },
+                    receiverPed = {
+                        label = 'Military Logistics Officer',
+                        model = `s_m_y_marine_03`,
+                        coords = vector4(-1849.01, 2895.51, 32.81, 333.96),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                -- Scarab
+                {
+                    label = 'Fort Zancudo Equipment Haul',
+                    pickupDepot = 'docks',
+                    trailerKey = 'military_scarab',
+                    trailerContents = 'Heavy Military Equipment - Scarab',
+                    routeLength = '6.5 mi',
+                    trailerDrop = {
+                        label = 'Fort Zancudo Equipment Hanger',
+                        coords = vector3(-1852.92, 2904.5, 32.81),
+                        radius = 20.0
+                    },
+                    receiverPed = {
+                        label = 'Military Logistics Officer',
+                        model = `s_m_y_marine_03`,
+                        coords = vector4(-1849.01, 2895.51, 32.81, 333.96),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Fort Zancudo Equipment Haul',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'military_scarab',
+                    trailerContents = 'Heavy Military Equipment - Scarab',
+                    routeLength = '6.2 mi',
+                    trailerDrop = {
+                        label = 'Fort Zancudo Equipment Hanger',
+                        coords = vector3(-1852.92, 2904.5, 32.81),
+                        radius = 20.0
+                    },
+                    receiverPed = {
+                        label = 'Military Logistics Officer',
+                        model = `s_m_y_marine_03`,
+                        coords = vector4(-1849.01, 2895.51, 32.81, 333.96),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Fort Zancudo Equipment Haul',
+                    pickupDepot = 'harmony',
+                    trailerKey = 'military_scarab',
+                    trailerContents = 'Heavy Military Equipment - Scarab',
+                    routeLength = '2.0 mi',
+                    trailerDrop = {
+                        label = 'Fort Zancudo Equipment Hanger',
+                        coords = vector3(-1852.92, 2904.5, 32.81),
+                        radius = 20.0
+                    },
+                    receiverPed = {
+                        label = 'Military Logistics Officer',
+                        model = `s_m_y_marine_03`,
+                        coords = vector4(-1849.01, 2895.51, 32.81, 333.96),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                -- Rhino
+                {
+                    label = 'Fort Zancudo Equipment Haul',
+                    pickupDepot = 'docks',
+                    trailerKey = 'military_rhino',
+                    trailerContents = 'Heavy Military Equipment - Rhino',
+                    routeLength = '6.5 mi',
+                    trailerDrop = {
+                        label = 'Fort Zancudo Equipment Hanger',
+                        coords = vector3(-1852.92, 2904.5, 32.81),
+                        radius = 20.0
+                    },
+                    receiverPed = {
+                        label = 'Military Logistics Officer',
+                        model = `s_m_y_marine_03`,
+                        coords = vector4(-1849.01, 2895.51, 32.81, 333.96),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Fort Zancudo Equipment Haul',
+                    pickupDepot = 'lsport',
+                    trailerKey = 'military_rhino',
+                    trailerContents = 'Heavy Military Equipment - Rhino',
+                    routeLength = '6.2 mi',
+                    trailerDrop = {
+                        label = 'Fort Zancudo Equipment Hanger',
+                        coords = vector3(-1852.92, 2904.5, 32.81),
+                        radius = 20.0
+                    },
+                    receiverPed = {
+                        label = 'Military Logistics Officer',
+                        model = `s_m_y_marine_03`,
+                        coords = vector4(-1849.01, 2895.51, 32.81, 333.96),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
+                {
+                    label = 'Fort Zancudo Equipment Haul',
+                    pickupDepot = 'harmony',
+                    trailerKey = 'military_rhino',
+                    trailerContents = 'Heavy Military Equipment - Rhino',
+                    routeLength = '2.0 mi',
+                    trailerDrop = {
+                        label = 'Fort Zancudo Equipment Hanger',
+                        coords = vector3(-1852.92, 2904.5, 32.81),
+                        radius = 20.0
+                    },
+                    receiverPed = {
+                        label = 'Military Logistics Officer',
+                        model = `s_m_y_marine_03`,
+                        coords = vector4(-1849.01, 2895.51, 32.81, 333.96),
+                        scenario = 'WORLD_HUMAN_CLIPBOARD'
+                    }
+                },
                 {
                     label = 'Fort Zancudo Restricted Haul',
                     pickupDepot = 'lsport',

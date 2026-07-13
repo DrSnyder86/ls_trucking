@@ -3,61 +3,14 @@ Config = {}
 Config.Locale = 'en'
 Config.ConfigVersion = '1.2.0'
 
+-- Resource basics
 Config.Debug = false  -- Enables debug visuals/logging. Admin commands are available to admins even when this is false.
 Config.Framework = 'auto' -- auto, qb, qbox, esx, nd, standalone
-Config.Command = 'trucking'
-Config.DispatchKey = 'F3'
-Config.MiniUIToggleCommand = 'truckui'
-Config.FullReceiverCommand = 'truckreceiver'
-Config.FullReceiverKey = 'F2'
-Config.CancelCommand = 'canceltrucking'
 Config.RequireJob = true
 Config.JobName = 'trucker'
 Config.RequireDuty = true -- Only applies when RequireJob is true. Framework duty is used when available, otherwise LSFC session duty is used.
-Config.UsePed = true
-Config.UseBlip = true
-Config.UseTerminalTargetZone = false
-Config.RadioFrequency = '68.9'
-Config.MiniUIEnabled = true
-Config.ReceiverDockEnabled = true
-Config.FullReceiverEnabled = true
-Config.ReceiverRefreshInterval = 15000 -- milliseconds between passive receiver/signal refreshes
-Config.AllowVehicleReuseAfterRoute = true
-Config.RequireSameTypeForVehicleReuse = true
-Config.DeleteOldVehicleOnNewContract = true
 Config.PayWhenRouteComplete = true
-Config.ReturnVehicleBonusEnabled = true
-Config.ReturnVehicleBonus = 250
 Config.PayToBank = false
-Config.TargetDistance = 2.5
-Config.DropoffTarget = { Radius = 3.5, Distance = 3.5, HeightOffset = 0.75 } -- larger/easier package delivery target zones
-Config.TrailerAutoDetectInterval = 750
-Config.TrailerCoupleNoticeDelay = 500
-Config.TrailerDespawnAfterDelivery = 10000 -- milliseconds after receiver signoff
-
--- Core integrations and route interaction modes
--- Target system: 'auto', 'ox', or 'qb'. Auto prefers ox_target, then qb-target.
-Config.TargetSystem = 'auto'
-Config.LoadVerificationMode = 'receiver' -- 'receiver' or 'target'
-
-Config.Inventory = {
-    System = 'auto', -- auto, ox_inventory, qb-inventory, lj-inventory, ps-inventory, qs-inventory, or custom
-    Debug = false,
-    UseInternalTrunkFallback = true,
-    TrunkPrefix = 'trunk'
-}
-
-Config.Fuel = {
-    System = 'auto', -- auto, ox_fuel, LegacyFuel, ps-fuel, cdn-fuel, lj-fuel, qb-fuel, BigDaddy-Fuel, or none
-    DefaultFuel = 100.0
-}
-
-Config.Keys = {
-    System = 'auto', -- auto, qb-vehiclekeys, qbx_vehiclekeys, Renewed-Vehiclekeys, MrNewbVehicleKeys, wasabi_carlock, cd_garage, or none
-    GiveOnSpawn = true,
-    RemoveOnReturn = false,
-    OwnerOnly = true
-}
 
 -- Primary dispatch, duty, and company vehicle locations
 Config.DispatchPed = {
@@ -91,6 +44,60 @@ Config.Depot = {
     garageSpawn = vector4(-46.58, -2503.58, 6.01, 237.01),
     vehicleReturn = vector3(-41.54, -2513.28, 6.16)
 }
+
+-- Commands, keys, and receiver refresh
+Config.Command = 'trucking'
+Config.DispatchKey = 'F3'
+Config.MiniUIToggleCommand = 'truckui'
+Config.FullReceiverCommand = 'truckreceiver'
+Config.FullReceiverKey = 'F2'
+Config.CancelCommand = 'canceltrucking'
+Config.RadioFrequency = '68.9'
+Config.ReceiverRefreshInterval = 15000 -- milliseconds between passive receiver/signal refreshes
+
+-- Route and vehicle behavior
+Config.UsePed = true
+Config.UseBlip = true
+Config.UseTerminalTargetZone = false
+Config.AllowVehicleReuseAfterRoute = true
+Config.RequireSameTypeForVehicleReuse = true
+Config.DeleteOldVehicleOnNewContract = true
+Config.ReturnVehicleBonusEnabled = true
+Config.ReturnVehicleBonus = 250
+Config.TargetDistance = 2.5
+Config.DropoffTarget = { Radius = 3.5, Distance = 3.5, HeightOffset = 0.75 } -- larger/easier package delivery target zones
+Config.TrailerAutoDetectInterval = 750
+Config.TrailerCoupleNoticeDelay = 500
+Config.TrailerDespawnAfterDelivery = 10000 -- milliseconds after receiver signoff
+
+-- Core integrations and route interaction modes
+-- Target system: 'auto', 'ox', or 'qb'. Auto prefers ox_target, then qb-target.
+Config.TargetSystem = 'auto'
+Config.LoadVerificationMode = 'receiver' -- 'receiver' or 'target' verification after loading cargo.
+
+Config.CargoLoading = {
+    Mode = 'assisted' -- 'assisted' or 'manual'. Assisted uses auto loading zone. Manual requires player to pick up and place each cargo item.
+}
+
+Config.Inventory = {
+    System = 'auto', -- auto, ox_inventory, qb-inventory, lj-inventory, ps-inventory, qs-inventory, or custom
+    Debug = false,
+    UseInternalTrunkFallback = true,
+    TrunkPrefix = 'trunk'
+}
+
+Config.Fuel = {
+    System = 'auto', -- auto, ox_fuel, LegacyFuel, ps-fuel, cdn-fuel, lj-fuel, qb-fuel, BigDaddy-Fuel, or none
+    DefaultFuel = 100.0
+}
+
+Config.Keys = {
+    System = 'auto', -- auto, qb-vehiclekeys, qbx_vehiclekeys, Renewed-Vehiclekeys, MrNewbVehicleKeys, wasabi_carlock, cd_garage, or none
+    GiveOnSpawn = true,
+    RemoveOnReturn = false,
+    OwnerOnly = true
+}
+
 -- Active route world behavior
 Config.ActiveContractPeds = {
     SpawnDistance = 100.0,
@@ -128,7 +135,7 @@ Config.JobBlips = {
     enabled = true,
     updateInterval = 7500,
     minMoveDistance = 25.0,
-    showSelf = false,
+    showSelf = true,
     requireDuty = true,
     shortRange = true,
     label = 'LSFC Unit',
@@ -335,7 +342,7 @@ Config.PrivateContractor = {
     DailyRouteCompletionBonus = 3500,
     DailyRouteRepBonus = 2,
     DailyRouteOptionsPerType = 8,
-    ContractBoardRoutesPerType = 5,
+    ContractBoardRoutesPerType = 8,
     ContractBoardRefreshMinutes = 60,
     ResaleBasePercent = 0.80,
     DepreciationPerMile = 10,
@@ -436,7 +443,7 @@ Config.CargoCondition = {
     SpeedWarningAfter = 9000,
     SpeedPenalty = 2,
     SafeSpeed = {
-        van = 85.0,
+        van = 75.0,
         boxtruck = 75.0,
         trailer = 70.0
     }
@@ -460,7 +467,7 @@ Config.UI = {
     Sounds = true,
     SoundVolume = 0.18,
     SoundsPath = 'sounds/',
-    MiniLogo = 'images/badger-logo.png',
+    MiniLogo = 'images/badger-logo.webp',
     ClickSound = 'click.wav',
     ConfirmSound = 'confirm.wav',
     ErrorSound = 'error.wav',
