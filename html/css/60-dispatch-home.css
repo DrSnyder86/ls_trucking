@@ -9,6 +9,31 @@
     display: none !important;
 }
 
+.left-panel.home-map-active {
+    overflow: hidden !important;
+    padding-bottom: 0 !important;
+    scrollbar-width: none;
+}
+
+.left-panel.home-map-active #page-home {
+    height: 100%;
+    min-height: 0;
+    padding-bottom: 0 !important;
+    overflow: hidden;
+}
+
+.left-panel.home-map-active::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.left-panel.home-map-active .dispatch-home {
+    grid-template-rows: minmax(0, 1fr);
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-bottom: 0;
+}
+
 .dispatch-home {
     display: grid;
     gap: 12px;
@@ -88,6 +113,13 @@
         linear-gradient(180deg, rgba(5,14,13,0.98), rgba(0,4,5,0.98));
     background-size: 34px 34px, 34px 34px, 100% 100%, 100% 100%;
     box-shadow: inset 0 0 28px rgba(0,0,0,0.72), inset 0 0 22px rgba(119,240,138,0.045);
+}
+
+.left-panel.home-map-active .dispatch-map-shell {
+    aspect-ratio: auto;
+    width: 100%;
+    min-height: 0;
+    height: 100%;
 }
 
 .dispatch-map-shell.is-pannable {

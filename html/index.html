@@ -61,7 +61,7 @@
         <div class="mini-dock-top">
             <div class="mini-channel-display"><span>CH</span><strong id="miniDockChannel">68.9</strong></div>
             <div class="mini-maker-badge" aria-hidden="true">
-                <img id="miniDockMakerLogo" src="../images/badger-logo.png" alt="" onload="this.style.display='block'; this.parentElement.classList.add('has-logo')" onerror="this.style.display='none'; this.parentElement.classList.remove('has-logo')">
+                <img id="miniDockMakerLogo" src="../images/badger-logo.webp" alt="" onload="this.style.display='block'; this.parentElement.classList.add('has-logo')" onerror="this.style.display='none'; this.parentElement.classList.remove('has-logo')">
                 <strong>BADGER</strong>
             </div>
             <div class="mini-status-cluster" aria-hidden="true">
@@ -90,7 +90,7 @@
                 <span id="miniDockLastUpdate" class="mini-last-update">LAST UPDATE --:--</span>
             </div>
         </div>
-        <div class="mini-dock-etch" aria-hidden="true">BDG-LSFC-D-1.1</div>
+        <div class="mini-dock-etch" aria-hidden="true">BDG-LSFC-D-1.2</div>
     </div>
     <div id="mini" class="mini mini-scanner hidden">
         <div class="mini-side-buttons mini-side-buttons-left" aria-hidden="true"><span></span><span></span></div>
@@ -99,10 +99,10 @@
             <div class="mini-brand-block">
                 <div class="mini-channel-display"><span>CH</span><strong id="miniChannel">68.9</strong></div>
             </div>
-            <div class="mini-maker-badge" aria-hidden="true">
-                <img id="miniMakerLogo" src="../images/badger-logo.png" alt="" onload="this.style.display='block'; this.parentElement.classList.add('has-logo')" onerror="this.style.display='none'; this.parentElement.classList.remove('has-logo')">
+            <button type="button" class="mini-maker-badge" data-mini-close-receiver aria-label="Close receiver" title="Close receiver">
+                <img id="miniMakerLogo" src="../images/badger-logo.webp" alt="" onload="this.style.display='block'; this.parentElement.classList.add('has-logo')" onerror="this.style.display='none'; this.parentElement.classList.remove('has-logo')">
                 <strong>BADGER</strong>
-            </div>
+            </button>
             <div class="mini-status-cluster" aria-hidden="true">
                 <div class="mini-led-stack">
                     <span class="mini-led mini-led-rx"></span><span>RX</span>
@@ -156,9 +156,6 @@
                         <div><small><i class="fas fa-boxes-stacked"></i>CARGO</small><strong id="miniCargo">Packages</strong><span id="miniCargoCondition" class="mini-cargo-condition">CARGO STABLE</span></div>
                         <div class="mini-payout-inline"><small>PAYOUT</small><strong id="miniPayout">$0</strong></div>
                     </div>
-                    <button id="miniCancelRoute" class="mini-cancel-route-button hidden" data-mini-cancel-route>
-                        <i class="fas fa-ban"></i><span>Cancel Route</span>
-                    </button>
                 </div>
             </div>
 
@@ -187,7 +184,7 @@
                 <div id="miniSettingsContent" class="mini-page-content"></div>
             </div>
         </div>
-        <div class="mini-device-etch" aria-hidden="true">BDG-LSFC-R-1.1</div>
+        <div class="mini-device-etch" aria-hidden="true">BDG-LSFC-R-1.2</div>
     </div>
 
     <div id="freightDialog" class="freight-dialog hidden">
@@ -209,12 +206,16 @@
         </div>
     </div>
     <div id="trailerCargoEditor" class="trailer-cargo-editor hidden">
+        <div class="trailer-editor-camera-pad" data-trailer-editor-camera-pad title="Left-click drag camera"></div>
         <div class="trailer-editor-panel">
             <div class="trailer-editor-header">
-                <div>
-                    <small>TRAILER CARGO PROP EDITOR</small>
-                    <strong id="trailerCargoEditorTitle">Trailer</strong>
-                    <span id="trailerCargoEditorModel">model</span>
+                <div class="trailer-editor-title">
+                    <i class="fas fa-boxes-stacked trailer-editor-title-icon"></i>
+                    <div>
+                        <small>TRAILER CARGO PROP EDITOR</small>
+                        <strong id="trailerCargoEditorTitle">Trailer</strong>
+                        <span id="trailerCargoEditorModel">model</span>
+                    </div>
                 </div>
                 <button type="button" data-trailer-editor-action="close"><i class="fas fa-xmark"></i></button>
             </div>
@@ -228,7 +229,22 @@
             </div>
             <div class="trailer-editor-row trailer-editor-step-row">
                 <label for="trailerCargoEditorStep">Step</label>
-                <input id="trailerCargoEditorStep" type="number" min="0.001" step="0.001" value="0.05">
+                <div class="trailer-editor-step-control">
+                    <input id="trailerCargoEditorStep" type="number" min="0.001" step="0.001" value="0.05">
+                    <div class="trailer-editor-step-presets">
+                        <button type="button" data-trailer-editor-step-preset="0.01">0.01</button>
+                        <button type="button" data-trailer-editor-step-preset="0.05">0.05</button>
+                        <button type="button" data-trailer-editor-step-preset="0.10">0.10</button>
+                        <button type="button" data-trailer-editor-step-preset="0.25">0.25</button>
+                    </div>
+                </div>
+            </div>
+            <div class="trailer-editor-camera-tools" role="group" aria-label="Camera controls">
+                <button type="button" data-trailer-editor-action="camera" data-trailer-editor-control="presetFront" title="Front view"><i class="fas fa-arrow-up"></i><span>Front</span></button>
+                <button type="button" data-trailer-editor-action="camera" data-trailer-editor-control="presetBack" title="Rear view"><i class="fas fa-arrow-down"></i><span>Rear</span></button>
+                <button type="button" data-trailer-editor-action="camera" data-trailer-editor-control="presetLeft" title="Left side view"><i class="fas fa-arrow-left"></i><span>Left</span></button>
+                <button type="button" data-trailer-editor-action="camera" data-trailer-editor-control="presetRight" title="Right side view"><i class="fas fa-arrow-right"></i><span>Right</span></button>
+                <button type="button" data-trailer-editor-action="camera" data-trailer-editor-control="presetTop" title="Overhead view"><i class="fas fa-crosshairs"></i><span>Top</span></button>
             </div>
             <div class="trailer-editor-values">
                 <div><small>OFFSET</small><span id="trailerCargoEditorOffset">0.000 / 0.000 / 0.000</span></div>
@@ -239,16 +255,19 @@
                     <strong>Offset</strong>
                     <div class="trailer-editor-axis-row">
                         <span><b>X</b><em>Left / Right</em></span>
+                        <input type="number" step="0.001" inputmode="decimal" data-trailer-editor-value-field="offset" data-trailer-editor-value-axis="x" aria-label="Offset X">
                         <button type="button" data-trailer-editor-field="offset" data-trailer-editor-axis="x" data-trailer-editor-delta="-1">-</button>
                         <button type="button" data-trailer-editor-field="offset" data-trailer-editor-axis="x" data-trailer-editor-delta="1">+</button>
                     </div>
                     <div class="trailer-editor-axis-row">
                         <span><b>Y</b><em>Back / Front</em></span>
+                        <input type="number" step="0.001" inputmode="decimal" data-trailer-editor-value-field="offset" data-trailer-editor-value-axis="y" aria-label="Offset Y">
                         <button type="button" data-trailer-editor-field="offset" data-trailer-editor-axis="y" data-trailer-editor-delta="-1">-</button>
                         <button type="button" data-trailer-editor-field="offset" data-trailer-editor-axis="y" data-trailer-editor-delta="1">+</button>
                     </div>
                     <div class="trailer-editor-axis-row">
                         <span><b>Z</b><em>Down / Up</em></span>
+                        <input type="number" step="0.001" inputmode="decimal" data-trailer-editor-value-field="offset" data-trailer-editor-value-axis="z" aria-label="Offset Z">
                         <button type="button" data-trailer-editor-field="offset" data-trailer-editor-axis="z" data-trailer-editor-delta="-1">-</button>
                         <button type="button" data-trailer-editor-field="offset" data-trailer-editor-axis="z" data-trailer-editor-delta="1">+</button>
                     </div>
@@ -257,16 +276,19 @@
                     <strong>Rotation</strong>
                     <div class="trailer-editor-axis-row">
                         <span><b>Pitch</b><em>Nose Down / Up</em></span>
+                        <input type="number" step="0.001" inputmode="decimal" data-trailer-editor-value-field="rotation" data-trailer-editor-value-axis="pitch" aria-label="Rotation pitch">
                         <button type="button" data-trailer-editor-field="rotation" data-trailer-editor-axis="pitch" data-trailer-editor-delta="-1">-</button>
                         <button type="button" data-trailer-editor-field="rotation" data-trailer-editor-axis="pitch" data-trailer-editor-delta="1">+</button>
                     </div>
                     <div class="trailer-editor-axis-row">
-                        <span><b>Roll</b><em>Tilt Left / Right</em></span>
+                        <span><b>Roll</b><em>Tilt L / R</em></span>
+                        <input type="number" step="0.001" inputmode="decimal" data-trailer-editor-value-field="rotation" data-trailer-editor-value-axis="roll" aria-label="Rotation roll">
                         <button type="button" data-trailer-editor-field="rotation" data-trailer-editor-axis="roll" data-trailer-editor-delta="-1">-</button>
                         <button type="button" data-trailer-editor-field="rotation" data-trailer-editor-axis="roll" data-trailer-editor-delta="1">+</button>
                     </div>
                     <div class="trailer-editor-axis-row">
-                        <span><b>Yaw</b><em>Turn Left / Right</em></span>
+                        <span><b>Yaw</b><em>Turn L / R</em></span>
+                        <input type="number" step="0.001" inputmode="decimal" data-trailer-editor-value-field="rotation" data-trailer-editor-value-axis="yaw" aria-label="Rotation yaw">
                         <button type="button" data-trailer-editor-field="rotation" data-trailer-editor-axis="yaw" data-trailer-editor-delta="-1">-</button>
                         <button type="button" data-trailer-editor-field="rotation" data-trailer-editor-axis="yaw" data-trailer-editor-delta="1">+</button>
                     </div>
@@ -278,7 +300,7 @@
                 <button type="button" data-trailer-editor-action="delete"><i class="fas fa-trash"></i> Delete</button>
                 <button type="button" data-trailer-editor-action="print"><i class="fas fa-terminal"></i> Print Config</button>
             </div>
-            <p>Open with /lstraileredit trailer_key. Camera keys: A/D rotate, W/S height, Q/E zoom, R reset. Printed cargoProps are ready to paste into Config.RouteTrailers.</p>
+            <p>Open with /lstraileredit trailer_key. Left-click drag the camera, mouse wheel zooms, and printed cargoProps are ready to paste into Config.RouteTrailers.</p>
             <div class="trailer-editor-watermark">ls_trucking by DrSnyder</div>
         </div>
     </div>

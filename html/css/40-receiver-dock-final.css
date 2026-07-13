@@ -141,6 +141,8 @@
     color: #f5f7f4 !important;
     font-size: 13px !important;
     line-height: 1.08 !important;
+    text-align: center !important;
+    width: 100% !important;
 }
 
 .mini-dock .mini-dock-destination-street {
@@ -148,6 +150,8 @@
     font-size: 9px !important;
     line-height: 1.08 !important;
     margin-top: 1px !important;
+    text-align: center !important;
+    width: 100% !important;
 }
 
 .mini-dock .mini-dock-route-footer {
@@ -543,8 +547,13 @@
 
 /* v1.6.6 current route row breathing room */
 .mini.mini-scanner #miniRoutePage .mini-body {
-    grid-template-rows: 42px 92px 70px 48px 98px !important;
+    grid-template-rows: 42px minmax(92px, auto) 70px 48px 98px !important;
     gap: 7px !important;
+}
+
+.mini.mini-scanner #miniRoutePage #miniNotice {
+    max-height: none !important;
+    overflow: visible !important;
 }
 
 .mini.mini-scanner #miniRoutePage .mini-destination-line,

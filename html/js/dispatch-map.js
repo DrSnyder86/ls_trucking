@@ -108,11 +108,25 @@ function renderDispatchMapControls(config) {
     return `
         <div class="dispatch-map-controls">
             <button type="button" data-dispatch-map-zoom="out" ${canZoomOut ? '' : 'disabled'} title="Zoom out"><i class="fas fa-minus"></i></button>
-            <span>${Math.round(zoom * 100)}%</span>
+            <span data-dispatch-map-zoom-label>${Math.round(zoom * 100)}%</span>
             <button type="button" data-dispatch-map-zoom="in" ${canZoomIn ? '' : 'disabled'} title="Zoom in"><i class="fas fa-plus"></i></button>
             <button type="button" data-dispatch-map-zoom="reset" title="Reset zoom"><i class="fas fa-compress"></i></button>
         </div>
     `;
+}
+
+function updateDispatchMapControls(config = getDispatchMapZoomConfig(dispatchData || {})) {
+    if (!dispatchHomeMap) return;
+    const zoom = clampDispatchMapZoom(dispatchMapZoom, config);
+    const canZoomOut = zoom > config.min + 0.01;
+    const canZoomIn = zoom < config.max - 0.01;
+    const label = dispatchHomeMap.querySelector('[data-dispatch-map-zoom-label]');
+    const outButton = dispatchHomeMap.querySelector('[data-dispatch-map-zoom="out"]');
+    const inButton = dispatchHomeMap.querySelector('[data-dispatch-map-zoom="in"]');
+
+    if (label) label.textContent = `${Math.round(zoom * 100)}%`;
+    if (outButton) outButton.disabled = !canZoomOut;
+    if (inButton) inButton.disabled = !canZoomIn;
 }
 
 function getSelectedDispatchMapPoint(data = dispatchData) {
@@ -240,6 +254,7 @@ function renderDispatchHome(data = dispatchData) {
         ${renderDispatchMapControls(zoomConfig)}
     `;
     applyDispatchMapTransform();
+    updateDispatchMapControls(zoomConfig);
 }
 
 function stableDispatchSignature(value) {

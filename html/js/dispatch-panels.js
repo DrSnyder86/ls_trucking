@@ -162,7 +162,10 @@ function getSelectedContractorDailyRoute(contractor) {
     }
 
     let selected = routes.find(route => getContractorDailyRouteKey(route) === String(selectedContractorDailyRouteKey || ''));
-    if (!selected && contractor?.dailyRouteKey) selected = routes.find(route => route.key === contractor.dailyRouteKey);
+    if (!selected && contractor?.dailyRouteKey) {
+        const assignedRouteKey = String(contractor.dailyRouteKey || '');
+        selected = routes.find(route => getContractorDailyRouteKey(route) === assignedRouteKey);
+    }
     if (!selected) selected = routes[0];
     selectedContractorDailyRouteKey = getContractorDailyRouteKey(selected);
     return selected;
@@ -239,16 +242,27 @@ function syncContractorSelection(contractor) {
     return selectedContractorPanel;
 }
 
+function renderContractorStopsOrDepot(route) {
+    if (route?.type === 'trailer' && route.trailerDepotLabel) {
+        return renderPreviewMetric('Depot', route.trailerDepotLabel);
+    }
+
+    return renderPreviewMetric('Stops', route?.stopCount || 0);
+}
+
 function renderContractorDailyRoutePreview(contractor, route) {
     if (!route) return '';
 
-    const selected = route.key === contractor.dailyRouteKey;
-    const completed = selected && contractor.dailyRouteCompleted;
+    const routeKey = getContractorDailyRouteKey(route);
+    const assignedRouteKey = String(contractor.dailyRouteKey || '');
     const currentJob = dispatchData?.currentJob;
+    const currentJobDailyRouteKey = String(currentJob?.contractorDailyRouteKey || '');
+    const selected = routeKey && routeKey === assignedRouteKey;
+    const completed = selected && contractor.dailyRouteCompleted;
     const hasJob = Boolean(currentJob);
-    const routeActive = selected && currentJob?.contractor && (!currentJob.contractorDailyRouteKey || currentJob.contractorDailyRouteKey === route.key);
+    const routeActive = selected && currentJob?.contractor && (!currentJobDailyRouteKey || currentJobDailyRouteKey === routeKey);
     const lockedByCooldown = !selected && contractor.dailyRouteKey && contractor.dailyRouteCanChange === false;
-    const canSelect = route.unlocked && !selected && !hasJob && !lockedByCooldown;
+    const canSelect = routeKey && route.unlocked && !selected && !hasJob && !lockedByCooldown;
     const actionText = routeActive
         ? uiText('action.routeActive', {}, 'Route Active')
         : completed
@@ -275,13 +289,13 @@ function renderContractorDailyRoutePreview(contractor, route) {
             <div class="preview-metric-grid two">
                 ${renderPreviewMetric('Type', route.typeLabel || contractorTypeLabel(route.type))}
                 ${renderPreviewMetric('Priority', route.priorityShortLabel || route.priorityLabel || 'Standard')}
-                ${renderPreviewMetric('Stops', route.stopCount || 0)}
+                ${renderContractorStopsOrDepot(route)}
                 ${renderPreviewMetric('Length', route.routeLength || 'Pending')}
                 ${renderPreviewMetric('Destination', route.destination || 'Assigned route')}
                 ${renderPreviewMetric('Required Rank', `Rank ${route.minRank || contractor.unlockRank || 1}`)}
             </div>
             <div class="preview-action-row single">
-                <button class="preview-action" data-preview-contractor-daily-route="${escapeHTML(route.key || '')}" ${canSelect ? '' : 'disabled'}>
+                <button class="preview-action" data-preview-contractor-daily-route="${escapeHTML(routeKey)}" ${canSelect ? '' : 'disabled'}>
                     <i class="fas fa-route"></i>${actionText}
                 </button>
             </div>
@@ -368,7 +382,7 @@ function renderContractorContractPreview(contractor, contract) {
             <div class="preview-metric-grid two">
                 ${renderPreviewMetric('Payout', `${formatMoney(contract.payoutMin || 0)}-${formatMoney(contract.payoutMax || 0)}`)}
                 ${renderPreviewMetric('XP / Rep', `${contract.xp || 0} XP / ${contract.rep || 0} REP`)}
-                ${renderPreviewMetric('Stops', contract.stopCount || 0)}
+                ${renderContractorStopsOrDepot(contract)}
                 ${renderPreviewMetric('Length', contract.routeLength || 'Pending')}
             </div>
             <div class="preview-action-row single">
@@ -875,6 +889,7 @@ function setTab(tab) {
     const page = document.getElementById(`page-${tab}`);
     if (!page) tab = 'home';
     activeDispatchTab = tab;
+    document.querySelector('.left-panel')?.classList.toggle('home-map-active', tab === 'home');
     document.querySelectorAll('.nav').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
     document.querySelectorAll('.tab-page').forEach(el => el.classList.add('hidden'));
     document.getElementById(`page-${tab}`).classList.remove('hidden');
@@ -906,7 +921,8 @@ if (dispatchHome) {
             }
 
             dispatchMapPan = clampDispatchMapPan(dispatchMapPan, dispatchMapZoom);
-            renderDispatchHome(dispatchData || {});
+            applyDispatchMapTransform();
+            updateDispatchMapControls(zoomConfig);
             return;
         }
 
@@ -915,11 +931,26 @@ if (dispatchHome) {
             playUISound('click');
             selectedDispatchHomePointId = marker.dataset.dispatchMapMarker || null;
             renderDispatchHome(dispatchData || {});
-            renderPreviewContextPanel();
-            return;
-        }
+        renderPreviewContextPanel();
+        return;
+    }
 
     });
+
+    dispatchHome.addEventListener('wheel', event => {
+        if (!dispatchHomeMap || !event.target.closest('.dispatch-map-shell')) return;
+        if (event.target.closest('[data-dispatch-map-marker], [data-dispatch-map-zoom], .dispatch-home-legend')) return;
+
+        const zoomConfig = getDispatchMapZoomConfig(dispatchData || {});
+        const currentZoom = clampDispatchMapZoom(dispatchMapZoom, zoomConfig);
+        const direction = event.deltaY < 0 ? 1 : -1;
+
+        dispatchMapZoom = clampDispatchMapZoom(currentZoom + (zoomConfig.step * direction), zoomConfig);
+        dispatchMapPan = clampDispatchMapPan(dispatchMapPan, dispatchMapZoom);
+        applyDispatchMapTransform();
+        updateDispatchMapControls(zoomConfig);
+        event.preventDefault();
+    }, { passive: false });
 
     dispatchHome.addEventListener('pointerdown', event => {
         if (!dispatchHomeMap || event.button !== 0) return;

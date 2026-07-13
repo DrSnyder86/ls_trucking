@@ -15,18 +15,42 @@ function renderPlayer(data) {
 }
 
 
+function routeHistoryCardKey(summary = {}) {
+    return [
+        summary.contractId,
+        summary.completedAt,
+        routeSummaryTitle(summary),
+        summary.vehicleLabel
+    ].filter(Boolean).join('|');
+}
+
+function getRouteHistoryCardState() {
+    if (!routeHistoryList) return null;
+
+    const cards = Array.from(routeHistoryList.querySelectorAll('.route-history-card'));
+    if (!cards.length) return null;
+
+    return {
+        keys: new Set(cards.map(card => card.dataset.routeHistoryKey).filter(Boolean)),
+        openKeys: new Set(cards.filter(card => card.open).map(card => card.dataset.routeHistoryKey).filter(Boolean))
+    };
+}
+
 function renderRouteHistory(history) {
     if (!routeHistoryList) return;
 
     const entries = normalizeRouteHistory(history);
+    const cardState = getRouteHistoryCardState();
     if (!entries.length) {
         routeHistoryList.innerHTML = '<div class="empty-card">No completed route summaries logged yet.</div>';
         return;
     }
 
-    routeHistoryList.innerHTML = entries.map((summary, index) => {
+    routeHistoryList.innerHTML = entries.map(summary => {
+        const historyKey = routeHistoryCardKey(summary);
+        const isOpen = cardState ? cardState.openKeys.has(historyKey) : false;
         return `
-            <details class="route-history-card" ${index === 0 ? 'open' : ''}>
+            <details class="route-history-card" data-route-history-key="${escapeHTML(historyKey)}" ${isOpen ? 'open' : ''}>
                 <summary>
                     <div>
                         <small>${escapeHTML(routeSummarySubtitle(summary))}</small>
@@ -98,15 +122,71 @@ function renderGarage(data) {
     });
 }
 
+function getDispatchScrollState(tab = activeDispatchTab) {
+    const panel = document.querySelector('.left-panel');
+    const page = document.getElementById(`page-${tab}`);
+    const previewPanel = tab === 'dispatch' ? previewContracts : previewContext;
+
+    return {
+        tab,
+        panelTop: panel?.scrollTop || 0,
+        pageTop: page?.scrollTop || 0,
+        previewTop: previewPanel?.scrollTop || 0
+    };
+}
+
+function restoreDispatchScrollState(state) {
+    if (!state || state.tab !== activeDispatchTab) return;
+
+    const applyScroll = () => {
+        const panel = document.querySelector('.left-panel');
+        const page = document.getElementById(`page-${state.tab}`);
+        const previewPanel = state.tab === 'dispatch' ? previewContracts : previewContext;
+        if (panel) panel.scrollTop = state.panelTop || 0;
+        if (page) page.scrollTop = state.pageTop || 0;
+        if (previewPanel) previewPanel.scrollTop = state.previewTop || 0;
+    };
+
+    applyScroll();
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(applyScroll);
+}
+
 function contractorTypeLabel(type) {
     if (type === 'trailer') return 'Tractor';
     return titleFromType(type);
+}
+
+function getContractorScrollState() {
+    const panel = contractorContent?.closest('.left-panel');
+    const dailyList = contractorContent?.querySelector('.contractor-daily-list');
+    return {
+        panelTop: panel?.scrollTop || 0,
+        contentTop: contractorContent?.scrollTop || 0,
+        dailyType: dailyList?.dataset.contractorDailyType || '',
+        dailyTop: dailyList?.scrollTop || 0
+    };
+}
+
+function restoreContractorScrollState(state, dailyType) {
+    if (!state) return;
+
+    const applyScroll = () => {
+        const panel = contractorContent?.closest('.left-panel');
+        const dailyList = contractorContent?.querySelector('.contractor-daily-list');
+        if (panel) panel.scrollTop = state.panelTop || 0;
+        if (contractorContent) contractorContent.scrollTop = state.contentTop || 0;
+        if (dailyList && state.dailyType === (dailyType || '')) dailyList.scrollTop = state.dailyTop || 0;
+    };
+
+    applyScroll();
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(applyScroll);
 }
 
 function renderContractor(data) {
     if (!contractorContent) return;
 
     const contractor = data.contractor || {};
+    const scrollState = getContractorScrollState();
     contractorContent.innerHTML = '';
 
     if (!contractor.enabled) {
@@ -158,7 +238,8 @@ function renderContractor(data) {
         }
     });
 
-    const assignedDailyRoute = dailyRoutes.find(route => route.key === contractor.dailyRouteKey);
+    const assignedDailyRouteKey = String(contractor.dailyRouteKey || '');
+    const assignedDailyRoute = dailyRoutes.find(route => getContractorDailyRouteKey(route) === assignedDailyRouteKey);
     if (!selectedContractorDailyType && assignedDailyRoute) selectedContractorDailyType = getContractorDailyRouteType(assignedDailyRoute);
     if (!selectedContractorDailyType && activeOut) selectedContractorDailyType = activeOut.type;
     if (!dailyTypes.some(entry => entry.type === selectedContractorDailyType)) {
@@ -169,8 +250,8 @@ function renderContractor(data) {
         ? dailyRoutes.filter(route => getContractorDailyRouteType(route) === selectedContractorDailyType)
         : dailyRoutes;
 
-    if (filteredDailyRoutes.length && !filteredDailyRoutes.some(route => route.key === selectedContractorDailyRouteKey)) {
-        const assignedInType = filteredDailyRoutes.find(route => route.key === contractor.dailyRouteKey);
+    if (filteredDailyRoutes.length && !filteredDailyRoutes.some(route => getContractorDailyRouteKey(route) === String(selectedContractorDailyRouteKey || ''))) {
+        const assignedInType = filteredDailyRoutes.find(route => getContractorDailyRouteKey(route) === assignedDailyRouteKey);
         selectedContractorDailyRouteKey = getContractorDailyRouteKey(assignedInType || filteredDailyRoutes[0]);
     }
 
@@ -181,17 +262,20 @@ function renderContractor(data) {
     `).join('');
 
     const dailyHtml = filteredDailyRoutes.map(route => {
-        const assigned = route.key === contractor.dailyRouteKey;
-        const cardSelected = selectedContractorPanel === 'daily' && selectedContractorDailyRouteKey === route.key;
-        const completed = assigned && contractor.dailyRouteCompleted;
+        const routeKey = getContractorDailyRouteKey(route);
+        const selectedRouteKey = String(selectedContractorDailyRouteKey || '');
         const currentJob = dispatchData?.currentJob;
-        const routeActive = assigned && currentJob?.contractor && (!currentJob.contractorDailyRouteKey || currentJob.contractorDailyRouteKey === route.key);
+        const currentJobDailyRouteKey = String(currentJob?.contractorDailyRouteKey || '');
+        const assigned = routeKey && routeKey === assignedDailyRouteKey;
+        const cardSelected = selectedContractorPanel === 'daily' && selectedRouteKey === routeKey;
+        const completed = assigned && contractor.dailyRouteCompleted;
+        const routeActive = assigned && currentJob?.contractor && (!currentJobDailyRouteKey || currentJobDailyRouteKey === routeKey);
         const lockedByCooldown = !assigned && contractor.dailyRouteKey && contractor.dailyRouteCanChange === false;
         return `
-            <div class="contractor-option compact ${cardSelected ? 'is-selected' : ''} ${routeActive ? 'is-active-route' : ''} ${route.unlocked ? '' : 'disabled'}" data-contractor-select-daily-route="${escapeHTML(route.key || '')}">
+            <button type="button" class="contractor-option compact ${cardSelected ? 'is-selected' : ''} ${routeActive ? 'is-active-route' : ''} ${route.unlocked ? '' : 'disabled'}" data-contractor-select-daily-route="${escapeHTML(routeKey)}" data-contractor-daily-route-type="${escapeHTML(getContractorDailyRouteType(route))}">
                 <span><strong>${route.label || 'Route Board'}</strong><small>${[route.routeLength, route.destination].filter(Boolean).join(' - ') || route.description || ''}</small></span>
                 <em>${completed ? 'DONE' : routeActive ? 'ACTIVE' : assigned ? 'ASSIGNED' : lockedByCooldown ? 'WEEKLY LOCK' : route.unlocked ? 'VIEW' : `RANK ${route.minRank || contractor.unlockRank}`}</em>
-            </div>
+            </button>
         `;
     }).join('') || '<div class="empty-card">No dedicated routes are configured for this delivery type.</div>';
 
@@ -205,7 +289,7 @@ function renderContractor(data) {
                 <em>${escapeHTML(contractor.dailyRouteKey ? contractor.dailyRouteCompleted ? 'Completed Today' : 'Assigned' : 'Not Assigned')}</em>
             </div>
             <div class="contractor-daily-types">${dailyTypeHtml}</div>
-            <div class="contractor-daily-list">${dailyHtml}</div>
+            <div class="contractor-daily-list" data-contractor-daily-type="${escapeHTML(selectedContractorDailyType || '')}">${dailyHtml}</div>
         </div>
     `;
 
@@ -299,6 +383,7 @@ function renderContractor(data) {
                 <div class="contractor-market">${marketHtml}</div>
             </div>
         `;
+        restoreContractorScrollState(scrollState, selectedContractorDailyType);
         return;
     }
 
@@ -322,6 +407,7 @@ function renderContractor(data) {
         <h2 class="subheading">Contractor Fleet Dealer</h2>
         ${marketSummaryHtml}
     `;
+    restoreContractorScrollState(scrollState, selectedContractorDailyType);
 }
 
 function renderRanks(data) {
@@ -802,6 +888,7 @@ function openUI(data, options = {}) {
 function refreshDispatchData(data = {}) {
     if (!data || !app || app.classList.contains('hidden') || app.classList.contains('dispatch-closing')) return;
 
+    const scrollState = getDispatchScrollState();
     dispatchData = data;
     configureUILocale(data);
     configureUISounds(data.config || {});
@@ -859,6 +946,7 @@ function refreshDispatchData(data = {}) {
     const previewRendered = dispatchRenderChanged(`preview:${activeDispatchTab}`, dispatchTabSignature(data, activeDispatchTab));
     if (rendered || previewRendered) {
         renderPreviewContextPanel();
+        restoreDispatchScrollState(scrollState);
     }
 }
 

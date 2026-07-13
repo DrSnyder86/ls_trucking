@@ -372,7 +372,7 @@
                 </div>
                 <div class="service-bay-body">
                     ${renderSummary()}
-                    <p class="service-bay-hint">${safe(t('serviceBay.hint', {}, 'Right-click and hold to rotate the camera. Use the mouse wheel to zoom while reviewing work.'))}</p>
+                    <p class="service-bay-hint">${safe(t('serviceBay.hint', {}, 'Left-click and drag to rotate the camera. Use the mouse wheel to zoom while reviewing work.'))}</p>
                     <div class="service-bay-tabs">
                         <button class="${state.page === 'service' ? 'active' : ''}" data-page="service"><i class="fas fa-screwdriver-wrench"></i> ${safe(t('serviceBay.tab.service', {}, 'Service'))}</button>
                         <button class="${state.page === 'upgrades' ? 'active' : ''}" data-page="upgrades"><i class="fas fa-gauge-high"></i> ${safe(t('serviceBay.tab.upgrades', {}, 'Upgrades'))}</button>

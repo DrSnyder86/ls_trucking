@@ -3,6 +3,13 @@ function formatTrailerEditorNumber(value) {
     return Number.isFinite(number) ? number.toFixed(3) : '0.000';
 }
 
+function normalizeTrailerEditorAxis(axis) {
+    if (axis === 'pitch') return 'x';
+    if (axis === 'roll') return 'y';
+    if (axis === 'yaw') return 'z';
+    return axis;
+}
+
 function getTrailerEditorSelectedProp() {
     if (!trailerCargoEditorState?.props?.length) return null;
     const selected = Number(trailerCargoEditorState.selectedIndex || 1);
@@ -45,6 +52,20 @@ function renderTrailerCargoEditor(state = {}) {
         const rotation = prop?.rotation || {};
         trailerCargoEditorRotation.innerText = `${formatTrailerEditorNumber(rotation.x)} / ${formatTrailerEditorNumber(rotation.y)} / ${formatTrailerEditorNumber(rotation.z)}`;
     }
+
+    trailerCargoEditor?.querySelectorAll('[data-trailer-editor-value-field]').forEach(input => {
+        if (document.activeElement === input) return;
+
+        const field = input.dataset.trailerEditorValueField === 'rotation' ? 'rotation' : 'offset';
+        const axis = normalizeTrailerEditorAxis(input.dataset.trailerEditorValueAxis);
+        input.value = formatTrailerEditorNumber(prop?.[field]?.[axis]);
+    });
+
+    trailerCargoEditor?.querySelectorAll('[data-trailer-editor-step-preset]').forEach(button => {
+        const preset = Number(button.dataset.trailerEditorStepPreset);
+        const currentStep = Number(current.step || 0.05);
+        button.classList.toggle('is-active', Number.isFinite(preset) && Math.abs(preset - currentStep) < 0.0005);
+    });
 }
 
 function showTrailerCargoEditor(state = {}) {
@@ -54,6 +75,7 @@ function showTrailerCargoEditor(state = {}) {
 
 function hideTrailerCargoEditor() {
     if (trailerCargoEditor) trailerCargoEditor.classList.add('hidden');
+    stopTrailerEditorCameraDrag();
     trailerCargoEditorState = null;
 }
 
@@ -70,9 +92,19 @@ if (trailerCargoEditor) {
             if (action === 'close') {
                 hideTrailerCargoEditor();
                 post('trailerCargoEditorClose');
+            } else if (action === 'camera') {
+                sendTrailerCargoEditorAction('camera', { control: actionButton.dataset.trailerEditorControl });
             } else {
                 sendTrailerCargoEditorAction(action);
             }
+            return;
+        }
+
+        const stepPreset = event.target.closest('[data-trailer-editor-step-preset]');
+        if (stepPreset) {
+            const step = Number(stepPreset.dataset.trailerEditorStepPreset || 0.05);
+            if (trailerCargoEditorStep) trailerCargoEditorStep.value = step;
+            sendTrailerCargoEditorAction('step', { step });
             return;
         }
 
@@ -84,6 +116,17 @@ if (trailerCargoEditor) {
                 delta: Number(nudgeButton.dataset.trailerEditorDelta || 0)
             });
         }
+    });
+
+    trailerCargoEditor.addEventListener('change', event => {
+        const valueInput = event.target.closest('[data-trailer-editor-value-field]');
+        if (!valueInput) return;
+
+        sendTrailerCargoEditorAction('setValue', {
+            field: valueInput.dataset.trailerEditorValueField,
+            axis: valueInput.dataset.trailerEditorValueAxis,
+            value: Number(valueInput.value)
+        });
     });
 }
 
@@ -103,6 +146,71 @@ if (trailerCargoEditorPropModel) {
     trailerCargoEditorPropModel.addEventListener('change', () => {
         sendTrailerCargoEditorAction('setModel', { model: trailerCargoEditorPropModel.value.trim() });
     });
+}
+
+let trailerEditorCameraDrag = null;
+let trailerEditorCameraFrame = null;
+let trailerEditorCameraDeltaX = 0;
+let trailerEditorCameraDeltaY = 0;
+
+function flushTrailerEditorCameraDrag() {
+    trailerEditorCameraFrame = null;
+
+    const deltaX = trailerEditorCameraDeltaX;
+    const deltaY = trailerEditorCameraDeltaY;
+    trailerEditorCameraDeltaX = 0;
+    trailerEditorCameraDeltaY = 0;
+
+    if (Math.abs(deltaX) < 0.1 && Math.abs(deltaY) < 0.1) return;
+    sendTrailerCargoEditorAction('camera', { control: 'drag', deltaX, deltaY });
+}
+
+function queueTrailerEditorCameraDrag(deltaX, deltaY) {
+    trailerEditorCameraDeltaX += deltaX;
+    trailerEditorCameraDeltaY += deltaY;
+
+    if (!trailerEditorCameraFrame) {
+        trailerEditorCameraFrame = window.requestAnimationFrame(flushTrailerEditorCameraDrag);
+    }
+}
+
+function stopTrailerEditorCameraDrag() {
+    trailerEditorCameraDrag = null;
+    trailerCargoEditor?.querySelector('[data-trailer-editor-camera-pad]')?.classList.remove('is-dragging');
+}
+
+const trailerEditorCameraPad = trailerCargoEditor?.querySelector('[data-trailer-editor-camera-pad]');
+if (trailerEditorCameraPad) {
+    trailerEditorCameraPad.addEventListener('pointerdown', event => {
+        if (event.button !== 0) return;
+
+        trailerEditorCameraDrag = {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY
+        };
+        trailerEditorCameraPad.setPointerCapture(event.pointerId);
+        trailerEditorCameraPad.classList.add('is-dragging');
+        event.preventDefault();
+    });
+
+    trailerEditorCameraPad.addEventListener('pointermove', event => {
+        if (!trailerEditorCameraDrag || event.pointerId !== trailerEditorCameraDrag.pointerId) return;
+
+        const deltaX = event.clientX - trailerEditorCameraDrag.x;
+        const deltaY = event.clientY - trailerEditorCameraDrag.y;
+        trailerEditorCameraDrag.x = event.clientX;
+        trailerEditorCameraDrag.y = event.clientY;
+        queueTrailerEditorCameraDrag(deltaX, deltaY);
+        event.preventDefault();
+    });
+
+    trailerEditorCameraPad.addEventListener('pointerup', stopTrailerEditorCameraDrag);
+    trailerEditorCameraPad.addEventListener('pointercancel', stopTrailerEditorCameraDrag);
+    trailerEditorCameraPad.addEventListener('wheel', event => {
+        sendTrailerCargoEditorAction('camera', { control: 'wheel', deltaY: event.deltaY });
+        event.preventDefault();
+    }, { passive: false });
 }
 
 window.addEventListener('keydown', event => {

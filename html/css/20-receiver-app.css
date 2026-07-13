@@ -1653,6 +1653,14 @@
     color: #ffe3a0 !important;
 }
 
+.mini.mini-scanner .mini-cargo-condition[data-level="loading"] {
+    color: #7cff9b !important;
+}
+
+.mini.mini-scanner .mini-cargo-condition[data-level="warning"] {
+    color: #ffd75e !important;
+}
+
 .mini.mini-scanner .mini-cargo-condition[data-level="damaged"],
 .mini.mini-scanner .mini-cargo-condition[data-level="critical"] {
     color: #ff9d8b !important;
@@ -2111,11 +2119,13 @@
 .mini-dock .mini-dock-destination-name {
     color: rgba(218,224,214,0.76) !important;
     font-size: 10px !important;
+    text-align: center !important;
 }
 
 .mini-dock .mini-dock-destination-street {
     color: rgba(218,224,214,0.54) !important;
     font-size: 9px !important;
+    text-align: center !important;
 }
 
 .mini-dock .mini-dock-destination-street.hidden {
@@ -2304,6 +2314,18 @@
         0 1px 0 rgba(0,0,0,0.36) !important;
     clip-path: none !important;
     overflow: hidden !important;
+}
+
+.mini.mini-scanner .mini-maker-badge[data-mini-close-receiver] {
+    appearance: none !important;
+    font: inherit !important;
+    color: inherit !important;
+    cursor: pointer !important;
+}
+
+.mini.mini-scanner .mini-maker-badge[data-mini-close-receiver]:hover {
+    border-color: rgba(153,224,239,0.44) !important;
+    filter: brightness(1.08) !important;
 }
 
 .mini.mini-scanner .mini-maker-badge::after,
@@ -2538,6 +2560,7 @@
     font-weight: 900 !important;
     line-height: 1.08 !important;
     white-space: normal !important;
+    text-align: center !important;
     overflow: hidden !important;
     text-overflow: clip !important;
     -webkit-line-clamp: 2 !important;
@@ -2551,6 +2574,7 @@
     font-size: 9px !important;
     font-weight: 900 !important;
     line-height: 1.1 !important;
+    text-align: center !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
@@ -2698,11 +2722,11 @@
 .mini.mini-scanner #miniRoutePage .mini-control-strip {
     height: auto !important;
     min-height: 0 !important;
-    grid-template-rows: 42px 53px 32px !important;
+    grid-template-rows: 42px 53px !important;
     gap: 6px !important;
 }
 
-.mini.mini-scanner #miniRoutePage .mini-cancel-route-button {
+.mini.mini-scanner .mini-cancel-route-button {
     height: 32px !important;
     min-height: 32px !important;
     display: grid !important;
@@ -2721,17 +2745,17 @@
     cursor: pointer !important;
 }
 
-.mini.mini-scanner #miniRoutePage .mini-cancel-route-button.hidden {
+.mini.mini-scanner .mini-cancel-route-button.hidden {
     display: none !important;
 }
 
-.mini.mini-scanner #miniRoutePage .mini-cancel-route-button i {
+.mini.mini-scanner .mini-cancel-route-button i {
     font-size: 10px !important;
     color: rgba(255,137,122,0.82) !important;
     line-height: 1 !important;
 }
 
-.mini.mini-scanner #miniRoutePage .mini-cancel-route-button span {
+.mini.mini-scanner .mini-cancel-route-button span {
     color: rgba(255,220,214,0.90) !important;
     font-size: 8px !important;
     font-weight: 900 !important;
@@ -2740,7 +2764,7 @@
     letter-spacing: 0.3px !important;
 }
 
-.mini.mini-scanner #miniRoutePage .mini-cancel-route-button:hover {
+.mini.mini-scanner .mini-cancel-route-button:hover {
     border-color: rgba(255,137,122,0.42) !important;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.055), 0 0 12px rgba(255,82,68,0.10) !important;
 }
@@ -3071,6 +3095,63 @@
     display: block !important;
     color: #f5f7f4 !important;
     font-size: 12px !important;
+    font-weight: 900 !important;
+    line-height: 1.12 !important;
+    overflow-wrap: anywhere !important;
+}
+
+.mini.mini-scanner .mini-radio-memory-panel {
+    gap: 6px !important;
+}
+
+.mini.mini-scanner .mini-radio-memory-list {
+    display: grid !important;
+    gap: 5px !important;
+}
+
+.mini.mini-scanner .mini-radio-memory-item {
+    display: grid !important;
+    grid-template-columns: 18px minmax(0, 1fr) !important;
+    gap: 7px !important;
+    align-items: start !important;
+    min-width: 0 !important;
+    padding: 6px 7px !important;
+    border-radius: 10px !important;
+    background: rgba(0,0,0,0.22) !important;
+    border: 1px solid rgba(218,224,214,0.08) !important;
+}
+
+.mini.mini-scanner .mini-radio-memory-item.is-tx {
+    border-color: rgba(255,209,91,0.16) !important;
+}
+
+.mini.mini-scanner .mini-radio-memory-item i {
+    display: grid !important;
+    place-items: center !important;
+    color: rgba(142,255,145,0.74) !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+    padding-top: 2px !important;
+}
+
+.mini.mini-scanner .mini-radio-memory-item.is-tx i {
+    color: rgba(255,209,91,0.78) !important;
+}
+
+.mini.mini-scanner .mini-radio-memory-item small {
+    display: block !important;
+    color: rgba(218,224,214,0.56) !important;
+    font-size: 7.5px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    text-transform: uppercase !important;
+}
+
+.mini.mini-scanner .mini-radio-memory-item strong {
+    display: block !important;
+    margin-top: 3px !important;
+    color: rgba(245,247,244,0.91) !important;
+    font-size: 9.5px !important;
     font-weight: 900 !important;
     line-height: 1.12 !important;
     overflow-wrap: anywhere !important;

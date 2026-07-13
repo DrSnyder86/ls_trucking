@@ -15,6 +15,11 @@ function renderMiniDock(contract = {}) {
         contract.loaded,
         contract.cargoReady,
         contract.verifiedCargo,
+        contract.autoLoadActive,
+        contract.autoLoadPaused,
+        contract.autoLoadLoaded,
+        contract.autoLoadTotal,
+        contract.autoLoadLabel,
         contract.trailerAttached,
         contract.trailerHooked,
         contract.cargoConditionLevel,
@@ -37,7 +42,9 @@ function renderMiniDock(contract = {}) {
 
     const cargoTotal = Math.max(0, Number(contract.requiredCargo) || 0);
     const cargoDelivered = Math.max(0, Math.min(cargoTotal, Number(contract.currentStop) || 0));
-    const cargoLoaded = Math.max(0, Math.min(cargoTotal - cargoDelivered, Number(contract.loadedCargo) || 0));
+    const assistedLoading = contract.autoLoadActive === true || contract.autoLoadPaused === true;
+    const cargoLoadedCount = assistedLoading ? Number(contract.autoLoadLoaded ?? contract.loadedCargo) : Number(contract.loadedCargo);
+    const cargoLoaded = Math.max(0, Math.min(cargoTotal - cargoDelivered, cargoLoadedCount || 0));
     const stopsTotal = Math.max(0, Number(contract.totalStops) || 0);
     const stopsComplete = Math.max(0, Math.min(stopsTotal, Number(contract.currentStop) || 0));
 
@@ -135,6 +142,7 @@ returnGarageBtn.addEventListener('click', () => { playUISound('confirm'); post('
 if (dispatchCloseBtn) {
     dispatchCloseBtn.addEventListener('click', () => {
         playUISound('click');
+        clearQueuedDispatchRefresh();
         closeUI();
         post('close');
     });
@@ -145,6 +153,7 @@ function hideMiniReceiverSurface() {
         mini.classList.remove('dispatch-flash', 'radio-rx-flash');
         miniLastSignature = '';
         miniLastContract = {};
+        miniDispatchOpenHistoryKeys.clear();
         setMiniPage('home', { instant: true });
         clearTimeout(miniPulseTimer);
         miniPulseTimer = null;
@@ -160,8 +169,11 @@ function hideMiniDockSurface() {
 
 let pendingDispatchRefreshData = null;
 let dispatchRefreshFrame = null;
+let dispatchRefreshTimer = null;
+let lastDispatchRefreshAt = 0;
 let pendingMiniRefreshContract = null;
 let miniRefreshFrame = null;
+const DISPATCH_REFRESH_MIN_MS = 90;
 
 function scheduleUIFrame(callback) {
     return typeof requestAnimationFrame === 'function'
@@ -169,17 +181,47 @@ function scheduleUIFrame(callback) {
         : setTimeout(callback, 0);
 }
 
+function uiNow() {
+    return typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
+}
+
+function flushDispatchRefresh() {
+    dispatchRefreshFrame = null;
+    const refreshData = pendingDispatchRefreshData;
+    pendingDispatchRefreshData = null;
+    if (!refreshData || !app || app.classList.contains('hidden') || app.classList.contains('dispatch-closing')) return;
+
+    lastDispatchRefreshAt = uiNow();
+    refreshDispatchData(refreshData);
+}
+
+function clearQueuedDispatchRefresh() {
+    pendingDispatchRefreshData = null;
+    if (dispatchRefreshTimer) {
+        clearTimeout(dispatchRefreshTimer);
+        dispatchRefreshTimer = null;
+    }
+    lastDispatchRefreshAt = 0;
+}
+
 function queueDispatchRefresh(data) {
     pendingDispatchRefreshData = data || {};
-    if (dispatchRefreshFrame) return;
+    if (dispatchRefreshFrame || dispatchRefreshTimer) return;
 
-    dispatchRefreshFrame = scheduleUIFrame(() => {
-        dispatchRefreshFrame = null;
-        const refreshData = pendingDispatchRefreshData;
-        pendingDispatchRefreshData = null;
-        if (!refreshData || !app || app.classList.contains('hidden') || app.classList.contains('dispatch-closing')) return;
-        refreshDispatchData(refreshData);
-    });
+    const elapsed = uiNow() - lastDispatchRefreshAt;
+    const delay = lastDispatchRefreshAt > 0 ? Math.max(0, DISPATCH_REFRESH_MIN_MS - elapsed) : 0;
+
+    if (delay > 0) {
+        dispatchRefreshTimer = setTimeout(() => {
+            dispatchRefreshTimer = null;
+            dispatchRefreshFrame = scheduleUIFrame(flushDispatchRefresh);
+        }, delay);
+        return;
+    }
+
+    dispatchRefreshFrame = scheduleUIFrame(flushDispatchRefresh);
 }
 
 function queueMiniRefresh(contract = {}) {
@@ -199,6 +241,12 @@ function queueMiniRefresh(contract = {}) {
         if (miniCurrentPage === 'dispatch') renderMiniDispatchPage(contract);
         if (miniCurrentPage === 'settings') renderMiniSettingsPage(contract);
     });
+}
+
+function renderRouteHistoryPreservingScroll(history) {
+    const scrollState = getDispatchScrollState();
+    renderRouteHistory(history);
+    restoreDispatchScrollState(scrollState);
 }
 
 if (previewContext) {
@@ -382,22 +430,27 @@ if (contractorContent) {
             return;
         }
 
-        const selectedDailyType = event.target.closest('[data-contractor-daily-type]');
+        const selectedDailyRoute = event.target.closest('[data-contractor-select-daily-route]');
+        if (selectedDailyRoute) {
+            const routeKey = selectedDailyRoute.getAttribute('data-contractor-select-daily-route') || null;
+            const routeType = selectedDailyRoute.getAttribute('data-contractor-daily-route-type') || selectedContractorDailyType;
+            playUISound('click');
+            selectedContractorPanel = 'daily';
+            selectedContractorDailyRouteKey = routeKey;
+            selectedContractorDailyType = routeType;
+            contractorContent.querySelectorAll('[data-contractor-select-daily-route]').forEach(card => {
+                card.classList.toggle('is-selected', card === selectedDailyRoute);
+            });
+            renderPreviewContextPanel();
+            return;
+        }
+
+        const selectedDailyType = event.target.closest('button[data-contractor-daily-type]');
         if (selectedDailyType) {
             playUISound('click');
             selectedContractorDailyType = selectedDailyType.dataset.contractorDailyType || null;
             selectedContractorPanel = 'daily';
             selectedContractorDailyRouteKey = null;
-            renderContractor(dispatchData || {});
-            renderPreviewContextPanel();
-            return;
-        }
-
-        const selectedDailyRoute = event.target.closest('[data-contractor-select-daily-route]');
-        if (selectedDailyRoute) {
-            playUISound('click');
-            selectedContractorPanel = 'daily';
-            selectedContractorDailyRouteKey = selectedDailyRoute.dataset.contractorSelectDailyRoute || null;
             renderContractor(dispatchData || {});
             renderPreviewContextPanel();
             return;
@@ -558,6 +611,14 @@ document.addEventListener('click', event => {
         return;
     }
 
+    const closeReceiverLogo = event.target.closest('[data-mini-close-receiver]');
+    if (closeReceiverLogo && mini && mini.contains(closeReceiverLogo)) {
+        playUISound('click');
+        hideMiniReceiverSurface();
+        post('closeReceiver');
+        return;
+    }
+
     const pageButton = event.target.closest('[data-mini-page]');
     if (pageButton && mini && mini.contains(pageButton)) {
         playUISound('click');
@@ -596,6 +657,7 @@ document.addEventListener('keydown', event => {
 
     event.preventDefault();
     event.stopPropagation();
+    clearQueuedDispatchRefresh();
     closeUI();
     post('close');
 });
@@ -603,9 +665,15 @@ document.addEventListener('keydown', event => {
 window.addEventListener('message', event => {
     const data = event.data;
 
-    if (data.action === 'open') openUI(data.data);
+    if (data.action === 'open') {
+        clearQueuedDispatchRefresh();
+        openUI(data.data);
+    }
     if (data.action === 'refreshDispatch') queueDispatchRefresh(data.data);
-    if (data.action === 'close') closeUI();
+    if (data.action === 'close') {
+        clearQueuedDispatchRefresh();
+        closeUI();
+    }
     if (data.action === 'showFreightDialog') showFreightDialog(data);
     if (data.action === 'showFreightCancelDialog') showFreightCancelDialog(data);
     if (data.action === 'showFreightHandoff') showFreightHandoff(data);
@@ -659,7 +727,7 @@ window.addEventListener('message', event => {
     }
 
     if (data.action === 'updateLastRouteSummary') {
-        renderRouteHistory(data.summary);
+        renderRouteHistoryPreservingScroll(data.summary);
     }
 
     if (data.action === 'updateRouteHistory') {
@@ -669,7 +737,7 @@ window.addEventListener('message', event => {
             lastRouteSummary: data.summary || (history[0] || null),
             routeHistory: history
         };
-        renderRouteHistory(history);
+        renderRouteHistoryPreservingScroll(history);
         if (activeDispatchTab === 'history') buildHistoryPreviewPanel();
         if (miniLastContract) {
             miniLastContract = { ...miniLastContract, routeHistory: history };

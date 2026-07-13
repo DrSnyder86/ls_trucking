@@ -7,20 +7,55 @@
     font-family: Arial, Helvetica, sans-serif;
 }
 
+.trailer-editor-camera-pad {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    cursor: grab;
+    pointer-events: auto;
+}
+
+.trailer-editor-camera-pad.is-dragging {
+    cursor: grabbing;
+}
+
 .trailer-editor-panel {
     position: absolute;
-    right: 28px;
-    top: 72px;
-    width: 360px;
+    right: 14px;
+    top: 42px;
+    z-index: 2;
+    width: calc(100vw - 28px);
+    max-width: 360px;
+    max-height: calc(100vh - 64px);
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
     padding: 14px;
+    overflow-x: hidden;
+    overflow-y: auto;
     pointer-events: auto;
     color: #eef4ef;
     background: linear-gradient(180deg, rgba(18,24,22,0.98), rgba(5,8,7,0.98));
     border: 1px solid rgba(122,255,132,0.28);
     border-radius: 12px;
     box-shadow: 0 18px 45px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.trailer-editor-panel > * {
+    min-width: 0;
+}
+
+.trailer-editor-panel::-webkit-scrollbar {
+    width: 4px;
+}
+
+.trailer-editor-panel::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.25);
+}
+
+.trailer-editor-panel::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(122,255,132,0.45);
 }
 
 .trailer-editor-header {
@@ -30,6 +65,31 @@
     align-items: flex-start;
     padding-bottom: 10px;
     border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.trailer-editor-title {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+}
+
+.trailer-editor-title > div {
+    min-width: 0;
+}
+
+.trailer-editor-title-icon {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    color: #101410;
+    background: linear-gradient(180deg, #79ff86, #35b949);
+    box-shadow: inset 0 1px rgba(255,255,255,0.4), 0 8px 20px rgba(0,0,0,0.35);
+    font-size: 16px;
 }
 
 .trailer-editor-header small,
@@ -45,24 +105,34 @@
 }
 
 .trailer-editor-header strong {
-    display: block;
+    display: -webkit-box;
     margin-top: 3px;
+    overflow: hidden;
     color: #fff;
-    font-size: 17px;
-    line-height: 1.1;
+    font-size: 16px;
+    line-height: 1.08;
+    text-overflow: ellipsis;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
 }
 
 .trailer-editor-header span {
     display: block;
     margin-top: 2px;
+    overflow: hidden;
     color: #79ff86;
     font-size: 11px;
     font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .trailer-editor-header button,
 .trailer-editor-actions button,
-.trailer-editor-axis-row button {
+.trailer-editor-axis-row button,
+.trailer-editor-step-presets button,
+.trailer-editor-camera-tools button {
     border: 0;
     cursor: pointer;
     color: #eaf5eb;
@@ -79,10 +149,13 @@
 .trailer-editor-row {
     display: grid;
     gap: 5px;
+    min-width: 0;
 }
 
 .trailer-editor-row select,
-.trailer-editor-row input {
+.trailer-editor-row input,
+.trailer-editor-axis-row input {
+    min-width: 0;
     width: 100%;
     height: 34px;
     border: 1px solid rgba(255,255,255,0.12);
@@ -96,18 +169,79 @@
 }
 
 .trailer-editor-step-row {
-    grid-template-columns: 60px 1fr;
+    grid-template-columns: 48px 1fr;
     align-items: center;
+}
+
+.trailer-editor-step-control {
+    display: grid;
+    grid-template-columns: 74px 1fr;
+    gap: 7px;
+    align-items: center;
+    min-width: 0;
+}
+
+.trailer-editor-step-presets {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    min-width: 0;
+}
+
+.trailer-editor-step-presets button {
+    height: 28px;
+    padding: 0;
+    min-width: 0;
+    color: #d9ffdc;
+    background: rgba(122,255,132,0.10);
+    font-size: 10px;
+}
+
+.trailer-editor-step-presets button.is-active {
+    color: #101410;
+    background: linear-gradient(180deg, #79ff86, #35b949);
+}
+
+.trailer-editor-camera-tools {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    min-width: 0;
+}
+
+.trailer-editor-camera-tools button {
+    min-width: 0;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: #d9ffdc;
+    background: rgba(255,255,255,0.08);
+    font-size: 10px;
+    line-height: 1;
+}
+
+.trailer-editor-camera-tools button i {
+    font-size: 11px;
+}
+
+.trailer-editor-camera-tools button span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .trailer-editor-values {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+    min-width: 0;
 }
 
 .trailer-editor-values div {
-    padding: 9px;
+    min-width: 0;
+    padding: 8px;
     border: 1px solid rgba(255,255,255,0.10);
     border-radius: 8px;
     background: rgba(0,0,0,0.30);
@@ -118,18 +252,23 @@
     margin-top: 4px;
     color: #ffd66b;
     font-family: "Courier New", monospace;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 900;
+    line-height: 1.25;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .trailer-editor-adjustments {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+    min-width: 0;
 }
 
 .trailer-editor-axis-panel {
     display: grid;
+    min-width: 0;
     gap: 6px;
     padding: 9px;
     border: 1px solid rgba(122,255,132,0.13);
@@ -139,13 +278,24 @@
 
 .trailer-editor-axis-row {
     display: grid;
-    grid-template-columns: 1fr 32px 32px;
-    gap: 5px;
+    grid-template-columns: minmax(0, 1fr) 26px 26px;
+    grid-template-areas:
+        "label label label"
+        "value minus plus";
+    gap: 4px;
     align-items: center;
+    padding: 5px;
+    border-radius: 7px;
+    background: rgba(0,0,0,0.16);
 }
 
 .trailer-editor-axis-row span {
+    grid-area: label;
     min-width: 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
 }
 
 .trailer-editor-axis-row b {
@@ -169,21 +319,44 @@
     white-space: nowrap;
 }
 
+.trailer-editor-axis-row input {
+    grid-area: value;
+    height: 26px;
+    padding: 0 5px;
+    border-radius: 6px;
+    color: #ffd66b;
+    font-family: "Courier New", monospace;
+    font-size: 10px;
+    font-weight: 900;
+    text-align: right;
+}
+
 .trailer-editor-axis-row button {
-    height: 28px;
+    height: 26px;
+    min-width: 0;
     color: #d9ffdc;
     background: rgba(122,255,132,0.12);
     font-size: 14px;
     line-height: 1;
 }
 
+.trailer-editor-axis-row button:nth-of-type(1) {
+    grid-area: minus;
+}
+
+.trailer-editor-axis-row button:nth-of-type(2) {
+    grid-area: plus;
+}
+
 .trailer-editor-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
+    min-width: 0;
 }
 
 .trailer-editor-actions button {
+    min-width: 0;
     height: 34px;
     display: flex;
     align-items: center;

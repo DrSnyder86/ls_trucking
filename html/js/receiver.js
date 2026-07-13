@@ -1,3 +1,5 @@
+const miniDispatchOpenHistoryKeys = new Set();
+
 function formatMoney(value) {
     const number = Number(value || 0);
     return `$${number.toLocaleString()}`;
@@ -20,7 +22,7 @@ function formatMiniClock() {
 }
 
 function normalizeLogoPath(value) {
-    const logoPath = String(value || 'images/badger-logo.png').trim();
+    const logoPath = String(value || 'images/badger-logo.webp').trim();
     if (/^(https?:|nui:|data:|\.{0,2}\/)/i.test(logoPath)) return logoPath;
     return `../${logoPath.replace(/^\/+/, '')}`;
 }
@@ -55,8 +57,30 @@ function updateReceiverRouteProgress(bar, contract = {}) {
     if (!bar) return;
     const totalStops = Number(contract.totalStops || 0);
     const currentStop = Number(contract.currentStop || 0);
-    const routePercent = totalStops > 0 ? Math.max(0, Math.min(100, (currentStop / totalStops) * 100)) : 0;
+    const loadProgress = miniLoadProgress(contract);
+    const showLoadProgress = contract.type !== 'trailer' && contract.verifiedCargo !== true && loadProgress.total > 0;
+    const routePercent = showLoadProgress
+        ? Math.max(0, Math.min(100, (loadProgress.loaded / loadProgress.total) * 100))
+        : totalStops > 0 ? Math.max(0, Math.min(100, (currentStop / totalStops) * 100)) : 0;
     bar.style.width = `${routePercent}%`;
+}
+
+function miniLoadProgress(contract = {}) {
+    const assisted = contract.autoLoadActive === true || contract.autoLoadPaused === true;
+    const loaded = assisted ? contract.autoLoadLoaded ?? contract.loadedCargo : contract.loadedCargo;
+    const total = assisted ? contract.autoLoadTotal ?? contract.requiredCargo : contract.requiredCargo;
+
+    return {
+        assisted,
+        loaded: Math.max(0, Number(loaded) || 0),
+        total: Math.max(0, Number(total) || 0)
+    };
+}
+
+function miniLoadStatusText(contract = {}) {
+    if (contract.autoLoadPaused === true) return uiText('receiver.status.loadingPaused', {}, 'LOADING PAUSED');
+    if (contract.autoLoadActive === true) return uiText('receiver.status.loadingCargo', {}, 'LOADING CARGO');
+    return contract.cargoConditionLabel || uiText('label.cargoStable', {}, 'CARGO STABLE');
 }
 
 function escapeHtml(value) {
@@ -135,6 +159,29 @@ function miniLoadActionButton(label, status, icon, action, options = {}) {
             <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(status)}</small></span>
         </button>
     `;
+}
+
+function renderMiniCargoManifestVerificationPanel(contract = {}) {
+    if (contract.hasActiveRoute === false) return '';
+    if (contract.type === 'trailer') return '';
+    if ((contract.loadVerificationMode || 'receiver') !== 'receiver') return '';
+
+    const pendingAction = contract.receiverLoadAction || '';
+    const actionPending = Boolean(pendingAction);
+    const verified = contract.verifiedCargo === true;
+    const ready = contract.cargoReady === true;
+
+    return miniPanel(uiText('receiver.detail.dispatchManifestClearance', {}, 'Dispatch Manifest Clearance'), `
+        <div class="mini-load-action-stack">
+            ${miniLoadActionButton(
+                uiText('receiver.action.verifyCargoManifest', {}, 'Verify Cargo Manifest'),
+                verified ? uiText('receiver.status.manifestVerified', {}, 'Manifest verified - route active') : ready ? uiText('receiver.status.loadReadyDispatch', {}, 'Load count ready for dispatch') : uiText('receiver.status.finishLoadingCargo', {}, 'Finish loading all assigned cargo'),
+                verified ? 'fa-satellite-dish' : 'fa-clipboard-check',
+                'verify_cargo',
+                { complete: verified, pending: pendingAction === 'verify_cargo', disabled: actionPending || verified || !ready }
+            )}
+        </div>
+    `, 'mini-load-clearance-panel');
 }
 
 function getReceiverVehicleType(contract = {}) {
@@ -378,11 +425,12 @@ function groupManifestEntries(entries = []) {
 function renderMiniHome(contract = {}) {
     const active = contract.hasActiveRoute !== false;
     const reuse = contract.reuseVehicle || {};
+    const loadingStatus = miniLoadStatusText(contract);
     setText('miniHomeStatus', active ? (contract.label || uiText('label.routeActive', {}, 'Active route')) : uiText('receiver.status.receiverStandby', {}, 'Receiver standby'));
     setText('miniHomeSubstatus', active ? (contract.stage || uiText('receiver.fallback.routeActive', {}, 'Route active')) : uiText('empty.noRouteAssigned', {}, 'No active route assigned'));
     setText('miniAppRouteBadge', miniActiveLabel(contract));
-    setText('miniAppManifestBadge', active ? uiText('receiver.status.ready', {}, 'READY') : uiText('receiver.status.noLoad', {}, 'NO LOAD'));
-    setText('miniAppLoadBadge', contract.cargoConditionLabel || (active ? uiText('receiver.status.loaded', {}, 'LOADED') : reuse.available ? uiText('receiver.status.ready', {}, 'READY') : uiText('receiver.status.idle', {}, 'IDLE')));
+    setText('miniAppManifestBadge', contract.autoLoadActive || contract.autoLoadPaused ? uiText('receiver.status.dockLoading', {}, 'DOCK LOAD') : active ? uiText('receiver.status.ready', {}, 'READY') : uiText('receiver.status.noLoad', {}, 'NO LOAD'));
+    setText('miniAppLoadBadge', contract.autoLoadActive || contract.autoLoadPaused ? loadingStatus : contract.cargoConditionLabel || (active ? uiText('receiver.status.loaded', {}, 'LOADED') : reuse.available ? uiText('receiver.status.ready', {}, 'READY') : uiText('receiver.status.idle', {}, 'IDLE')));
     setText('miniAppVehicleBadge', active ? (contract.plate || uiText('receiver.status.assigned', {}, 'ASSIGNED')) : reuse.available ? (reuse.plate || uiText('receiver.status.ready', {}, 'READY')) : uiText('common.none', {}, 'NONE'));
     setText('miniAppDispatchBadge', contract.radioChatter ? uiText('receiver.status.newRx', {}, 'NEW RX') : uiText('receiver.status.rx', {}, 'RX'));
 }
@@ -453,9 +501,10 @@ function renderMiniManifestPage(contract = {}) {
 
     content.innerHTML = [
         miniPanel(uiText('receiver.panel.contract', {}, 'Contract'), summaryRows),
+        renderMiniCargoManifestVerificationPanel(contract),
         releasePanel,
         `<section class="mini-info-panel"><small>${escapeHtml(uiText('receiver.panel.deliveryStops', {}, 'Delivery Stops'))}</small>${stopRows}</section>`
-    ].join('');
+    ].filter(Boolean).join('');
 }
 
 function renderMiniLoadPage(contract = {}) {
@@ -475,11 +524,13 @@ function renderMiniLoadPage(contract = {}) {
     const checklist = contract.loadChecklist || {};
     const pendingAction = contract.receiverLoadAction || '';
     const actionPending = Boolean(pendingAction);
+    const loadProgress = miniLoadProgress(contract);
+    const loadStatus = miniLoadStatusText(contract);
     const rows = [
         miniInfoRow(uiText('label.cargo', {}, 'Cargo'), contract.cargo || uiText('label.cargo', {}, 'Cargo'), 'fa-box'),
-        miniInfoRow(uiText('receiver.detail.loaded', {}, 'Loaded'), `${contract.loadedCargo || 0} / ${contract.requiredCargo || 0}`, 'fa-boxes-stacked'),
+        miniInfoRow(uiText('receiver.detail.loaded', {}, 'Loaded'), `${loadProgress.loaded} / ${loadProgress.total}`, 'fa-boxes-stacked'),
         miniInfoRow(uiText('receiver.detail.stops', {}, 'Stops'), `${contract.currentStop || 0} / ${contract.totalStops || 0}`, 'fa-map-pin'),
-        miniInfoRow(uiText('receiver.detail.condition', {}, 'Condition'), contract.cargoConditionLabel || uiText('label.cargoStable', {}, 'CARGO STABLE'), 'fa-shield-halved'),
+        miniInfoRow(uiText('receiver.detail.condition', {}, 'Condition'), loadStatus, 'fa-shield-halved'),
         miniInfoRow(uiText('receiver.detail.conditionNotes', {}, 'Condition Notes'), contract.cargoConditionNote, 'fa-clipboard-list')
     ];
 
@@ -491,8 +542,13 @@ function renderMiniLoadPage(contract = {}) {
             miniInfoRow(uiText('receiver.detail.trailerDrop', {}, 'Trailer Drop'), contract.trailerDropped ? uiText('receiver.status.dropped', {}, 'Dropped') : uiText('receiver.status.notDropped', {}, 'Not dropped'), 'fa-location-dot')
         );
     } else {
+        const cargoReadyText = contract.autoLoadPaused === true
+            ? uiText('receiver.status.loadingPaused', {}, 'Loading paused')
+            : contract.autoLoadActive === true
+                ? contract.autoLoadLabel || uiText('common.loading', {}, 'Loading in progress')
+                : contract.cargoReady ? uiText('common.ready', {}, 'Ready for verification') : uiText('common.loading', {}, 'Loading in progress');
         rows.push(
-            miniInfoRow(uiText('receiver.detail.cargoReady', {}, 'Cargo Ready'), contract.cargoReady ? uiText('common.ready', {}, 'Ready for verification') : uiText('common.loading', {}, 'Loading in progress'), 'fa-clipboard-check'),
+            miniInfoRow(uiText('receiver.detail.cargoReady', {}, 'Cargo Ready'), cargoReadyText, 'fa-clipboard-check'),
             miniInfoRow(uiText('receiver.detail.verified', {}, 'Verified'), contract.verifiedCargo ? uiText('receiver.status.loadVerified', {}, 'Load verified') : uiText('receiver.status.pendingVerification', {}, 'Pending verification'), 'fa-check')
         );
     }
@@ -517,24 +573,20 @@ function renderMiniLoadPage(contract = {}) {
                 </div>
             `, 'mini-load-clearance-panel');
         } else {
-            const verified = contract.verifiedCargo === true;
-            const ready = contract.cargoReady === true;
-            verificationPanel = miniPanel(uiText('receiver.detail.dispatchManifestClearance', {}, 'Dispatch Manifest Clearance'), `
-                <div class="mini-load-action-stack">
-                    ${miniLoadActionButton(
-                        uiText('receiver.action.verifyCargoManifest', {}, 'Verify Cargo Manifest'),
-                        verified ? uiText('receiver.status.manifestVerified', {}, 'Manifest verified - route active') : ready ? uiText('receiver.status.loadReadyDispatch', {}, 'Load count ready for dispatch') : uiText('receiver.status.finishLoadingCargo', {}, 'Finish loading all assigned cargo'),
-                        verified ? 'fa-satellite-dish' : 'fa-clipboard-check',
-                        'verify_cargo',
-                        { complete: verified, pending: pendingAction === 'verify_cargo', disabled: actionPending || verified || !ready }
-                    )}
-                </div>
-            `, 'mini-load-clearance-panel');
+            verificationPanel = renderMiniCargoManifestVerificationPanel(contract);
         }
     }
 
+    const cancelRoutePanel = miniPanel(uiText('receiver.panel.routeControl', {}, 'Route Control'), `
+        <button class="mini-cancel-route-button" data-mini-cancel-route>
+            <i class="fas fa-ban"></i>
+            <span>${uiText('action.cancelRoute', {}, 'Cancel Route')}</span>
+        </button>
+    `, 'mini-route-control-panel');
+
     content.innerHTML = [
         verificationPanel,
+        cancelRoutePanel,
         contract.type === 'trailer' ? miniTrailerPhotoPanel(contract) : '',
         miniPanel(uiText('receiver.detail.loadStatus', {}, 'Load Status'), rows),
         renderReceiverPriorityPanel(contract)
@@ -588,18 +640,75 @@ function renderMiniVehiclePage(contract = {}) {
     ].join('');
 }
 
+function miniHistoryCardKey(summary = {}) {
+    if (typeof routeHistoryCardKey === 'function') return routeHistoryCardKey(summary);
+
+    return [
+        summary.contractId,
+        summary.completedAt,
+        routeSummaryTitle(summary),
+        summary.vehicleLabel
+    ].filter(Boolean).join('|');
+}
+
+function syncMiniDispatchHistoryState() {
+    const content = document.getElementById('miniDispatchContent');
+    if (!content) return;
+
+    content.querySelectorAll('.mini-history-card[data-mini-history-key]').forEach(card => {
+        const key = card.dataset.miniHistoryKey;
+        if (!key) return;
+        if (card.open) miniDispatchOpenHistoryKeys.add(key);
+        else miniDispatchOpenHistoryKeys.delete(key);
+    });
+}
+
+function renderMiniRadioHistory(contract = {}) {
+    const history = Array.isArray(contract.radioHistory)
+        ? contract.radioHistory.filter(entry => entry && entry.message).slice(0, 5)
+        : [];
+    const entries = history.length
+        ? history
+        : (contract.radioChatter ? [{ message: contract.radioChatter, direction: contract.radioDirection || 'rx', at: contract.lastUpdate || '' }] : []);
+
+    if (!entries.length) {
+        return `<p>${uiText('receiver.empty.noRecentTraffic', {}, 'No recent dispatch traffic.')}</p>`;
+    }
+
+    return `
+        <div class="mini-radio-memory-list">
+            ${entries.map(entry => {
+                const direction = entry.direction === 'tx' ? 'TX' : 'RX';
+                const icon = entry.direction === 'tx' ? 'fa-arrow-up-right-dots' : 'fa-tower-broadcast';
+                return `
+                    <div class="mini-radio-memory-item ${entry.direction === 'tx' ? 'is-tx' : 'is-rx'}">
+                        <i class="fas ${icon}"></i>
+                        <div>
+                            <small>${escapeHtml([direction, entry.at || entry.time || ''].filter(Boolean).join(' - '))}</small>
+                            <strong>${escapeHtml(entry.message)}</strong>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
 function renderMiniHistoryCards(history = []) {
+    syncMiniDispatchHistoryState();
     const entries = normalizeRouteHistory(history).slice(0, 5);
     if (!entries.length) return `<p>${uiText('empty.history', {}, 'No completed route summaries logged.')}</p>`;
 
-    return entries.map((summary, index) => {
+    return entries.map(summary => {
+        const historyKey = miniHistoryCardKey(summary);
+        const isOpen = miniDispatchOpenHistoryKeys.has(historyKey);
         const fields = routeSummaryFields(summary)
             .filter(([label]) => ['Contract', 'Load', 'Contents', 'Vehicle', 'Completed In', 'Timing Result', 'Cargo Condition', 'Final Payout', 'XP / Rep'].includes(label))
             .map(([label, value]) => miniInfoRow(label, value, 'fa-circle-info'))
             .join('');
 
         return `
-            <details class="mini-history-card" ${index === 0 ? 'open' : ''}>
+            <details class="mini-history-card" data-mini-history-key="${escapeHtml(historyKey)}" ${isOpen ? 'open' : ''}>
                 <summary>
                     <span>
                         <small>${escapeHtml(summary.completedAt || 'Completed route')}</small>
@@ -621,7 +730,6 @@ function renderMiniDispatchPage(contract = {}) {
 
     const alert = contract.contractAlert;
     const rows = [
-        miniInfoRow(uiText('receiver.detail.latestRadio', {}, 'Latest Radio'), contract.radioChatter || uiText('receiver.empty.noRecentTraffic', {}, 'No recent dispatch traffic.'), 'fa-tower-broadcast'),
         miniInfoRow(uiText('receiver.detail.routeStage', {}, 'Route Stage'), contract.stage, 'fa-location-arrow'),
         miniInfoRow(uiText('receiver.detail.eta', {}, 'ETA'), contract.expectedCompletion, 'fa-clock'),
         alert ? miniInfoRow(alert.label || 'Dispatch Alert', alert.description || 'Route conditions changed.', 'fa-triangle-exclamation') : '',
@@ -630,6 +738,7 @@ function renderMiniDispatchPage(contract = {}) {
 
     content.innerHTML = [
         miniPanel(uiText('receiver.panel.dispatchLog', {}, 'Dispatch Log'), rows),
+        miniPanel(uiText('receiver.panel.radioMemory', {}, 'Radio Memory'), renderMiniRadioHistory(contract), 'mini-radio-memory-panel'),
         miniPanel(uiText('receiver.panel.completedRoutes', {}, 'Completed Routes'), renderMiniHistoryCards(contract.routeHistory || dispatchData?.routeHistory || []), 'mini-history-panel')
     ].join('');
 }
@@ -655,9 +764,9 @@ function renderMiniSettingsPage(contract = {}) {
 
     content.innerHTML = [
         miniPanel(uiText('receiver.detail.receiverSettings', {}, 'Receiver Settings'), [
-            miniInfoRow(uiText('receiver.detail.receiverModel', {}, 'Receiver Model'), 'BDG-LSFC-R-1.1', 'fa-microchip'),
-            miniInfoRow(uiText('receiver.detail.dockModel', {}, 'Dock Model'), 'BDG-LSFC-D-1.1', 'fa-window-restore'),
-            miniInfoRow(uiText('receiver.detail.firmware', {}, 'Firmware'), 'BDG-FW 1.1.4', 'fa-code-branch'),
+            miniInfoRow(uiText('receiver.detail.receiverModel', {}, 'Receiver Model'), 'BDG-LSFC-R-1.2', 'fa-microchip'),
+            miniInfoRow(uiText('receiver.detail.dockModel', {}, 'Dock Model'), 'BDG-LSFC-D-1.2', 'fa-window-restore'),
+            miniInfoRow(uiText('receiver.detail.firmware', {}, 'Firmware'), 'BDG-FW 1.2.8', 'fa-code-branch'),
             miniInfoRow(uiText('receiver.detail.frequency', {}, 'Frequency'), formatMiniFrequency(contract.radioFrequency || dispatchData?.radioFrequency || dispatchData?.config?.radioFrequency || '68.9'), 'fa-wave-square'),
             miniInfoRow(uiText('receiver.detail.telemetry', {}, 'Telemetry'), contract.signalLabel || uiText('receiver.status.signalLocked', {}, 'Dispatch signal locked'), 'fa-satellite-dish'),
             `
@@ -714,6 +823,13 @@ function miniStructuralSignature(contract = {}) {
         entry?.xp,
         entry?.rep
     ].join(':')).join(',');
+    const radioHistory = Array.isArray(contract.radioHistory) ? contract.radioHistory : [];
+    const radioHistorySignature = radioHistory.map(entry => [
+        entry?.at,
+        entry?.direction,
+        entry?.type,
+        entry?.message
+    ].join(':')).join(',');
 
     return [
         contract.hasActiveRoute,
@@ -753,6 +869,11 @@ function miniStructuralSignature(contract = {}) {
         contract.loaded,
         contract.cargoReady,
         contract.verifiedCargo,
+        contract.autoLoadActive,
+        contract.autoLoadPaused,
+        contract.autoLoadLoaded,
+        contract.autoLoadTotal,
+        contract.autoLoadLabel,
         contract.receiverLoadAction,
         contract.loadVerificationMode,
         contract.contractRequestPending,
@@ -779,7 +900,8 @@ function miniStructuralSignature(contract = {}) {
         reuse.contractor,
         reuse.vehicleId,
         manifestSignature,
-        historySignature
+        historySignature,
+        radioHistorySignature
     ].join('|');
 }
 
@@ -862,6 +984,14 @@ function renderDockLoadStatus(element, contract = {}) {
     } else {
         const verified = contract.verifiedCargo === true;
         const verificationReady = contract.cargoReady === true || contract.loaded === true || Number(contract.loadedCargo || 0) > 0;
+        const loadProgress = miniLoadProgress(contract);
+        const loadingActive = contract.autoLoadActive === true;
+        const loadingPaused = contract.autoLoadPaused === true;
+
+        if (loadingActive || loadingPaused) {
+            icons.push(dockLoadIcon('fas fa-boxes-stacked', loadingPaused ? 'is-pending' : 'is-loaded', loadingPaused ? 'Dock loading paused' : `Dock loading ${loadProgress.loaded}/${loadProgress.total}`));
+            labels.push(loadingPaused ? 'loading paused' : `loading ${loadProgress.loaded}/${loadProgress.total}`);
+        }
 
         icons.push(dockLoadIcon('fas fa-clipboard-check', verified ? 'is-complete' : verificationReady ? 'is-loaded' : 'is-pending', verified ? 'Load verified' : verificationReady ? 'Ready to verify load' : 'Load verification pending'));
         icons.push(dockLoadIcon('fas fa-shield-halved', active ? conditionState : 'is-pending', contract.cargoConditionLabel || 'Cargo condition'));
@@ -912,19 +1042,15 @@ function updateMiniLiveFields(contract = {}) {
         }
     }
 
-    setText('miniCargoLoaded', `${contract.loadedCargo || 0} / ${contract.requiredCargo || 0}`);
+    const loadProgress = miniLoadProgress(contract);
+    setText('miniCargoLoaded', `${loadProgress.loaded} / ${loadProgress.total}`);
     setText('miniProgress', `${contract.currentStop || 0} / ${contract.totalStops || 0}`);
     setText('miniCargo', contract.cargo || 'Cargo');
 
     const miniCargoCondition = document.getElementById('miniCargoCondition');
     if (miniCargoCondition) {
-        miniCargoCondition.innerText = contract.cargoConditionLabel || uiText('label.cargoStable', {}, 'CARGO STABLE');
-        miniCargoCondition.dataset.level = contract.cargoConditionLevel || 'stable';
-    }
-
-    const miniCancelRoute = document.getElementById('miniCancelRoute');
-    if (miniCancelRoute) {
-        miniCancelRoute.classList.toggle('hidden', contract.hasActiveRoute === false);
+        miniCargoCondition.innerText = miniLoadStatusText(contract);
+        miniCargoCondition.dataset.level = contract.autoLoadPaused === true ? 'warning' : contract.autoLoadActive === true ? 'loading' : contract.cargoConditionLevel || 'stable';
     }
 
     const miniLastUpdate = document.getElementById('miniLastUpdate');

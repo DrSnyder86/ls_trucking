@@ -174,10 +174,12 @@
     grid-template-columns: 1fr auto;
     gap: 12px;
     align-items: center;
+    width: 100%;
     padding: 12px;
     text-align: left;
     background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.018));
     color: #fff;
+    font: inherit;
 }
 
 .contractor-option.compact {
