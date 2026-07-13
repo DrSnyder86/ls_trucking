@@ -31,6 +31,12 @@ local function GetValue(name)
     return getter and getter() or nil
 end
 
+local function NormalizePlateText(plate)
+    local normalized = tostring(plate or ''):upper():gsub('%s+', '')
+    if #normalized > 8 then normalized = normalized:sub(1, 8) end
+    return normalized
+end
+
 local function ResetContractorMileage()
     contractorMileage.vehicle = 0
     contractorMileage.base = 0.0
@@ -204,7 +210,7 @@ end
 function DepotVehicles.GetJobVehiclePlate()
     local vehicle = GetValue('GetSpawnedVehicle')
     if not vehicle or not DoesEntityExist(vehicle) then return nil end
-    return GetVehicleNumberPlateText(vehicle)
+    return NormalizePlateText(GetVehicleNumberPlateText(vehicle))
 end
 
 function DepotVehicles.BuildReceiverReuseData()
@@ -377,13 +383,15 @@ local function SpawnBaseVehicle(modelName, spawn, plate, vehicleData, props, fue
     local ctx = Ctx()
     local model = ctx.LoadModel and ctx.LoadModel(modelName)
     if not model then return nil end
+    local canonicalPlate = NormalizePlateText(plate)
 
     local vehicle = CreateVehicle(model, spawn.x, spawn.y, spawn.z, spawn.w, true, false)
     SetValue('SetSpawnedVehicle', vehicle)
 
-    SetVehicleNumberPlateText(vehicle, plate)
+    SetVehicleNumberPlateText(vehicle, canonicalPlate)
     if ctx.SetVehicleOptions then ctx.SetVehicleOptions(vehicle, vehicleData, false) end
     if props and ctx.ApplyVehicleProps then ctx.ApplyVehicleProps(vehicle, props) end
+    SetVehicleNumberPlateText(vehicle, canonicalPlate)
     ApplySavedTurboState(vehicle, props)
     if ctx.SetFuel then ctx.SetFuel(vehicle, fuel) end
     if ctx.ApplyVehicleHealthState then ctx.ApplyVehicleHealthState(vehicle, engineHealth, bodyHealth) end
@@ -437,9 +445,9 @@ function DepotVehicles.SpawnGarageVehicle(data)
 
     if not SpawnBaseVehicle(vehicleData.model or vehicleData.truck, s, plate, vehicleData, data.props, vehicleData.fuel) then return false end
 
-    local vehicleState = { type = vehicleType, index = data.vehicleIndex, plate = plate, label = vehicleData.label, vehicleLabel = vehicleData.label }
+    local vehicleState = { type = vehicleType, index = data.vehicleIndex, plate = NormalizePlateText(plate), label = vehicleData.label, vehicleLabel = vehicleData.label }
     SetValue('SetGarageVehicle', vehicleState)
-    SetValue('SetReusableVehicle', { type = vehicleType, index = data.vehicleIndex, label = vehicleData.label, vehicleLabel = vehicleData.label })
+    SetValue('SetReusableVehicle', { type = vehicleType, index = data.vehicleIndex, plate = NormalizePlateText(plate), label = vehicleData.label, vehicleLabel = vehicleData.label })
     if ctx.AddVehicleCargoTarget then ctx.AddVehicleCargoTarget() end
     Notify(('Company vehicle spawned: %s. Customize it, use it for jobs, then return it to the dispatcher.'):format(vehicleData.label), 'success')
     return true
@@ -465,7 +473,7 @@ function DepotVehicles.SpawnContractorVehicle(data)
         id = data.vehicleId,
         type = vehicleType,
         index = data.vehicleIndex,
-        plate = plate,
+        plate = NormalizePlateText(plate),
         label = vehicleData.label,
         vehicleLabel = vehicleData.label
     })

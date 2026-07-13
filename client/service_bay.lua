@@ -728,7 +728,7 @@ local function StartCamera(vehicle)
             DisableAllControlActions(1)
             DisableAllControlActions(2)
 
-            if IsDisabledControlPressed(0, 25) or IsControlPressed(0, 25) then
+            if IsDisabledControlPressed(0, 24) or IsControlPressed(0, 24) then
                 camAngle = camAngle - (GetDisabledControlNormal(0, 1) * 6.0)
                 camHeight = math.max(0.35, math.min(3.5, camHeight + (GetDisabledControlNormal(0, 2) * 2.5)))
             end

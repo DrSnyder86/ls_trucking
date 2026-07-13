@@ -49,7 +49,10 @@ end
 
 local function BuildActiveContract(data, vehicleLabel, trailerHookStage)
     local contract, contractType = data.contract, data.contractType
-    local notice = 'Go to the pickup worker. Collect one item, carry it to your vehicle, open the trunk, and load it.'
+    local assistedLoading = Config.CargoLoading and tostring(Config.CargoLoading.Mode or 'manual'):lower() == 'assisted'
+    local notice = assistedLoading
+        and 'Go to the pickup worker and sign for the handoff. After release, return to your assigned vehicle for dock loading.'
+        or 'Go to the pickup worker. Collect one item, carry it to your vehicle, open the trunk, and load it.'
     local loaded, loadedCargo = false, 0
 
     if contractType == 'trailer' then
@@ -104,7 +107,12 @@ local function BuildActiveContract(data, vehicleLabel, trailerHookStage)
         cargoConfig = contract.cargoType and Config.CargoTypes and Config.CargoTypes[contract.cargoType] or nil,
         manifest = contract.manifest,
         cargoReady = false,
-        verifiedCargo = false
+        verifiedCargo = false,
+        autoLoadActive = false,
+        autoLoadPaused = false,
+        autoLoadLoaded = loadedCargo,
+        autoLoadTotal = contract.requiredCargo or 1,
+        autoLoadLabel = ''
     }
 end
 
@@ -235,6 +243,7 @@ function Routes.ConfirmCancelContract()
 end
 
 local function CleanupCancelledRoute()
+    Call('ResetAssistedCargoLoading')
     Call('ClearRouteBlip')
     Call('RemoveAllZones')
     Call('CleanupActiveContractPeds', true)
@@ -307,11 +316,12 @@ function Routes.CompleteRoute()
     activeContract.notice = activeContract.contractor and 'Route closed out. Store your contractor vehicle when ready.' or 'Return the vehicle to the dispatcher or start another job with the same vehicle.'
     Call('SetActiveDestination', activeContract.contractor and 'Store contractor vehicle' or 'Return vehicle or start another job', Config.Depot.vehicleReturn)
     Call('UpdateMiniUI')
+    Call('ResetAssistedCargoLoading')
     Call('ClearRouteBlip')
     Call('RemoveAllZones')
     Call('CleanupActiveContractPeds', true)
     SetActiveContract(nil)
-    SetTimeout(2500, function() Call('UpdateMiniUI') end)
+    SetTimeout(5000, function() Call('UpdateMiniUI') end)
 end
 
 function Routes.ConfigureClient(context)

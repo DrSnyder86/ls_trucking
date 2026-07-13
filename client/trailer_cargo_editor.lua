@@ -216,6 +216,7 @@ end
 
 local function AdjustCamera(data)
     local control = data.control or data.cameraControl
+    local trailerHeading = editorTrailer and DoesEntityExist(editorTrailer) and GetEntityHeading(editorTrailer) or 0.0
 
     if control == 'left' then
         cameraState.yaw = cameraState.yaw - 12.0
@@ -234,10 +235,46 @@ local function AdjustCamera(data)
     elseif control == 'targetDown' then
         cameraState.targetHeight = Clamp(cameraState.targetHeight - 0.2, 0.4, 3.5)
     elseif control == 'reset' then
-        cameraState.yaw = editorTrailer and DoesEntityExist(editorTrailer) and GetEntityHeading(editorTrailer) + 135.0 or 135.0
+        cameraState.yaw = trailerHeading + 135.0
         cameraState.distance = 10.0
         cameraState.height = 3.2
         cameraState.targetHeight = 1.0
+    elseif control == 'presetFront' then
+        cameraState.yaw = 180.0 - trailerHeading
+        cameraState.distance = 9.0
+        cameraState.height = 2.5
+        cameraState.targetHeight = 1.0
+    elseif control == 'presetBack' then
+        cameraState.yaw = -trailerHeading
+        cameraState.distance = 9.0
+        cameraState.height = 2.5
+        cameraState.targetHeight = 1.0
+    elseif control == 'presetLeft' then
+        cameraState.yaw = 270.0 - trailerHeading
+        cameraState.distance = 9.0
+        cameraState.height = 2.5
+        cameraState.targetHeight = 1.0
+    elseif control == 'presetRight' then
+        cameraState.yaw = 90.0 - trailerHeading
+        cameraState.distance = 9.0
+        cameraState.height = 2.5
+        cameraState.targetHeight = 1.0
+    elseif control == 'presetTop' then
+        cameraState.yaw = 90.0 - trailerHeading
+        cameraState.distance = 4.2
+        cameraState.height = 9.0
+        cameraState.targetHeight = 0.6
+    elseif control == 'drag' then
+        local deltaX = tonumber(data.deltaX) or 0.0
+        local deltaY = tonumber(data.deltaY) or 0.0
+        cameraState.yaw = cameraState.yaw - (deltaX * 0.35)
+        cameraState.height = Clamp(cameraState.height - (deltaY * 0.018), 0.8, 9.0)
+    elseif control == 'wheel' then
+        local deltaY = tonumber(data.deltaY) or 0.0
+        if deltaY ~= 0.0 then
+            local zoomStep = Clamp(math.abs(deltaY) / 120.0, 0.35, 1.25)
+            cameraState.distance = Clamp(cameraState.distance + (deltaY > 0 and zoomStep or -zoomStep), 4.0, 22.0)
+        end
     end
 
     UpdateEditorCamera()
@@ -379,6 +416,18 @@ local function Nudge(data)
     prop[field][axis] = Round((prop[field][axis] or 0.0) + (delta * step))
 end
 
+local function SetValue(data)
+    local prop = GetSelectedProp()
+    local field = data.field == 'rotation' and 'rotation' or 'offset'
+    local axis = data.axis or 'x'
+    if axis == 'pitch' then axis = 'x' end
+    if axis == 'roll' then axis = 'y' end
+    if axis == 'yaw' then axis = 'z' end
+    if axis ~= 'x' and axis ~= 'y' and axis ~= 'z' then return end
+
+    prop[field][axis] = Round(tonumber(data.value) or prop[field][axis] or 0.0)
+end
+
 local function HandleAction(data)
     data = type(data) == 'table' and data or {}
     local action = data.action
@@ -404,6 +453,9 @@ local function HandleAction(data)
         return
     elseif action == 'nudge' then
         Nudge(data)
+        RebuildProps()
+    elseif action == 'setValue' then
+        SetValue(data)
         RebuildProps()
     elseif action == 'camera' then
         AdjustCamera(data)

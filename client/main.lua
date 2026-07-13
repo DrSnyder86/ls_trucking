@@ -658,7 +658,7 @@ local function GetVehicleProps(vehicle)
 
     local props = {
         model = GetEntityModel(vehicle),
-        plate = GetVehicleNumberPlateText(vehicle),
+        plate = NormalizeKeyPlate(GetVehicleNumberPlateText(vehicle)),
         dirtLevel = GetVehicleDirtLevel(vehicle),
         bodyHealth = GetVehicleBodyHealth(vehicle),
         engineHealth = GetVehicleEngineHealth(vehicle),
@@ -693,7 +693,7 @@ local function ApplyVehicleProps(vehicle, props)
     if type(props) == 'string' and props ~= '' then props = json.decode(props) end
     if not props or type(props) ~= 'table' then return end
     SetVehicleModKit(vehicle, 0)
-    if props.plate then SetVehicleNumberPlateText(vehicle, props.plate) end
+    if props.plate then SetVehicleNumberPlateText(vehicle, NormalizeKeyPlate(props.plate)) end
     if props.colors then SetVehicleColours(vehicle, props.colors[1] or 0, props.colors[2] or 0) end
     if props.extraColors then SetVehicleExtraColours(vehicle, props.extraColors[1] or 0, props.extraColors[2] or 0) end
     if props.dashboardColor then SetVehicleDashboardColour(vehicle, props.dashboardColor) end
@@ -1286,13 +1286,20 @@ local function FormatExpectedCompletion(estimatedSeconds)
     if estimatedSeconds <= 0 then return '' end
 
     local etaMinutes = math.max(1, math.floor((estimatedSeconds / 60) + 0.5))
-    local currentHour = GetClockHours()
-    local currentMinute = GetClockMinutes()
-    local dueMinutes = ((currentHour * 60) + currentMinute + etaMinutes) % 1440
-    local dueHour = math.floor(dueMinutes / 60)
-    local dueMinute = dueMinutes % 60
+    local dueLabel = nil
 
-    return ('Expected by %02d:%02d (%sm ETA)'):format(dueHour, dueMinute, etaMinutes)
+    if os and type(os.date) == 'function' and type(os.time) == 'function' then
+        local ok, formattedTime = pcall(function()
+            return os.date('%H:%M', os.time() + (etaMinutes * 60))
+        end)
+        if ok and formattedTime then dueLabel = formattedTime end
+    end
+
+    if dueLabel then
+        return ('Expected by %s (%sm ETA)'):format(dueLabel, etaMinutes)
+    end
+
+    return ('%sm ETA'):format(etaMinutes)
 end
 
 local function SetExpectedCompletionTime()
@@ -1390,7 +1397,8 @@ if RouteState.ConfigureClient then
         GetRouteHistory = function() return RouteHistory.GetHistory() end,
         GetLastRadioChatter = function() return LS_Trucking.LastRadioChatter end,
         GetLastRadioDirection = function() return LS_Trucking.LastRadioDirection end,
-        IsContractRequestPending = function() return LS_Trucking.ContractRequestPending == true end
+        GetRadioHistory = function() return LS_Trucking.RadioHistory or {} end,
+        IsContractRequestPending = function() return LS_Trucking.ContractRequestPending == true or (tonumber(LS_Trucking.ContractDockHoldUntil) or 0) > GetGameTimer() end
     })
 end
 
@@ -1403,14 +1411,12 @@ local function BuildReceiverPayload(minimal)
 end
 
 local function UpdateMiniUI(passive)
-    if not Config.MiniUIEnabled then HideMiniUI() return end
-
     local payload = BuildReceiverPayload(passive == true)
     payload.locale = Config.Locale or 'en'
     payload.config = payload.config or {}
     payload.config.locale = Config.Locale or 'en'
 
-    if activeContract and Config.ReceiverDockEnabled ~= false and not receiverDockUserHidden then
+    if (activeContract or LS_Trucking.ContractRequestPending == true or (tonumber(LS_Trucking.ContractDockHoldUntil) or 0) > GetGameTimer()) and not receiverDockUserHidden then
         SendNUIMessage({ action = 'showMiniDock', contract = payload })
         miniDockVisible = true
     else
@@ -1420,7 +1426,7 @@ local function UpdateMiniUI(passive)
         end
     end
 
-    if fullReceiverVisible and Config.FullReceiverEnabled ~= false then
+    if fullReceiverVisible then
         SendNUIMessage({ action = (passive == true and miniFullVisible) and 'refreshMini' or 'showMini', contract = payload })
         miniFullVisible = true
     else
@@ -1435,7 +1441,7 @@ CreateThread(function()
     while true do
         Wait(math.max(5000, tonumber(Config.ReceiverRefreshInterval) or 10000))
 
-        if Config.MiniUIEnabled and (activeContract or fullReceiverVisible) then
+        if activeContract or fullReceiverVisible or miniDockVisible or LS_Trucking.ContractRequestPending == true then
             UpdateMiniUI(true)
         end
     end
@@ -1445,20 +1451,36 @@ local function DispatchChatter(message, notifyType, soundType, options)
     if not message or message == '' then return end
     options = options or {}
 
+    local timestamp = GetClientTimestamp()
+    local direction = options.direction == 'tx' and 'tx' or 'rx'
+
     LS_Trucking.LastRadioChatter = message
-    LS_Trucking.LastRadioChatterAt = GetClientTimestamp()
-    LS_Trucking.LastRadioDirection = options.direction == 'tx' and 'tx' or 'rx'
+    LS_Trucking.LastRadioChatterAt = timestamp
+    LS_Trucking.LastRadioDirection = direction
+    LS_Trucking.RadioHistory = LS_Trucking.RadioHistory or {}
+    table.insert(LS_Trucking.RadioHistory, 1, {
+        message = message,
+        type = notifyType or 'inform',
+        sound = soundType or 'destination',
+        direction = direction,
+        at = timestamp
+    })
+    while #LS_Trucking.RadioHistory > 5 do
+        table.remove(LS_Trucking.RadioHistory)
+    end
 
     if activeContract then
         activeContract.radioChatter = message
-        activeContract.radioChatterAt = GetClientTimestamp()
-        activeContract.radioDirection = LS_Trucking.LastRadioDirection
+        activeContract.radioChatterAt = timestamp
+        activeContract.radioDirection = direction
     end
 
     local soundMap = Config.Notifications and Config.Notifications.SoundMap or {}
     local shouldNotify = options.notify ~= false
     local notifyHasSound = shouldNotify and (soundMap[notifyType or 'inform'] ~= nil or notifyType == 'warning' or notifyType == 'error')
-    if not LS_Trucking.FreightHandoff.PlayNativeRadioMessageAudio(spawnedVehicle) and not notifyHasSound then
+    local radioStaticOnly = options.radioStatic == true
+    local nativeRadioPlayed = LS_Trucking.FreightHandoff.PlayNativeRadioMessageAudio(spawnedVehicle, radioStaticOnly)
+    if not nativeRadioPlayed and not notifyHasSound and not radioStaticOnly then
         PlayUISound(soundType or 'destination')
     end
 
@@ -1469,14 +1491,302 @@ local function DispatchChatter(message, notifyType, soundType, options)
     UpdateMiniUI()
 end
 
+LS_Trucking.AssistedCargoLoading = LS_Trucking.AssistedCargoLoading or {}
+LS_Trucking.AssistedCargoLoading.active = false
+LS_Trucking.AssistedCargoLoading.paused = false
+LS_Trucking.AssistedCargoLoading.textVisible = false
+LS_Trucking.AssistedCargoLoading.promptAnnounced = false
+LS_Trucking.AssistedCargoLoading.vehicleReadySince = nil
+
+function LS_Trucking.AssistedCargoLoading.GetConfig()
+    return Config.CargoLoading or {}
+end
+
+function LS_Trucking.AssistedCargoLoading.IsEnabled()
+    local mode = tostring((Config.CargoLoading and Config.CargoLoading.Mode) or 'manual'):lower()
+    return mode == 'assisted' or mode == 'auto'
+end
+
+function LS_Trucking.AssistedCargoLoading.HideTextUI()
+    if not LS_Trucking.AssistedCargoLoading.textVisible then return end
+    LS_Trucking.AssistedCargoLoading.textVisible = false
+
+    if lib and lib.hideTextUI then
+        pcall(lib.hideTextUI)
+    end
+end
+
+function LS_Trucking.AssistedCargoLoading.ShowTextUI()
+    local cfg = LS_Trucking.AssistedCargoLoading.GetConfig()
+    if cfg.UseOxTextUI == false or not lib or not lib.showTextUI then return end
+    if LS_Trucking.AssistedCargoLoading.textVisible then return end
+
+    LS_Trucking.AssistedCargoLoading.textVisible = true
+    lib.showTextUI(T('cargo_loading.text'), {
+        icon = 'box',
+        position = cfg.TextPosition or 'left-center'
+    })
+end
+
+function LS_Trucking.AssistedCargoLoading.GetPickupCoords()
+    if not activeContract or not activeContract.pickup then return nil end
+    return GetConfigCoords3(activeContract.pickup.coords)
+end
+
+function LS_Trucking.AssistedCargoLoading.IsRouteWaiting()
+    return LS_Trucking.AssistedCargoLoading.IsEnabled()
+        and activeContract ~= nil
+        and activeContract.type ~= 'trailer'
+        and activeContract.loaded ~= true
+        and activeContract.cargoReady ~= true
+        and activeContract.pickupManifestSigned == true
+end
+
+function LS_Trucking.AssistedCargoLoading.IsVehicleSettled(cfg)
+    cfg = cfg or LS_Trucking.AssistedCargoLoading.GetConfig()
+    if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then
+        LS_Trucking.AssistedCargoLoading.vehicleReadySince = nil
+        return false
+    end
+
+    local ped = PlayerPedId()
+    if GetVehiclePedIsIn(ped, false) ~= spawnedVehicle then
+        LS_Trucking.AssistedCargoLoading.vehicleReadySince = nil
+        return false
+    end
+
+    if cfg.RequireDriverSeat ~= false and GetPedInVehicleSeat(spawnedVehicle, -1) ~= ped then
+        LS_Trucking.AssistedCargoLoading.vehicleReadySince = nil
+        return false
+    end
+
+    local now = GetGameTimer()
+    LS_Trucking.AssistedCargoLoading.vehicleReadySince = LS_Trucking.AssistedCargoLoading.vehicleReadySince or now
+
+    local settleDelay = 1200
+    return now - LS_Trucking.AssistedCargoLoading.vehicleReadySince >= settleDelay
+end
+
+function LS_Trucking.AssistedCargoLoading.CanStart(radius)
+    if not LS_Trucking.AssistedCargoLoading.IsRouteWaiting() then return false end
+    if carryingCargo then return false end
+    if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then return false end
+
+    local cfg = LS_Trucking.AssistedCargoLoading.GetConfig()
+    if not LS_Trucking.AssistedCargoLoading.IsVehicleSettled(cfg) then return false end
+    if cfg.RequireVehicleStopped ~= false and GetEntitySpeed(spawnedVehicle) > (tonumber(cfg.MaxVehicleSpeed) or 0.75) then return false end
+    if not IsCargoDoorOpen() then return false end
+
+    local pickupCoords = LS_Trucking.AssistedCargoLoading.GetPickupCoords()
+    if pickupCoords and #(GetEntityCoords(spawnedVehicle) - pickupCoords) > (tonumber(radius) or tonumber(cfg.StartRadius) or 18.0) then return false end
+
+    return true
+end
+
+function LS_Trucking.AssistedCargoLoading.StageFromPickupRelease()
+    if not activeContract or activeContract.type == 'trailer' or not LS_Trucking.AssistedCargoLoading.IsEnabled() then return false end
+    if activeContract.loaded or activeContract.cargoReady then return false end
+
+    activeContract.pickupManifestSigned = true
+    activeContract.stage = 'Return to vehicle'
+    activeContract.notice = 'Return to your assigned vehicle, open the rear cargo doors, then stage in the pickup loading area.'
+    activeContract.autoLoadActive = false
+    activeContract.autoLoadPaused = false
+    activeContract.autoLoadLoaded = activeContract.loadedCargo or 0
+    activeContract.autoLoadTotal = activeContract.requiredCargo or 0
+    activeContract.autoLoadLabel = 'Dock loading standby'
+    LS_Trucking.AssistedCargoLoading.promptAnnounced = false
+
+    SetActiveDestination(activeContract.pickup and activeContract.pickup.label or 'Pickup loading area', activeContract.pickup and activeContract.pickup.coords)
+    DispatchChatter(T('cargo_loading.release_signed'), 'inform', 'destination', { notify = false })
+    UpdateMiniUI()
+    return true
+end
+
+function LS_Trucking.AssistedCargoLoading.Reset()
+    LS_Trucking.AssistedCargoLoading.active = false
+    LS_Trucking.AssistedCargoLoading.paused = false
+    LS_Trucking.AssistedCargoLoading.promptAnnounced = false
+    LS_Trucking.AssistedCargoLoading.vehicleReadySince = nil
+    LS_Trucking.AssistedCargoLoading.HideTextUI()
+
+    if activeContract then
+        activeContract.autoLoadActive = false
+        activeContract.autoLoadPaused = false
+    end
+end
+
+function LS_Trucking.AssistedCargoLoading.GetItemDuration()
+    local cfg = LS_Trucking.AssistedCargoLoading.GetConfig()
+    if activeContract and activeContract.type == 'boxtruck' then
+        return tonumber(cfg.CrateLoadSeconds) or 5200
+    end
+
+    return tonumber(cfg.PackageLoadSeconds) or 3400
+end
+
+function LS_Trucking.AssistedCargoLoading.GetRemainingDuration()
+    local remaining = 1
+    if activeContract then
+        remaining = math.max(1, (tonumber(activeContract.requiredCargo) or 0) - (tonumber(activeContract.loadedCargo) or 0))
+    end
+
+    return LS_Trucking.AssistedCargoLoading.GetItemDuration() * remaining
+end
+
+function LS_Trucking.AssistedCargoLoading.Begin()
+    if LS_Trucking.AssistedCargoLoading.active then return false end
+    if not LS_Trucking.AssistedCargoLoading.CanStart() then return false end
+
+    local cfg = LS_Trucking.AssistedCargoLoading.GetConfig()
+    local pauseRadius = tonumber(cfg.PauseRadius) or 28.0
+
+    LS_Trucking.AssistedCargoLoading.HideTextUI()
+    LS_Trucking.AssistedCargoLoading.active = true
+    LS_Trucking.AssistedCargoLoading.paused = false
+
+    activeContract.autoLoadActive = true
+    activeContract.autoLoadPaused = false
+    activeContract.autoLoadLoaded = activeContract.loadedCargo or 0
+    activeContract.autoLoadTotal = activeContract.requiredCargo or 0
+    activeContract.autoLoadLabel = 'Dock loading in progress'
+    activeContract.stage = 'Dock loading cargo'
+    activeContract.notice = 'Dock crew is loading freight. Hold position until loading is complete.'
+    DispatchChatter(T('cargo_loading.loading_started'), 'inform', 'secure', { notify = false })
+    UpdateMiniUI()
+
+    local loaded = tonumber(activeContract.loadedCargo) or 0
+    local total = tonumber(activeContract.requiredCargo) or 0
+    local remaining = math.max(1, total - loaded)
+    activeContract.autoLoadLabel = ('Loading %s freight item%s'):format(remaining, remaining == 1 and '' or 's')
+    UpdateMiniUI()
+
+    if not Progress(('Loading %s freight item%s into vehicle...'):format(remaining, remaining == 1 and '' or 's'), LS_Trucking.AssistedCargoLoading.GetRemainingDuration()) then
+        LS_Trucking.AssistedCargoLoading.active = false
+        LS_Trucking.AssistedCargoLoading.paused = true
+        activeContract.autoLoadActive = false
+        activeContract.autoLoadPaused = true
+        activeContract.autoLoadLabel = 'Loading paused'
+        activeContract.stage = 'Dock loading paused'
+        activeContract.notice = 'Dock loading was paused. Re-stage the vehicle to continue.'
+        DispatchChatter(T('cargo_loading.loading_cancelled'), 'warning', 'alert', { notify = false })
+        UpdateMiniUI()
+        return false
+    end
+
+    if not activeContract then
+        LS_Trucking.AssistedCargoLoading.active = false
+        LS_Trucking.AssistedCargoLoading.paused = false
+        return false
+    end
+
+    if not LS_Trucking.AssistedCargoLoading.CanStart(pauseRadius) then
+        LS_Trucking.AssistedCargoLoading.active = false
+        LS_Trucking.AssistedCargoLoading.paused = true
+        activeContract.autoLoadActive = false
+        activeContract.autoLoadPaused = true
+        activeContract.autoLoadLabel = 'Loading paused'
+        activeContract.stage = 'Dock loading paused'
+        activeContract.notice = 'Return to the pickup loading area in your assigned vehicle to complete loading.'
+        DispatchChatter(T('cargo_loading.loading_paused'), 'warning', 'alert', { notify = false })
+        UpdateMiniUI()
+        return false
+    end
+
+    local result = lib.callback.await('ls_trucking:server:autoLoadCargoRemaining', false)
+    if not result or not result.success then
+        LS_Trucking.AssistedCargoLoading.active = false
+        activeContract.autoLoadActive = false
+        activeContract.autoLoadPaused = true
+        activeContract.autoLoadLabel = 'Loading failed'
+        activeContract.stage = 'Dock loading paused'
+        activeContract.notice = result and result.message or 'Dock loading could not continue.'
+        DispatchChatter(('Dock loading interrupted. %s'):format(result and result.message or 'Manifest update failed.'), 'error', 'alert', { notify = false })
+        Notify(result and result.message or 'Dock loading could not continue.', 'error')
+        UpdateMiniUI()
+        return false
+    end
+
+    activeContract.loadedCargo = result.loaded or activeContract.loadedCargo or 0
+    activeContract.loaded = false
+    activeContract.cargoReady = result.ready == true
+    activeContract.verifiedCargo = false
+    activeContract.autoLoadLoaded = activeContract.loadedCargo
+    activeContract.autoLoadTotal = result.required or activeContract.requiredCargo or 0
+    activeContract.autoLoadLabel = ('Loaded %s/%s'):format(activeContract.loadedCargo or 0, activeContract.autoLoadTotal or 0)
+
+    if result.ready then
+        activeContract.autoLoadActive = false
+        activeContract.autoLoadPaused = false
+        activeContract.autoLoadLabel = 'Cargo loaded'
+        activeContract.stage = 'Verify loaded cargo'
+
+        if (Config.LoadVerificationMode or 'receiver') == 'receiver' then
+            activeContract.notice = 'Cargo is loaded. Open the receiver Load page and submit the manifest for dispatch verification.'
+            SetActiveDestination('Verify cargo in receiver')
+        else
+            activeContract.notice = 'Cargo is loaded. Target the vehicle and verify loaded cargo before starting the route.'
+            SetActiveDestination('Verify cargo at vehicle')
+        end
+
+        DispatchChatter(T('cargo_loading.loading_complete'), 'success', 'secure', { notify = false })
+        LS_Trucking.AssistedCargoLoading.active = false
+        LS_Trucking.AssistedCargoLoading.paused = false
+        UpdateMiniUI()
+        return true
+    end
+
+    LS_Trucking.AssistedCargoLoading.active = false
+    if activeContract then activeContract.autoLoadActive = false end
+    UpdateMiniUI()
+    return activeContract and activeContract.cargoReady == true or false
+end
+
+CreateThread(function()
+    while true do
+        local sleep = 1000
+
+        if LS_Trucking.AssistedCargoLoading.IsRouteWaiting() and not LS_Trucking.AssistedCargoLoading.active then
+            if LS_Trucking.AssistedCargoLoading.CanStart() then
+                local cfg = LS_Trucking.AssistedCargoLoading.GetConfig()
+                sleep = 0
+                LS_Trucking.AssistedCargoLoading.ShowTextUI()
+
+                if not LS_Trucking.AssistedCargoLoading.promptAnnounced then
+                    LS_Trucking.AssistedCargoLoading.promptAnnounced = true
+                    DispatchChatter(T('cargo_loading.stage_vehicle'), 'inform', 'secure', { notify = false })
+                end
+
+                if IsControlJustPressed(0, tonumber(cfg.StartKey) or 38)
+                    or (cfg.AllowHornStart ~= false and IsControlJustPressed(0, tonumber(cfg.HornControl) or 86)) then
+                    LS_Trucking.AssistedCargoLoading.Begin()
+                end
+            else
+                LS_Trucking.AssistedCargoLoading.HideTextUI()
+                sleep = 350
+            end
+        else
+            LS_Trucking.AssistedCargoLoading.HideTextUI()
+            if not activeContract then
+                LS_Trucking.AssistedCargoLoading.promptAnnounced = false
+                LS_Trucking.AssistedCargoLoading.vehicleReadySince = nil
+            end
+        end
+
+        Wait(sleep)
+    end
+end)
+
 LS_Trucking.BeginContractRequest = function(message)
     if LS_Trucking.ContractRequestPending then
         Notify('Dispatch is already processing a contract request.', 'inform')
         return false
     end
 
+    receiverDockUserHidden = false
     LS_Trucking.ContractRequestPending = true
-    DispatchChatter(message or 'Contract request transmitted. Waiting for dispatch review.', 'inform', 'secure', { direction = 'tx' })
+    LS_Trucking.ContractDockHoldUntil = GetGameTimer() + 8000
+    DispatchChatter(message or 'Contract request transmitted. Waiting for dispatch review.', 'inform', 'radioStatic', { direction = 'tx', notify = false, radioStatic = true })
 
     local exchange = Config.DispatchExchange or {}
     if exchange.Enabled ~= false then
@@ -1490,11 +1800,13 @@ LS_Trucking.ResolveContractRequest = function(result, approvedMessage)
     local exchange = Config.DispatchExchange or {}
 
     if result and result.success then
-        DispatchChatter(approvedMessage or 'Dispatch approved the contract. Route data and GPS are now active.', 'success', 'destination')
+        LS_Trucking.ContractDockHoldUntil = GetGameTimer() + 8000
+        DispatchChatter(approvedMessage or 'Dispatch approved the contract. Route data and GPS are now active.', 'success', 'radioStatic', { notify = false, radioStatic = true })
         if exchange.Enabled ~= false then
             Wait(math.max(0, tonumber(exchange.ResponseDelay) or 900))
         end
     else
+        LS_Trucking.ContractDockHoldUntil = GetGameTimer() + 4500
         DispatchChatter(('Dispatch denied the contract request. %s'):format(result and result.message or 'No route was assigned.'), 'error', 'alert')
     end
 
@@ -1683,7 +1995,7 @@ local function MarkTrailerHookedAuto()
             activeContract.notice = 'Trailer recoupled. Target the rear of the truck and redo Secure Load Attached before continuing.'
             SetActiveDestination('Rear of truck')
             Notify('Trailer recoupled. Redo Secure Load Attached before continuing.', 'warning')
-            DispatchChatter('Trailer telemetry restored. Repeat the secure attachment check before continuing the route.', 'warning', 'trailerConnect')
+            DispatchChatter('Trailer telemetry restored. Repeat the secure attachment check before continuing the route.', 'warning', 'trailerConnect', { notify = false })
         else
             activeContract.loaded = false
             if (Config.LoadVerificationMode or 'receiver') == 'receiver' then
@@ -1695,7 +2007,7 @@ local function MarkTrailerHookedAuto()
             end
 
             Notify('Trailer attached. Complete the load checklist before starting the delivery route.', 'inform')
-            DispatchChatter('Trailer telemetry shows coupled. Complete load secure checks before departure.', 'inform', 'secure')
+            DispatchChatter('Trailer telemetry shows coupled. Complete load secure checks before departure.', 'inform', 'secure', { notify = false })
         end
 
         LS_Trucking.TrailerCouplePending = false
@@ -1748,7 +2060,7 @@ CreateThread(function()
                         activeContract.notice = 'Trailer connection lost. Reattach the assigned trailer and redo Secure Load Attached.'
                         SetActiveDestination('Assigned trailer')
                         Notify('Trailer disconnected. Reattach it and redo Secure Load Attached.', 'warning')
-                        DispatchChatter('Trailer connection lost. Reconnect the assigned trailer and repeat the secure attachment check.', 'warning', 'trailerDisconnect')
+                        DispatchChatter('Trailer connection lost. Reconnect the assigned trailer and repeat the secure attachment check.', 'warning', 'trailerDisconnect', { notify = false })
                         UpdateMiniUI()
                     elseif not activeContract.trailerHooked then
                         activeContract.stage = 'Hook up trailer'
@@ -1891,7 +2203,7 @@ local function LoadCargoIntoVehicle()
             SetActiveDestination('Verify cargo at vehicle')
             Notify('All cargo loaded. Target the vehicle and verify the loaded cargo to start your route.', 'success')
         end
-        DispatchChatter('Pickup load count matches manifest. Verify cargo before departure.', 'inform', 'secure')
+        DispatchChatter('Pickup load count matches manifest. Verify cargo before departure.', 'inform', 'secure', { notify = false })
     else
         activeContract.stage = 'Load cargo into vehicle'
         activeContract.notice = ('Load cargo one item at a time: %s/%s loaded.'):format(result.loaded, result.required)
@@ -1925,7 +2237,7 @@ local function VerifyLoadedCargo(fromReceiver)
             return false
         end
 
-        DispatchChatter('Verifying cargo manifest with dispatch. Stand by for load clearance.', 'inform', 'secure', { direction = 'tx' })
+        DispatchChatter('Verifying cargo manifest with dispatch. Stand by for load clearance.', 'inform', 'secure', { direction = 'tx', notify = false })
         local exchange = Config.DispatchExchange or {}
         if exchange.Enabled ~= false then
             Wait(math.max(0, tonumber(exchange.RequestDelay) or 1250))
@@ -1946,7 +2258,7 @@ local function VerifyLoadedCargo(fromReceiver)
     if not result or not result.success then
         Notify(result and result.message or 'Could not verify loaded cargo.', 'error')
         if fromReceiver then
-            DispatchChatter(('Manifest verification failed. %s'):format(result and result.message or 'Dispatch could not clear the load.'), 'error', 'alert')
+            DispatchChatter(('Manifest verification failed. %s'):format(result and result.message or 'Dispatch could not clear the load.'), 'error', 'alert', { notify = false })
         end
         return false
     end
@@ -1956,6 +2268,10 @@ local function VerifyLoadedCargo(fromReceiver)
     activeContract.currentStop = result.currentStop or 1
     activeContract.stage = 'Deliver cargo'
     activeContract.notice = 'Cargo verified. Drive to the first stop. Open the trunk, grab one package, and deliver it.'
+    activeContract.autoLoadActive = false
+    activeContract.autoLoadPaused = false
+    activeContract.autoLoadLabel = ''
+    if LS_Trucking.AssistedCargoLoading then LS_Trucking.AssistedCargoLoading.Reset() end
     SetExpectedCompletionTime()
 
     local firstStop = activeContract.dropoffs and activeContract.dropoffs[1]
@@ -1964,8 +2280,8 @@ local function VerifyLoadedCargo(fromReceiver)
         CreateRouteBlip(firstStop.coords, firstStop.label, GetCargoDeliveryBlipType(activeContract.type))
     end
 
-    Notify('Cargo verified. Delivery route started.', 'success')
-    DispatchChatter(fromReceiver and 'Dispatch verified manifest. Route confirmed. GPS activated.' or 'Cargo seal verified. Receiver has been notified of your departure.', 'inform', 'secure')
+    if not fromReceiver then Notify('Cargo verified. Delivery route started.', 'success') end
+    DispatchChatter(fromReceiver and 'Dispatch verified manifest. Route confirmed. GPS activated.' or 'Cargo seal verified. Receiver has been notified of your departure.', 'inform', 'secure', { notify = false })
     UpdateMiniUI()
     return true
 end
@@ -2047,7 +2363,7 @@ local function SecureTruckLoadConnection(fromReceiver)
     end
 
     if fromReceiver then
-        DispatchChatter('Running air and electrical connection check. Hold for telemetry.', 'inform', 'trailerConnect')
+        DispatchChatter('Running air and electrical connection check. Hold for telemetry.', 'inform', 'trailerConnect', { notify = false })
         local exchange = Config.DispatchExchange or {}
         if exchange.Enabled ~= false then
             Wait(math.max(0, tonumber(exchange.ChecklistStepDelay) or 700))
@@ -2072,7 +2388,7 @@ local function SecureTruckLoadConnection(fromReceiver)
             or 'Trailer connection re-secured. Drive to the receiving yard and detach the trailer in the drop zone.'
         SetActiveDestination(activeContract.trailerDrop.label, activeContract.trailerDrop.coords)
         Notify('Trailer connection re-secured. Route clearance restored.', 'success')
-        DispatchChatter('Secure attachment verified. Trailer route clearance restored.', 'success', 'secure')
+        DispatchChatter('Secure attachment verified. Trailer route clearance restored.', 'success', 'secure', { notify = false })
         UpdateMiniUI()
         return true
     end
@@ -2082,8 +2398,11 @@ local function SecureTruckLoadConnection(fromReceiver)
     SetActiveDestination('Rear of trailer')
     AddTrailerLoadTarget()
 
-    Notify('Truck connection secured.', 'success')
-    if fromReceiver then DispatchChatter('Connection telemetry confirmed. Air and electrical lines are secure.', 'success', 'secure') end
+    if fromReceiver then
+        DispatchChatter('Connection telemetry confirmed. Air and electrical lines are secure.', 'success', 'secure', { notify = false })
+    else
+        Notify('Truck connection secured.', 'success')
+    end
     UpdateMiniUI()
     return true
 end
@@ -2113,7 +2432,7 @@ local function SecureTrailerLoad(fromReceiver)
     end
 
     if fromReceiver then
-        DispatchChatter('Checking trailer load security and stability sensors.', 'inform', 'secure')
+        DispatchChatter('Checking trailer load security and stability sensors.', 'inform', 'secure', { notify = false })
         local exchange = Config.DispatchExchange or {}
         if exchange.Enabled ~= false then
             Wait(math.max(0, tonumber(exchange.ChecklistStepDelay) or 700))
@@ -2136,8 +2455,11 @@ local function SecureTrailerLoad(fromReceiver)
         SetActiveDestination('Rear of truck')
     end
 
-    Notify('Trailer load confirmed secure.', 'success')
-    if fromReceiver then DispatchChatter('Trailer load security confirmed. Checklist is ready for dispatch submission.', 'success', 'secure') end
+    if fromReceiver then
+        DispatchChatter('Trailer load security confirmed. Checklist is ready for dispatch submission.', 'success', 'secure', { notify = false })
+    else
+        Notify('Trailer load confirmed secure.', 'success')
+    end
     UpdateMiniUI()
     return true
 end
@@ -2168,7 +2490,7 @@ local function CompleteTrailerLoadChecklist(fromReceiver)
     end
 
     if fromReceiver then
-        DispatchChatter('Submitting completed trailer load checklist to dispatch. Awaiting route clearance.', 'inform', 'secure', { direction = 'tx' })
+        DispatchChatter('Submitting completed trailer load checklist to dispatch. Awaiting route clearance.', 'inform', 'secure', { direction = 'tx', notify = false })
         local exchange = Config.DispatchExchange or {}
         if exchange.Enabled ~= false then
             Wait(math.max(0, tonumber(exchange.RequestDelay) or 1250))
@@ -2200,7 +2522,7 @@ local function CompleteTrailerLoadChecklist(fromReceiver)
     if not result or not result.success then
         Notify(result and result.message or 'Could not clear trailer load for dispatch.', 'error')
         if fromReceiver then
-            DispatchChatter(('Checklist verification failed. %s'):format(result and result.message or 'Dispatch could not clear the trailer.'), 'error', 'alert')
+            DispatchChatter(('Checklist verification failed. %s'):format(result and result.message or 'Dispatch could not clear the trailer.'), 'error', 'alert', { notify = false })
         end
         return false
     end
@@ -2217,8 +2539,8 @@ local function CompleteTrailerLoadChecklist(fromReceiver)
 
     CreateRouteBlip(activeContract.trailerDrop.coords, activeContract.trailerDrop.label, 'trailer')
     CreateRouteAreaBlip(activeContract.trailerDrop.coords, activeContract.trailerDrop.radius, 'TrailerDrop')
-    Notify('Load checklist complete. Delivery waypoint assigned.', 'success')
-    DispatchChatter(fromReceiver and 'Dispatch verified checklist. Trailer route confirmed. GPS activated.' or 'Checklist received. Trailer load released to receiver.', 'inform', 'secure')
+    if not fromReceiver then Notify('Load checklist complete. Delivery waypoint assigned.', 'success') end
+    DispatchChatter(fromReceiver and 'Dispatch verified checklist. Trailer route confirmed. GPS activated.' or 'Checklist received. Trailer load released to receiver.', 'inform', 'secure', { notify = false })
     UpdateMiniUI()
     return true
 end
@@ -2235,7 +2557,7 @@ local function AddVehicleCargoTarget()
     if vehicleTargetAdded then return end
     if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then return end
     AddTargetEntity(spawnedVehicle, {
-        { name = 'ls_trucking_load_cargo_one', label = 'Load Carried Cargo', icon = 'fa-solid fa-box', distance = 3.0, canInteract = function() return activeContract ~= nil and activeContract.type ~= 'trailer' and carryingCargo and not activeContract.loaded and not activeContract.cargoReady end, onSelect = LoadCargoIntoVehicle },
+        { name = 'ls_trucking_load_cargo_one', label = 'Load Carried Cargo', icon = 'fa-solid fa-box', distance = 3.0, canInteract = function() return activeContract ~= nil and activeContract.type ~= 'trailer' and carryingCargo and not activeContract.loaded and not activeContract.cargoReady and not (LS_Trucking.AssistedCargoLoading and LS_Trucking.AssistedCargoLoading.IsEnabled()) end, onSelect = LoadCargoIntoVehicle },
         { name = 'ls_trucking_verify_loaded_cargo', label = 'Verify Loaded Cargo', icon = 'fa-solid fa-clipboard-check', distance = 3.0, canInteract = function() return (Config.LoadVerificationMode or 'receiver') == 'target' and activeContract ~= nil and activeContract.type ~= 'trailer' and activeContract.cargoReady and not activeContract.verifiedCargo and not carryingCargo end, onSelect = VerifyLoadedCargo },
         { name = 'ls_trucking_grab_cargo_one', label = 'Grab Delivery Cargo', icon = 'fa-solid fa-box-open', distance = 3.0, canInteract = function() return activeContract ~= nil and activeContract.loaded and activeContract.verifiedCargo and activeContract.type ~= 'trailer' and not carryingCargo end, onSelect = GrabCargoFromVehicle },
         { name = 'ls_trucking_view_load_checklist', label = 'View Load Checklist', icon = 'fa-solid fa-clipboard-list', distance = 3.0, canInteract = function(entity, distance, coords)
@@ -2434,6 +2756,18 @@ local function DespawnDeliveredTrailer()
     end)
 end
 
+local function PlayFreightSigningProgress(label)
+    return Progress(label or 'Signing freight handoff...', Config.Progress.verifyLoadedCargo or 2500, {
+        dict = 'missheistdockssetup1clipboard@base',
+        clip = 'base'
+    }, {
+        model = `p_amb_clipboard_01`,
+        bone = 18905,
+        pos = vec3(0.10, 0.02, 0.08),
+        rot = vec3(-80.0, 0.0, 0.0)
+    })
+end
+
 local function FinalizeTrailerDelivery(signature)
     if not activeContract or activeContract.type ~= 'trailer' then Notify('You do not have a trailer delivery to finalize.', 'error') return end
     if not activeContract.trailerDropped then Notify('Drop the trailer inside the receiving yard first.', 'error') return end
@@ -2465,7 +2799,12 @@ local function HandlePickupPedInteraction(ped, pedLabel, scenario)
     LS_Trucking.FreightHandoff.PlayPedGreeting(ped, scenario)
 
     local handoff = Config.FreightHandoff or {}
+    local assistedLoading = LS_Trucking.AssistedCargoLoading and LS_Trucking.AssistedCargoLoading.IsEnabled()
     if handoff.Enabled == false or handoff.RequirePickupSignature == false or activeContract.pickupManifestSigned then
+        if assistedLoading and LS_Trucking.AssistedCargoLoading.StageFromPickupRelease() then
+            return
+        end
+
         CollectCargoFromPed()
         return
     end
@@ -2473,6 +2812,11 @@ local function HandlePickupPedInteraction(ped, pedLabel, scenario)
     freightHandoffPending = true
     local form = ShowFreightHandoff('pickup', pedLabel, LS_Trucking.FreightHandoff.BuildManifest(activeContract, 'pickup', pedLabel))
     if not form.confirmed then
+        freightHandoffPending = false
+        return
+    end
+
+    if not PlayFreightSigningProgress('Signing cargo release...') then
         freightHandoffPending = false
         return
     end
@@ -2500,6 +2844,11 @@ local function HandlePickupPedInteraction(ped, pedLabel, scenario)
 
     DispatchChatter(('Dispatch verified Contract %s. Cargo release approved.'):format(contractId or 'N/A'), 'success', 'secure', { notify = false, direction = 'rx' })
     freightHandoffPending = false
+
+    if assistedLoading and LS_Trucking.AssistedCargoLoading.StageFromPickupRelease() then
+        return
+    end
+
     Notify('Manifest signed and cargo released. Target the freight clerk again to collect the next route item.', 'success')
     UpdateMiniUI()
 end
@@ -2549,7 +2898,13 @@ local function AddPickupPedTarget(ped, contractType)
             icon = 'fa-solid fa-comments',
             distance = Config.TargetDistance,
             canInteract = function()
-                return handoffRequired and activeContract ~= nil and activeContract.type == contractType and not activeContract.loaded and not activeContract.pickupManifestSigned
+                local assistedLoading = LS_Trucking.AssistedCargoLoading and LS_Trucking.AssistedCargoLoading.IsEnabled()
+                return activeContract ~= nil
+                    and activeContract.type == contractType
+                    and not activeContract.loaded
+                    and not activeContract.cargoReady
+                    and not activeContract.pickupManifestSigned
+                    and (handoffRequired or assistedLoading)
             end,
             onSelect = function()
                 HandlePickupPedInteraction(ped, pedLabel, pedData.scenario)
@@ -2561,9 +2916,11 @@ local function AddPickupPedTarget(ped, contractType)
             icon = 'fa-solid fa-box',
             distance = Config.TargetDistance,
             canInteract = function()
+                local assistedLoading = LS_Trucking.AssistedCargoLoading and LS_Trucking.AssistedCargoLoading.IsEnabled()
                 return activeContract ~= nil
                     and activeContract.type == contractType
                     and not activeContract.loaded
+                    and not assistedLoading
                     and (not handoffRequired or activeContract.pickupManifestSigned == true)
             end,
             onSelect = CollectCargoFromPed
@@ -2711,8 +3068,7 @@ local function SetupRouteTargets()
                         SetActiveDestination(currentStop.label, currentStop.coords)
                         activeContract.notice = 'Stop complete. Drive to the next stop, open your trunk, and grab another item.'
                         CreateRouteBlip(currentStop.coords, currentStop.label, GetCargoDeliveryBlipType(activeContract.type))
-                        Notify(('Stop complete. Continue to stop %s/%s.'):format(activeContract.currentStop, activeContract.totalStops), 'success')
-                        DispatchChatter(('Stop complete. Proceed to stop %s of %s.'):format(activeContract.currentStop, activeContract.totalStops), 'inform', 'destination')
+                        DispatchChatter(('Stop complete. Proceed to stop %s of %s.'):format(activeContract.currentStop, activeContract.totalStops), 'inform', 'destination', { notify = false })
                     else
                         SetActiveDestination(currentStop.label, currentStop.coords)
                         activeContract.notice = ('This stop still needs %s more item(s). Open your trunk and grab another.'):format(result.requiredAtStop - result.deliveredAtStop)
@@ -2741,8 +3097,7 @@ local function SetupRouteTargets()
             activeContract.notice = 'Talk to the receiving yard worker to finalize the trailer delivery.'
             SetActiveDestination(activeContract.receiverPed.label, vector3(activeContract.receiverPed.coords.x, activeContract.receiverPed.coords.y, activeContract.receiverPed.coords.z))
             CreateRouteBlip(vector3(activeContract.receiverPed.coords.x, activeContract.receiverPed.coords.y, activeContract.receiverPed.coords.z), activeContract.receiverPed.label, 'receiver')
-            Notify('Trailer drop confirmed. Talk to the receiver to finalize.', 'success')
-            DispatchChatter('Trailer drop confirmed. Receiver paperwork is ready for signature.', 'inform', 'secure')
+            DispatchChatter('Trailer drop confirmed. Receiver paperwork is ready for signature.', 'inform', 'secure', { notify = false })
             UpdateMiniUI()
         end } })
     end
@@ -2795,6 +3150,11 @@ if Routes.ConfigureClient then
         ClearRouteBlip = ClearRouteBlip,
         RemoveAllZones = RemoveAllZones,
         DeleteCarryProp = DeleteCarryProp,
+        ResetAssistedCargoLoading = function()
+            if LS_Trucking.AssistedCargoLoading and LS_Trucking.AssistedCargoLoading.Reset then
+                LS_Trucking.AssistedCargoLoading.Reset()
+            end
+        end,
         DispatchChatter = DispatchChatter,
         UpdateMiniUI = UpdateMiniUI,
         CleanupPendingContractStart = function()
@@ -3273,8 +3633,6 @@ end
 RegisterNetEvent('ls_trucking:client:openDispatch', OpenDispatch)
 
 local function ToggleFullReceiver()
-    if Config.FullReceiverEnabled == false or Config.MiniUIEnabled == false then return end
-
     if fullReceiverVisible then
         receiverControlBlockUntil = GetGameTimer() + 700
         fullReceiverVisible = false
@@ -3301,11 +3659,6 @@ local function ToggleFullReceiver()
 end
 
 local function ToggleReceiverDock()
-    if Config.MiniUIEnabled == false or Config.ReceiverDockEnabled == false then
-        Notify('Receiver dock is disabled.', 'error')
-        return
-    end
-
     if not activeContract then
         Notify('No active route dock is available.', 'inform')
         return
@@ -3865,6 +4218,9 @@ function LS_Trucking.ForceJobCleanup(message, keepVehicle)
     RemoveAllZones()
     CleanupActiveContractPeds(true)
     DeleteCarryProp()
+    if LS_Trucking.AssistedCargoLoading and LS_Trucking.AssistedCargoLoading.Reset then
+        LS_Trucking.AssistedCargoLoading.Reset()
+    end
 
     if not keepVehicle then
         CleanupJobVehicle()

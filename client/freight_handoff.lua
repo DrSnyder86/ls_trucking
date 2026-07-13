@@ -15,9 +15,10 @@ local function IsDrivingAssignedVehicle(vehicle)
     return audio.DriverOnly == false or GetPedInVehicleSeat(vehicle, -1) == ped
 end
 
-function FreightHandoff.PlayNativeRadioMessageAudio(vehicle)
+function FreightHandoff.PlayNativeRadioMessageAudio(vehicle, forceStatic)
     local audio = Config.RadioMessageAudio or {}
-    if audio.Enabled == false or audio.NativeInJobVehicle == false or not IsDrivingAssignedVehicle(vehicle) then return false end
+    if audio.Enabled == false then return false end
+    if forceStatic ~= true and (audio.NativeInJobVehicle == false or not IsDrivingAssignedVehicle(vehicle)) then return false end
 
     local now = GetGameTimer()
     if now - lastNativeRadioAudioAt < math.max(0, tonumber(audio.Cooldown) or 225) then return true end
@@ -85,6 +86,9 @@ function FreightHandoff.BuildManifest(activeContract, mode, pedLabel)
         vehicleLabel = ('%s / %s'):format(vehicleLabel, activeContract.trailerLabel)
     end
 
+    local pickupLocationLabel = activeContract.pickup and activeContract.pickup.label or nil
+    local trailerLocationLabel = activeContract.trailerDrop and activeContract.trailerDrop.label or nil
+
     return {
         contractId = activeContract.contractId,
         routeLabel = activeContract.routeLabel or activeContract.label,
@@ -92,7 +96,7 @@ function FreightHandoff.BuildManifest(activeContract, mode, pedLabel)
         quantityLabel = quantityLabel,
         vehicleLabel = vehicleLabel,
         plate = activeContract.plate,
-        locationLabel = pedLabel or (trailer and activeContract.trailerDrop and activeContract.trailerDrop.label) or (activeContract.pickup and activeContract.pickup.label)
+        locationLabel = trailer and (trailerLocationLabel or pedLabel) or (pickupLocationLabel or pedLabel)
     }
 end
 
