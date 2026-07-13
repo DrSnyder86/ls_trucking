@@ -132,6 +132,14 @@ LS_Trucking.Locales.en = {
     ['cargo.need_active_delivery_stop'] = 'You need to be closer to the active delivery stop.',
     ['cargo.need_grab_item'] = 'You need to grab a {item} from the vehicle first.',
 
+    ['cargo_loading.text'] = '[E] / Horn - Begin freight loading',
+    ['cargo_loading.release_signed'] = 'Pickup release signed. Return to your assigned vehicle, open the rear cargo doors, then stage in the pickup loading area.',
+    ['cargo_loading.stage_vehicle'] = 'Cargo doors open. Hold position in the loading area, then press E or tap horn to begin loading.',
+    ['cargo_loading.loading_started'] = 'Dock loading started. Hold position until freight is secured.',
+    ['cargo_loading.loading_paused'] = 'Loading paused. Return to the freight loading area.',
+    ['cargo_loading.loading_cancelled'] = 'Dock loading paused. Re-stage the vehicle to continue.',
+    ['cargo_loading.loading_complete'] = 'Cargo loaded. Verify the manifest before departure.',
+
     ['freight.trailer_depot_checklist'] = 'Trailer loads are released through the trailer depot checklist.',
     ['freight.manifest_mismatch'] = 'The selected manifest does not match your active contract.',
     ['freight.pickup_signature_required'] = 'Driver authorization is required before cargo can be released.',
