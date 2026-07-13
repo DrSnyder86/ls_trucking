@@ -4,7 +4,7 @@ this_is_a_map 'yes'
 
 author 'Drsnyder'
 description 'Los Santos Freight Co. Trucker Job'
-version '1.2.0'
+version '1.1.0'
 repository 'https://github.com/DrSnyder86/ls_trucking'
 
 
