@@ -38,7 +38,7 @@ The script is built around a dispatch tablet for selecting work, a handheld rece
 <p align="center">
   <img src="https://r2.fivemanage.com/image/EILDeJYrhYuV.png" width="32%" alt="Cancel UI" />
   <img src="https://r2.fivemanage.com/image/it9spcvBTLBj.png" width="32%" alt="Drop Authorization" />
-  <img src="https://r2.fivemanage.com/image/cVjvlsJnxtcL.png" width="32%" alt="Icons" />
+  <img src="https://r2.fivemanage.com/image/NXx3smiBffTz.png" width="32%" alt="Trailer Editor" />
 </p>
 
 ### Pier 400 YMAP's
