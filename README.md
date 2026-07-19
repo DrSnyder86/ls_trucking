@@ -40,13 +40,13 @@ The script is built around a dispatch tablet for selecting work, a handheld rece
   <img src="https://r2.fivemanage.com/image/it9spcvBTLBj.png" width="22%" alt="Drop Authorization" />
   <img src="https://r2.fivemanage.com/image/NXx3smiBffTz.png" width="12%" alt="Trailer Editor" />
   <img src="https://r2.fivemanage.com/image/KWGemP3X2rS4.png" width="12%" alt="Service Bay" />
-  <img src="https://r2.fivemanage.com/image/MbtD6Pzii8al.jpg" width="12%" alt="Service Bay" />
 </p>
 
 ### Pier 400 YMAP's
 <p align="center">
-  <img src="https://r2.fivemanage.com/image/ccZDudCK2O33.jpg" width="40%" alt="Terminal" />
-  <img src="https://r2.fivemanage.com/image/lBDvnLXxJHHZ.jpg" width="40%" alt="Weigh Station" />
+  <img src="https://r2.fivemanage.com/image/ccZDudCK2O33.jpg" width="32%" alt="Terminal" />
+  <img src="https://r2.fivemanage.com/image/lBDvnLXxJHHZ.jpg" width="32%" alt="Weigh Station" />
+  <img src="https://r2.fivemanage.com/image/MbtD6Pzii8al.jpg" width="32%" alt="Service Bay" />
 </p>
 
 ### Trailer YTD's
