@@ -36,9 +36,11 @@ The script is built around a dispatch tablet for selecting work, a handheld rece
   <img src="https://r2.fivemanage.com/image/5Gd7YCwrZ9sV.png" width="19%" alt="Mini UI" />
 </p>
 <p align="center">
-  <img src="https://r2.fivemanage.com/image/EILDeJYrhYuV.png" width="32%" alt="Cancel UI" />
-  <img src="https://r2.fivemanage.com/image/it9spcvBTLBj.png" width="32%" alt="Drop Authorization" />
-  <img src="https://r2.fivemanage.com/image/NXx3smiBffTz.png" width="22%" alt="Trailer Editor" />
+  <img src="https://r2.fivemanage.com/image/EILDeJYrhYuV.png" width="22%" alt="Cancel UI" />
+  <img src="https://r2.fivemanage.com/image/it9spcvBTLBj.png" width="22%" alt="Drop Authorization" />
+  <img src="https://r2.fivemanage.com/image/NXx3smiBffTz.png" width="12%" alt="Trailer Editor" />
+  <img src="https://r2.fivemanage.com/image/KWGemP3X2rS4.png" width="12%" alt="Service Bay" />
+  <img src="https://r2.fivemanage.com/image/MbtD6Pzii8al.jpg" width="12%" alt="Service Bay" />
 </p>
 
 ### Pier 400 YMAP's
