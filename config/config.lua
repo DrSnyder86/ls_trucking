@@ -1,11 +1,11 @@
 Config = {}
 
-Config.Locale = 'en'
+Config.Locale = 'en' -- en, cs, de, es, fr, nl, pt-br, or tr
 Config.ConfigVersion = '1.2.0'
 
 -- Resource basics
 Config.Debug = false  -- Enables debug visuals/logging. Admin commands are available to admins even when this is false.
-Config.Framework = 'auto' -- auto, qb, qbox, esx, nd, standalone
+Config.Framework = 'auto' -- auto, qb, qbox, esx, nd/nd_framework, nd_core, standalone
 Config.RequireJob = true
 Config.JobName = 'trucker'
 Config.RequireDuty = true -- Only applies when RequireJob is true. Framework duty is used when available, otherwise LSFC session duty is used.
@@ -58,6 +58,7 @@ Config.ReceiverRefreshInterval = 15000 -- milliseconds between passive receiver/
 -- Route and vehicle behavior
 Config.UsePed = true
 Config.UseBlip = true
+Config.UseMissionGPSWaypoints = true -- Draw a mission-style GPS route to contract pickup and drop-off blips.
 Config.UseTerminalTargetZone = false
 Config.AllowVehicleReuseAfterRoute = true
 Config.RequireSameTypeForVehicleReuse = true
@@ -65,13 +66,22 @@ Config.DeleteOldVehicleOnNewContract = true
 Config.ReturnVehicleBonusEnabled = true
 Config.ReturnVehicleBonus = 250
 Config.TargetDistance = 2.5
-Config.DropoffTarget = { Radius = 3.5, Distance = 3.5, HeightOffset = 0.75 } -- larger/easier package delivery target zones
+Config.DropoffTarget = {
+    Radius = 3.5,
+    Distance = 3.5,
+    MarkerDrawDistance = 55.0,
+    MarkerType = 1,
+    MarkerSize = 1.35,
+    MarkerHeight = 0.18,
+    MarkerZOffset = -0.65,
+    MarkerAlpha = 145
+}
 Config.TrailerAutoDetectInterval = 750
 Config.TrailerCoupleNoticeDelay = 500
 Config.TrailerDespawnAfterDelivery = 10000 -- milliseconds after receiver signoff
 
 -- Core integrations and route interaction modes
--- Target system: 'auto', 'ox', or 'qb'. Auto prefers ox_target, then qb-target.
+-- Target system: 'auto', 'ox', 'qb', or 'textui'. Auto uses a target resource when available, otherwise ox_lib TextUI.
 Config.TargetSystem = 'auto'
 Config.LoadVerificationMode = 'receiver' -- 'receiver' or 'target' verification after loading cargo.
 
@@ -80,14 +90,14 @@ Config.CargoLoading = {
 }
 
 Config.Inventory = {
-    System = 'auto', -- auto, ox_inventory, qb-inventory, lj-inventory, ps-inventory, qs-inventory, or custom
+    System = 'auto', -- auto, nd_inventory, ox_inventory, qb-inventory, lj-inventory, ps-inventory, qs-inventory, or custom
     Debug = false,
     UseInternalTrunkFallback = true,
     TrunkPrefix = 'trunk'
 }
 
 Config.Fuel = {
-    System = 'auto', -- auto, ox_fuel, LegacyFuel, ps-fuel, cdn-fuel, lj-fuel, qb-fuel, BigDaddy-Fuel, or none
+    System = 'auto', -- auto, nd_fuel, lc_fuel/lc-fuel, ox_fuel, LegacyFuel, ps-fuel, cdn-fuel, lj-fuel, qb-fuel, BigDaddy-Fuel, or none
     DefaultFuel = 100.0
 }
 

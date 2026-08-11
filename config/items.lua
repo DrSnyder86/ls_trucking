@@ -1,4 +1,25 @@
 -- Cargo, inventory items, and manifest settings
+Config.PackageMoveRate = 0.88 -- player movement rate while carrying packages by hand
+
+Config.BoxTruckTrolley = {
+    Enabled = true,
+    Model = `hei_prop_hei_warehousetrolly_02`,
+    Attach = {
+        bone = 28422,
+        pos = vec3(-0.4, -1.5, -0.9),
+        rot = vec3(0.0, 0.0, 180.0)
+    },
+    DefaultCargoOffset = { -- fallback when a cargo type has no trolleyOffset
+        pos = vec3(0.0, -0.5, 0.3),
+        rot = vec3(0.0, 0.0, 265.0)
+    },
+    Animation = {
+        dict = 'missfinale_c2ig_11',
+        name = 'pushcar_offcliff_f'
+    },
+    MoveRate = 0.88 -- player movement rate while pushing the trolley
+}
+
 Config.CargoItems = {
     van = {
         item = 'ls_package',
@@ -10,7 +31,11 @@ Config.CargoItems = {
         item = 'ls_crate',
         label = 'Freight Crate',
         prop = `prop_box_wood02a_pu`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
+        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) },
+        trolleyOffset = {
+            pos = vec3(0.0, -0.5, 0.3),
+            rot = vec3(0.0, 0.0, 265.0)
+        }
     }
 }
 
@@ -59,35 +84,55 @@ Config.CargoTypes = {
         item = 'ls_crate',
         label = 'Freight Crate',
         prop = `prop_box_wood02a`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
+        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) },
+        trolleyOffset = {
+            pos = vec3(0.0, -0.5, 0.3),
+            rot = vec3(0.0, 0.0, 265.0)
+        }
     },
 
     ammo_crate = {
         item = 'ls_ammo_crate',
         label = 'Ammo Crate',
         prop = `prop_box_ammo03a`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
+        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) },
+        trolleyOffset = {
+            pos = vec3(0.0, -0.2, 0.3),
+            rot = vec3(0.0, 0.0, 270.0)
+        }
     },
 
     secure_crate = {
         item = 'ls_secure_crate',
         label = 'Secure Government Crate',
         prop = `prop_box_wood02a_pu`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
+        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) },
+        trolleyOffset = {
+            pos = vec3(0.0, -0.5, 0.3),
+            rot = vec3(0.0, 0.0, 270.0)
+        }
     },
 
     military_crate = {
         item = 'ls_military_crate',
         label = 'Merryweather Crate',
         prop = `prop_box_wood02a_mws`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
+        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) },
+        trolleyOffset = {
+            pos = vec3(0.0, -0.5, 0.3),
+            rot = vec3(0.0, 0.0, 270.0)
+        }
     },
 
     military_crate2 = {
         item = 'ls_military_crate2',
         label = 'Military Crate',
         prop = `prop_mil_crate_01`,
-        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) }
+        carryOffset = { bone = 60309, pos = vec3(0.025, 0.08, 0.255), rot = vec3(-145.0, 290.0, 0.0) },
+        trolleyOffset = {
+            pos = vec3(0.0, -0.5, 0.3),
+            rot = vec3(0.0, 0.0, 270.0)
+        }
     }
 }
 

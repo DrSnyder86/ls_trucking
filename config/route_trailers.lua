@@ -101,6 +101,7 @@ Config.RouteTrailers = {
         contents = 'Long-Haul Freight',
         safeSpeed = 75.0,
         instructions = {
+            'Caution: High clearance required.',
             'Maintain extra stopping distance.',
             'Check trailer clearance on tight roads.',
         },
