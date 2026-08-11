@@ -7,9 +7,15 @@ local function replaceToken(template, key, value)
     end)
 end
 
+local function normalizeLocale(locale)
+    local normalized = tostring(locale or 'en'):lower():gsub('_', '-')
+    return normalized
+end
+
 function LS_Trucking.T(key, values)
-    local locale = (Config and Config.Locale) or 'en'
-    local translations = LS_Trucking.Locales[locale] or LS_Trucking.Locales.en or {}
+    local locale = normalizeLocale((Config and Config.Locale) or 'en')
+    local language = locale:match('^([^-]+)')
+    local translations = LS_Trucking.Locales[locale] or LS_Trucking.Locales[language] or LS_Trucking.Locales.en or {}
     local fallback = LS_Trucking.Locales.en or {}
     local text = translations[key] or fallback[key] or key
 

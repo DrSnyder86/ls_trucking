@@ -1,8 +1,8 @@
 {
-  "version": "1.2.0",
-  "download": "https://github.com/DrSnyder86/ls_trucking",
+  "version": "1.3.0",
+  "download": "https://github.com/DrSnyder86/ls_trucking/releases/latest",
   "repository": "https://github.com/DrSnyder86/ls_trucking",
-  "changelog": "Updated UI flow, added lua and js locales (english only atm),  local images and icon folders, new service bay for company/contractor vehicles.",
+  "changelog": "Added Czech, German, Spanish, French, Dutch, Brazilian Portuguese, and Turkish locale support.",
   "config_version": "1.2.0",
   "contracts_version": "1.2.0"
 }

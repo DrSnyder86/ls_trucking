@@ -3,6 +3,7 @@ LS_Trucking = LS_Trucking or {}
 local Cargo = {}
 local serverContext = {}
 local serverRegistered = false
+local NEXT_STOP_CARGO_CLEARANCE = 100.0
 
 local function Ctx(ctx)
     return ctx or serverContext or {}
@@ -70,6 +71,37 @@ function Cargo.GetManifestEntryForStop(active, stopIndex, deliveredAtStop)
     end
 
     return nil
+end
+
+local function CheckNextStopCargoClearance(ctx, src, active)
+    local currentStop = tonumber(active.currentStop) or 0
+    if currentStop <= 1 or (tonumber(active.deliveredAtStop) or 0) > 0 then return true end
+
+    local routeData = active.routeData
+        or (Config.Contracts[active.type] and Config.Contracts[active.type].routes and Config.Contracts[active.type].routes[active.routeIndex])
+    if not routeData then return true end
+
+    local publicContract = ctx.GetPublicContractData(active.type, routeData) or {}
+    local previousStop = publicContract.dropoffs and publicContract.dropoffs[currentStop - 1]
+    local nextStop = publicContract.dropoffs and publicContract.dropoffs[currentStop]
+    if not previousStop or not previousStop.coords or not nextStop or not nextStop.coords then return true end
+
+    local playerCoords = ctx.GetSourceCoords and ctx.GetSourceCoords(src) or nil
+    if not playerCoords then return false, T('error.position_unverified') end
+
+    local previousCoords = previousStop.coords
+    local nextCoords = nextStop.coords
+    local previousDistance = #(playerCoords - vector3(previousCoords.x + 0.0, previousCoords.y + 0.0, previousCoords.z + 0.0))
+    local nextDistance = #(playerCoords - vector3(nextCoords.x + 0.0, nextCoords.y + 0.0, nextCoords.z + 0.0))
+    if nextDistance <= NEXT_STOP_CARGO_CLEARANCE and nextDistance < previousDistance then return true end
+
+    if nextDistance > NEXT_STOP_CARGO_CLEARANCE then
+        return false, T('cargo.approach_next_stop_first', {
+            distance = math.ceil(nextDistance - NEXT_STOP_CARGO_CLEARANCE)
+        })
+    end
+
+    return false, T('cargo.proceed_toward_next_stop')
 end
 
 function Cargo.BuildPackageManifest(contractId, routeLabel, route, contractType, cargoPool)
@@ -555,6 +587,9 @@ local function GrabCargoFromVehicle(ctx, src)
     if not active.cargoVerified then return { success = false, message = T('cargo.verify_before_delivery') } end
     if active.cargoInHand then return { success = false, message = T('cargo.deliver_carried_before_grab') } end
     if (active.currentStop or 0) < 1 or (active.currentStop or 0) > (active.totalStops or 0) then return { success = false, message = T('cargo.no_active_delivery_stop') } end
+
+    local cleared, clearanceMessage = CheckNextStopCargoClearance(ctx, src, active)
+    if not cleared then return { success = false, message = clearanceMessage } end
 
     local manifestEntry = Cargo.GetManifestEntryForStop(active, active.currentStop, active.deliveredAtStop)
     if not manifestEntry then return { success = false, message = T('cargo.missing_delivery_item') } end

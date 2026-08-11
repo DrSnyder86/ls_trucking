@@ -466,7 +466,8 @@ local function EnsureDatabaseMigrations()
 
     if DatabaseMigrationsRunning then
         while DatabaseMigrationsRunning do Wait(50) end
-        return
+        if DatabaseMigrationsReady then return end
+        error('Database migration attempt failed in another server thread.')
     end
 
     DatabaseMigrationsRunning = true
@@ -497,6 +498,24 @@ local function EnsureDatabaseMigrations()
 
     if not ok then error(err) end
 end
+
+CreateThread(function()
+    Wait(1000)
+
+    local maxAttempts = 6
+    for attempt = 1, maxAttempts do
+        local ok, err = pcall(EnsureDatabaseMigrations)
+        if ok then
+            print('^2[ls_trucking] Database schema ready. Automatic setup and migrations completed.^7')
+            return
+        end
+
+        print(('^3[ls_trucking] Database setup attempt %s/%s failed: %s^7'):format(attempt, maxAttempts, tostring(err)))
+        if attempt < maxAttempts then Wait(2500) end
+    end
+
+    print('^1[ls_trucking] Database setup failed. Check oxmysql, the connection string, and database CREATE/ALTER permissions. The backup SQL file is available at sql/ls_trucking.sql.^7')
+end)
 
 local function NormalizePlateText(plate)
     return TrimString(plate):upper():gsub('%s+', '')
@@ -914,13 +933,44 @@ end
 
 local VirtualTrunks = {}
 
+local ND_INVENTORY_RESOURCES = {
+    'ND_Inventory',
+    'nd_inventory',
+    'ND_Inventory [Dev Build]'
+}
+
+local function FindStartedInventoryResource(resources)
+    for _, resource in ipairs(resources or {}) do
+        if GetResourceState(resource) == 'started' then return resource end
+    end
+
+    return nil
+end
+
+local function IsNDInventoryResource(resource)
+    return tostring(resource or ''):lower():find('nd_inventory', 1, true) ~= nil
+end
+
 local function ResolveInventorySystem()
     local configured = (Config.Inventory and Config.Inventory.System) or Config.InventorySystem or 'auto'
+
+    if configured == 'nd' or configured == 'nd_inventory' or configured == 'ND_Inventory' then
+        return FindStartedInventoryResource(ND_INVENTORY_RESOURCES) or 'ND_Inventory'
+    end
+
     if configured and configured ~= 'auto' then return configured end
+    if Framework == 'nd' then
+        local ndInventory = FindStartedInventoryResource(ND_INVENTORY_RESOURCES)
+        if ndInventory then return ndInventory end
+    end
+
     local candidates = { 'ox_inventory', 'qb-inventory', 'lj-inventory', 'ps-inventory', 'qs-inventory' }
     for _, resource in ipairs(candidates) do
         if GetResourceState(resource) == 'started' then return resource end
     end
+
+    local ndInventory = FindStartedInventoryResource(ND_INVENTORY_RESOURCES)
+    if ndInventory then return ndInventory end
     return 'ox_inventory'
 end
 
@@ -945,6 +995,92 @@ local function SafeExport(resource, exportName, ...)
     end)
     return ok, result
 end
+
+local function BuildNDInventoryItemDefinitions()
+    local definitions = {}
+    local registered = {}
+    local metadataSchema = {
+        contract = 'string',
+        type = 'string',
+        cargoType = 'string',
+        label = 'string',
+        receiver = 'string',
+        dropoff = 'string',
+        stop = 'number',
+        packageNumber = 'number',
+        route = 'string',
+        description = 'string',
+        trailer = 'string',
+        contents = 'string',
+        cargo = 'string'
+    }
+
+    local function addItem(item, label, kind)
+        if not item or item == '' or registered[item] then return end
+        registered[item] = true
+
+        local isManifest = kind == 'manifest'
+        local isCrate = kind == 'crate'
+        definitions[#definitions + 1] = {
+            item_name = item,
+            label = label or item,
+            description = isManifest and 'LSFC route documentation.' or 'Cargo assigned to an active LSFC route.',
+            weight = isManifest and 0.05 or (isCrate and 4.0 or 1.0),
+            category = isManifest and 'documents' or 'misc',
+            stackable = false,
+            max_stack = 1,
+            is_unique = true,
+            icon = isManifest and 'fa-solid fa-file-lines' or (isCrate and 'fa-solid fa-boxes-stacked' or 'fa-solid fa-box'),
+            can_use = false,
+            can_drop = false,
+            can_remove = true,
+            rarity = 'common',
+            price_buy = 0,
+            price_sell = 0,
+            metadata_schema = metadataSchema
+        }
+    end
+
+    for contractType, cargo in pairs(Config.CargoItems or {}) do
+        addItem(cargo.item, cargo.label, contractType == 'boxtruck' and 'crate' or 'package')
+    end
+
+    for cargoType, cargo in pairs(Config.CargoTypes or {}) do
+        local kind = tostring(cargoType):find('crate', 1, true) and 'crate' or 'package'
+        addItem(cargo.item, cargo.label, kind)
+    end
+
+    local manifest = Config.Manifest or {}
+    addItem(manifest.PackageManifestItem, 'Delivery Manifest', 'manifest')
+    addItem(manifest.TrailerManifestItem, 'Trailer Manifest', 'manifest')
+    return definitions
+end
+
+local function RegisterNDInventoryItems(resource)
+    resource = resource or InventorySystem
+    if not IsNDInventoryResource(resource) or GetResourceState(resource) ~= 'started' then return false end
+
+    local definitions = BuildNDInventoryItemDefinitions()
+    local ok, count = SafeExport(resource, 'RegisterItems', definitions)
+    if ok then
+        InventoryDebug(('Registered %s LSFC item definitions with %s'):format(tonumber(count) or #definitions, resource))
+        return true
+    end
+
+    InventoryDebug(('Failed to register LSFC item definitions with %s'):format(resource))
+    return false
+end
+
+CreateThread(function()
+    Wait(1000)
+    RegisterNDInventoryItems()
+end)
+
+AddEventHandler('onResourceStart', function(resource)
+    if not IsNDInventoryResource(resource) then return end
+    InventorySystem = resource
+    SetTimeout(750, function() RegisterNDInventoryItems(resource) end)
+end)
 
 local function GetVirtualTrunkCount(plate, item)
     plate = CanonicalPlateText(plate)
@@ -980,6 +1116,11 @@ end
 local function GetInventoryItemCount(inventory, item)
     if not item then return 0 end
 
+    if IsNDInventoryResource(InventorySystem) and type(inventory) == 'number' then
+        local ok, count = SafeExport(InventorySystem, 'GetItemCount', inventory, item)
+        if ok then return tonumber(count) or 0 end
+    end
+
     if InventorySystem == 'ox_inventory' and GetResourceState('ox_inventory') == 'started' then
         local ok, count = SafeExport('ox_inventory', 'GetItemCount', inventory, item)
         if ok then return tonumber(count) or 0 end
@@ -992,7 +1133,7 @@ local function GetInventoryItemCount(inventory, item)
         if ok and count ~= nil then return tonumber(count) or 0 end
         ok, count = SafeExport(resource, 'GetItemCount', inventory, item)
         if ok and count ~= nil then return tonumber(count) or 0 end
-    else
+    elseif not IsNDInventoryResource(resource) then
         local ok, count = SafeExport(resource, 'GetItemCount', inventory, item)
         if ok and count ~= nil then return tonumber(count) or 0 end
         ok, count = SafeExport(resource, 'GetItemByName', inventory, item)
@@ -1012,6 +1153,11 @@ end
 local function AddPlayerItem(src, item, amount, metadata)
     amount = tonumber(amount) or 1
     metadata = metadata or {}
+
+    if IsNDInventoryResource(InventorySystem) then
+        local ok, result = SafeExport(InventorySystem, 'AddItem', src, item, amount, metadata)
+        if ok then return result == true end
+    end
 
     if InventorySystem == 'ox_inventory' and GetResourceState('ox_inventory') == 'started' then
         local ok, result = SafeExport('ox_inventory', 'AddItem', src, item, amount, metadata)
@@ -1041,6 +1187,11 @@ end
 
 local function RemovePlayerItem(src, item, amount)
     amount = tonumber(amount) or 1
+
+    if IsNDInventoryResource(InventorySystem) then
+        local ok, result = SafeExport(InventorySystem, 'RemoveItem', src, item, amount)
+        if ok then return result == true end
+    end
 
     if InventorySystem == 'ox_inventory' and GetResourceState('ox_inventory') == 'started' then
         local ok, result = SafeExport('ox_inventory', 'RemoveItem', src, item, amount)
@@ -1441,12 +1592,10 @@ local function ValidateResourceConfig()
     local targetSystem = Config.TargetSystem or (Config.Target and Config.Target.System) or 'auto'
     local oxTargetStarted = GetResourceState('ox_target') == 'started'
     local qbTargetStarted = GetResourceState('qb-target') == 'started'
-    if targetSystem == 'auto' and not oxTargetStarted and not qbTargetStarted then
-        AddConfigIssue(issues, 'warning', 'No supported target resource is started. Install/start ox_target or qb-target for interaction zones.')
-    elseif targetSystem == 'ox' and not oxTargetStarted then
-        AddConfigIssue(issues, 'warning', 'Config.TargetSystem is set to ox, but ox_target is not started.')
-    elseif targetSystem == 'qb' and not qbTargetStarted then
-        AddConfigIssue(issues, 'warning', 'Config.TargetSystem is set to qb, but qb-target is not started.')
+    if (targetSystem == 'ox' or targetSystem == 'ox_target') and not oxTargetStarted then
+        AddConfigIssue(issues, 'warning', 'Config.TargetSystem is set to ox, but ox_target is not started. ox_lib TextUI fallback will be used.')
+    elseif (targetSystem == 'qb' or targetSystem == 'qb-target') and not qbTargetStarted then
+        AddConfigIssue(issues, 'warning', 'Config.TargetSystem is set to qb, but qb-target is not started. ox_lib TextUI fallback will be used.')
     end
 
     local errors, warnings = 0, 0
@@ -1471,8 +1620,11 @@ local function PrintStartupSummary()
 
     local resourceName = GetCurrentResourceName()
     local version = GetResourceMetadata(resourceName, 'version', 0) or 'dev'
-    local target = 'none detected'
-    if GetResourceState('ox_target') == 'started' then
+    local configuredTarget = tostring(Config.TargetSystem or 'auto'):lower()
+    local target = 'ox_lib TextUI'
+    if configuredTarget == 'textui' or configuredTarget == 'native' or configuredTarget == 'none' then
+        target = 'ox_lib TextUI'
+    elseif GetResourceState('ox_target') == 'started' then
         target = 'ox_target'
     elseif GetResourceState('qb-target') == 'started' then
         target = 'qb-target'
@@ -1790,6 +1942,7 @@ CargoServerContext = {
     GetSecurityCooldown = GetSecurityCooldown,
     RateLimitResponse = RateLimitResponse,
     RequireServerNear = RequireServerNear,
+    GetSourceCoords = GetSourceCoords,
     GetDistanceLimit = GetDistanceLimit,
     GetContractPickupCoords = GetContractPickupCoords,
     GetPublicContractData = GetPublicContractData,

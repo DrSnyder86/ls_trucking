@@ -5,9 +5,27 @@ local detectedFramework = nil
 local QBCore = nil
 local ESX = nil
 local NDCore = nil
+local NDFrameworkResource = nil
+
+local ND_FRAMEWORK_RESOURCES = {
+    'ND_Framework',
+    'nd_framework',
+    'ND_Framework [Dev Build]',
+    'ND_Framework [Dev Build v0.4.0]'
+}
+
+local ND_CORE_RESOURCES = { 'ND_Core', 'nd_core' }
 
 local function ResourceStarted(resource)
-    return GetResourceState(resource) == 'started'
+    return type(resource) == 'string' and resource ~= '' and GetResourceState(resource) == 'started'
+end
+
+local function FindStartedResource(resources)
+    for _, resource in ipairs(resources or {}) do
+        if ResourceStarted(resource) then return resource end
+    end
+
+    return nil
 end
 
 local function SafeExport(resource, exportName, ...)
@@ -67,14 +85,23 @@ end
 local function DetectFramework()
     local configured = Config.Framework or 'auto'
 
-    if configured == 'qb' or configured == 'qbox' or configured == 'esx' or configured == 'nd' or configured == 'nd_core' or configured == 'standalone' then
-        return configured == 'nd_core' and 'nd' or configured
+    if configured == 'nd' or configured == 'nd_framework' then
+        NDFrameworkResource = FindStartedResource(ND_FRAMEWORK_RESOURCES)
+        if NDFrameworkResource then return 'nd' end
+        if FindStartedResource(ND_CORE_RESOURCES) then return 'nd_core' end
+        return 'nd'
+    end
+
+    if configured == 'qb' or configured == 'qbox' or configured == 'esx' or configured == 'nd_core' or configured == 'standalone' then
+        return configured
     end
 
     if ResourceStarted('qbx_core') then return 'qbox' end
     if ResourceStarted('qb-core') then return 'qb' end
     if ResourceStarted('es_extended') then return 'esx' end
-    if ResourceStarted('ND_Core') then return 'nd' end
+    NDFrameworkResource = FindStartedResource(ND_FRAMEWORK_RESOURCES)
+    if NDFrameworkResource then return 'nd' end
+    if FindStartedResource(ND_CORE_RESOURCES) then return 'nd_core' end
 
     return 'standalone'
 end
@@ -96,12 +123,15 @@ function Framework.Init()
                 TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
             end)
         end
-    elseif detectedFramework == 'nd' and ResourceStarted('ND_Core') then
-        local ok, core = SafeExport('ND_Core', 'GetCoreObject')
+    elseif detectedFramework == 'nd' then
+        NDFrameworkResource = NDFrameworkResource or FindStartedResource(ND_FRAMEWORK_RESOURCES)
+    elseif detectedFramework == 'nd_core' then
+        local resource = FindStartedResource(ND_CORE_RESOURCES)
+        local ok, core = SafeExport(resource, 'GetCoreObject')
         if ok and core then
             NDCore = core
         else
-            ok, core = SafeExport('ND_Core', 'getCoreObject')
+            ok, core = SafeExport(resource, 'getCoreObject')
             if ok and core then NDCore = core end
         end
     end
@@ -135,13 +165,20 @@ function Framework.GetPlayer(src)
     end
 
     if framework == 'nd' then
+        NDFrameworkResource = NDFrameworkResource or FindStartedResource(ND_FRAMEWORK_RESOURCES)
+        local ok, player = SafeExport(NDFrameworkResource, 'GetPlayerData', src)
+        if ok and player then return player end
+    end
+
+    if framework == 'nd_core' then
         if NDCore then
             local ok, player = CallMethod(NDCore, { 'getPlayer', 'GetPlayer', 'fetchPlayer', 'FetchPlayer' }, src)
             if ok and player then return player end
         end
 
+        local resource = FindStartedResource(ND_CORE_RESOURCES)
         for _, exportName in ipairs({ 'getPlayer', 'GetPlayer', 'fetchPlayer', 'FetchPlayer' }) do
-            local ok, player = SafeExport('ND_Core', exportName, src)
+            local ok, player = SafeExport(resource, exportName, src)
             if ok and player then return player end
         end
     end
@@ -172,6 +209,12 @@ end
 function Framework.GetIdentifier(src)
     local player = Framework.GetPlayer(src)
 
+    if Framework.GetName() == 'nd' then
+        NDFrameworkResource = NDFrameworkResource or FindStartedResource(ND_FRAMEWORK_RESOURCES)
+        local ok, charId = SafeExport(NDFrameworkResource, 'GetCharacterId', src)
+        if ok and charId ~= nil then return tostring(charId) end
+    end
+
     if player then
         if player.PlayerData and player.PlayerData.citizenid then return player.PlayerData.citizenid end
 
@@ -182,7 +225,7 @@ function Framework.GetIdentifier(src)
         if field then return tostring(field) end
     end
 
-    if Framework.GetName() == 'esx' or Framework.GetName() == 'nd' then
+    if Framework.GetName() == 'esx' or Framework.GetName() == 'nd' or Framework.GetName() == 'nd_core' then
         local license = GetLicenseIdentifier(src)
         if license then return license end
     end
@@ -191,6 +234,12 @@ function Framework.GetIdentifier(src)
 end
 
 function Framework.GetCharacterName(src)
+    if Framework.GetName() == 'nd' then
+        NDFrameworkResource = NDFrameworkResource or FindStartedResource(ND_FRAMEWORK_RESOURCES)
+        local ok, name = SafeExport(NDFrameworkResource, 'GetCharacterName', src)
+        if ok and name and name ~= '' then return tostring(name) end
+    end
+
     local player = Framework.GetPlayer(src)
 
     if player then
@@ -291,6 +340,30 @@ function Framework.GetJobInfo(src)
     local player = Framework.GetPlayer(src)
     local job = nil
 
+    if Framework.GetName() == 'nd' and player then
+        local rank = type(player.rank) == 'table' and player.rank or {}
+        local department = player.dept or player.department or 'unemployed'
+        local level = player.level or player.levelKey or player.job or department
+        local rankName = rank.Name or rank.name or player.rankName or player.rank_name or tostring(level)
+        local rankPower = tonumber(rank.Power or rank.power or player.rankPower or player.rank_power or 0) or 0
+        local onDuty = nil
+
+        NDFrameworkResource = NDFrameworkResource or FindStartedResource(ND_FRAMEWORK_RESOURCES)
+        local ok, duty = SafeExport(NDFrameworkResource, 'IsOnDuty', src)
+        if ok then onDuty = duty == true end
+
+        return {
+            name = tostring(level),
+            label = tostring(department),
+            department = tostring(department),
+            level = tostring(level),
+            gradeName = tostring(rankName),
+            gradeLevel = rankPower,
+            onDuty = onDuty,
+            text = ('%s - %s'):format(department, rankName)
+        }
+    end
+
     if player then
         if player.PlayerData and player.PlayerData.job then
             job = player.PlayerData.job
@@ -309,7 +382,18 @@ end
 
 function Framework.HasRequiredJob(src)
     if not Config.RequireJob then return true end
-    return Framework.GetJobInfo(src).name == Config.JobName
+    local job = Framework.GetJobInfo(src)
+    local required = tostring(Config.JobName or ''):lower()
+    if required == '' then return true end
+
+    for _, value in ipairs({ job.name, job.level, job.department, job.label }) do
+        local candidate = tostring(value or ''):lower()
+        if candidate == required or candidate == (required .. '_level') or candidate:gsub('_level$', '') == required then
+            return true
+        end
+    end
+
+    return false
 end
 
 function Framework.SetDuty(src, onDuty)
@@ -335,6 +419,16 @@ function Framework.SetDuty(src, onDuty)
             local ok = SafeExport('qbx_core', exportName, src, onDuty)
             if ok then return true end
         end
+    end
+
+    if framework == 'nd' then
+        NDFrameworkResource = NDFrameworkResource or FindStartedResource(ND_FRAMEWORK_RESOURCES)
+        local exportName = onDuty and 'ClockIn' or 'ClockOut'
+        local ok, result = SafeExport(NDFrameworkResource, exportName, src)
+        if ok then return result ~= false end
+
+        ok, result = SafeExport(NDFrameworkResource, 'ToggleDuty', src)
+        if ok then return result ~= false end
     end
 
     return false
@@ -387,6 +481,19 @@ function Framework.AddMoney(src, amount, reason)
     local account = GetMoneyAccount()
     local player = Framework.GetPlayer(src)
 
+    if Framework.GetName() == 'nd' then
+        NDFrameworkResource = NDFrameworkResource or FindStartedResource(ND_FRAMEWORK_RESOURCES)
+        local readyOk, ready = SafeExport(NDFrameworkResource, 'IsMoneyReady')
+        if readyOk and ready ~= true then
+            SafeExport(NDFrameworkResource, 'WaitForMoneyReady', 1500)
+        end
+
+        local exportName = account == 'bank' and 'AddBank' or 'AddCash'
+        local ok, result = SafeExport(NDFrameworkResource, exportName, src, amount)
+        if ok then return result ~= false end
+        return false
+    end
+
     if player and player.Functions and player.Functions.AddMoney then
         return player.Functions.AddMoney(account, amount, reason or 'ls-trucking-payment') ~= false
     end
@@ -408,7 +515,7 @@ function Framework.AddMoney(src, amount, reason)
         if ok then return result ~= false end
     end
 
-    if Framework.GetName() == 'nd' and player then
+    if Framework.GetName() == 'nd_core' and player then
         local ok, result = CallMethod(player, { 'addMoney', 'AddMoney', 'addCash', 'AddCash' }, account, amount, reason or 'ls-trucking-payment')
         if ok then return result ~= false end
 
@@ -416,9 +523,10 @@ function Framework.AddMoney(src, amount, reason)
         if ok then return result ~= false end
     end
 
-    if Framework.GetName() == 'nd' then
+    if Framework.GetName() == 'nd_core' then
+        local resource = FindStartedResource(ND_CORE_RESOURCES)
         for _, exportName in ipairs({ 'addMoney', 'AddMoney', 'addCash', 'AddCash' }) do
-            local ok, result = SafeExport('ND_Core', exportName, src, amount, account, reason or 'ls-trucking-payment')
+            local ok, result = SafeExport(resource, exportName, src, amount, account, reason or 'ls-trucking-payment')
             if ok then return result ~= false end
         end
     end
@@ -434,6 +542,19 @@ function Framework.RemoveMoney(src, amount, reason, accountOverride)
     if account == 'money' then account = 'cash' end
     if account ~= 'cash' and account ~= 'bank' then account = GetMoneyAccount() end
     local player = Framework.GetPlayer(src)
+
+    if Framework.GetName() == 'nd' then
+        NDFrameworkResource = NDFrameworkResource or FindStartedResource(ND_FRAMEWORK_RESOURCES)
+        local readyOk, ready = SafeExport(NDFrameworkResource, 'IsMoneyReady')
+        if readyOk and ready ~= true then
+            SafeExport(NDFrameworkResource, 'WaitForMoneyReady', 1500)
+        end
+
+        local exportName = account == 'bank' and 'RemoveBank' or 'RemoveCash'
+        local ok, result = SafeExport(NDFrameworkResource, exportName, src, amount)
+        if ok then return result == true end
+        return false
+    end
 
     local balance = GetAccountBalance(player, account)
     if balance ~= nil and balance < amount then return false end
@@ -459,7 +580,7 @@ function Framework.RemoveMoney(src, amount, reason, accountOverride)
         if ok then return result ~= false end
     end
 
-    if Framework.GetName() == 'nd' and player then
+    if Framework.GetName() == 'nd_core' and player then
         local ok, result = CallMethod(player, { 'removeMoney', 'RemoveMoney', 'deductMoney', 'DeductMoney', 'removeCash', 'RemoveCash' }, account, amount, reason or 'ls-trucking-charge')
         if ok then return result ~= false end
 
@@ -467,9 +588,10 @@ function Framework.RemoveMoney(src, amount, reason, accountOverride)
         if ok then return result ~= false end
     end
 
-    if Framework.GetName() == 'nd' then
+    if Framework.GetName() == 'nd_core' then
+        local resource = FindStartedResource(ND_CORE_RESOURCES)
         for _, exportName in ipairs({ 'removeMoney', 'RemoveMoney', 'deductMoney', 'DeductMoney', 'removeCash', 'RemoveCash' }) do
-            local ok, result = SafeExport('ND_Core', exportName, src, amount, account, reason or 'ls-trucking-charge')
+            local ok, result = SafeExport(resource, exportName, src, amount, account, reason or 'ls-trucking-charge')
             if ok then return result ~= false end
         end
     end
@@ -499,6 +621,15 @@ function Framework.IsAdmin(src)
 
     local player = Framework.GetPlayer(src)
 
+    if Framework.GetName() == 'nd' then
+        NDFrameworkResource = NDFrameworkResource or FindStartedResource(ND_FRAMEWORK_RESOURCES)
+        local ok, allowed = SafeExport(NDFrameworkResource, 'IsCategory', src, 'ADMIN')
+        if ok and allowed == true then return true end
+
+        ok, allowed = SafeExport(NDFrameworkResource, 'HasPermission', src, 'admin_level')
+        if ok and allowed == true then return true end
+    end
+
     if Framework.GetName() == 'qb' and QBCore and QBCore.Functions and QBCore.Functions.HasPermission then
         if QBCore.Functions.HasPermission(src, 'admin') or QBCore.Functions.HasPermission(src, 'god') then
             return true
@@ -518,7 +649,7 @@ function Framework.IsAdmin(src)
         if group == 'admin' or group == 'superadmin' or group == 'god' then return true end
     end
 
-    if Framework.GetName() == 'nd' and player then
+    if Framework.GetName() == 'nd_core' and player then
         local ok, allowed = CallMethod(player, { 'hasPermission', 'HasPermission', 'isAdmin', 'IsAdmin' }, 'admin')
         if ok and allowed then return true end
 

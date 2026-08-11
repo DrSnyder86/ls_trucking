@@ -4,7 +4,7 @@ this_is_a_map 'yes'
 
 author 'Drsnyder'
 description 'Los Santos Freight Co. Trucker Job'
-version '1.2.0'
+version '1.3.0'
 repository 'https://github.com/DrSnyder86/ls_trucking'
 
 
@@ -42,6 +42,7 @@ server_scripts {
 
 client_scripts {
     'client/compat.lua',
+    'client/interactions.lua',
     'client/route_history.lua',
     'client/freight_handoff.lua',
     'client/receiver_vehicle_controls.lua',
@@ -50,8 +51,11 @@ client_scripts {
     'client/trailer_cargo_tester.lua',
     'client/trailer_cargo_editor.lua',
     'client/trailer_drop_marker.lua',
+    'client/delivery_interaction.lua',
     'client/depot_vehicles.lua',
     'client/route_state.lua',
+    'client/dispatch_data.lua',
+    'client/client_commands.lua',
     'client/routes.lua',
     'client/contractor_ui.lua',
     'client/service_bay.lua',
@@ -62,6 +66,7 @@ client_scripts {
 ui_page 'html/index.html'
 
 files {
+    'client/interactions.lua',
     'html/index.html',
     'html/style.css',
     'html/css/*.css',

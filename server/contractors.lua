@@ -3,7 +3,6 @@ LS_Trucking = LS_Trucking or {}
 local Contractors = {}
 local serverContext = {}
 local serverRegistered = false
-local startupStarted = false
 
 local function Ctx()
     return serverContext or {}
@@ -527,9 +526,45 @@ local function BuildBoard(citizenid, playerRank, profile, vehicles)
     end
 
     local contractType = activeOutVehicle.type
+    local payoutData = Config.Payouts[contractType]
+
+    local function addRankedPriorityOffer(requestedPriorityKey)
+        if #board >= boardLimit or not payoutData then return false end
+
+        local routePool, priority, resolvedPriorityKey, contract = ctx.GetRoutePool(contractType, requestedPriorityKey)
+        if resolvedPriorityKey ~= requestedPriorityKey
+            or not contract
+            or not priority
+            or not routePool
+            or #routePool == 0
+            or not ctx.CheckRankRequirement(playerRank, priority.minRank) then
+            return false
+        end
+
+        local routeIndexes = GetBoardRouteIndexes(citizenid, contractType, resolvedPriorityKey, #routePool, 1)
+        local routeIndex = routeIndexes[1]
+        local route = routeIndex and routePool[routeIndex] or nil
+        if not route then return false end
+
+        board[#board + 1] = BuildBoardEntry(
+            contractType,
+            resolvedPriorityKey,
+            routeIndex,
+            route,
+            contract,
+            priority,
+            payoutData,
+            outByType[contractType],
+            false
+        )
+        return true
+    end
+
+    addRankedPriorityOffer('government')
+    addRankedPriorityOffer('military')
+
     local routePool, priority, priorityKey, contract = ctx.GetRoutePool(contractType, 'standard')
     priority = priority or { label = 'Standard Commercial Route', shortLabel = 'Standard', minRank = 1, payoutMultiplier = 1.0, xpMultiplier = 1.0, repBonus = 0 }
-    local payoutData = Config.Payouts[contractType]
     if contract and payoutData and routePool and #routePool > 0 and ctx.CheckRankRequirement(playerRank, priority.minRank) then
         local excludedRouteIndex = routeOption and not dailyCompleted and dailyContractType == contractType and tonumber(routeOption.routeIndex) or nil
         local remainingBoardSlots = math.max(0, boardLimit - #board)
@@ -616,28 +651,8 @@ local function VehicleConditionPercent(engineHealth, bodyHealth)
     return math.max(0, math.min(100, math.floor((math.min(engineHealth, bodyHealth) / 10.0) + 0.5)))
 end
 
-local function StartDatabaseWarmup()
-    if startupStarted then return end
-    startupStarted = true
-
-    CreateThread(function()
-        Wait(1500)
-        if not Contractors.IsEnabled() then return end
-
-        for attempt = 1, 6 do
-            local ok, err = pcall(EnsureTables)
-            if ok then return end
-            if Config.Debug then
-                print(('[ls_trucking] Contractor startup cleanup attempt %s failed: %s'):format(attempt, err))
-            end
-            Wait(2500)
-        end
-    end)
-end
-
 function Contractors.ConfigureServer(context)
     serverContext = context or {}
-    StartDatabaseWarmup()
 end
 
 function Contractors.RegisterServer(context)
