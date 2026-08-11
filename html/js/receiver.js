@@ -122,6 +122,35 @@ function miniPanel(title, rows, extraClass = '') {
     `;
 }
 
+function renderMiniScaleSetting(target, label, icon) {
+    const currentScale = getMiniUIScale(target);
+    const currentPercent = Math.round(currentScale * 100);
+    const options = MINI_SCALE_PRESETS.map(scale => {
+        const percent = Math.round(scale * 100);
+        const selected = scale === currentScale;
+
+        return `
+            <button type="button" class="mini-scale-option ${selected ? 'is-selected' : ''}"
+                data-mini-scale-target="${target}" data-mini-scale="${scale}"
+                aria-label="${escapeHtml(`${label} ${percent}%`)}" aria-pressed="${selected}">
+                ${percent}%
+            </button>
+        `;
+    }).join('');
+
+    return `
+        <div class="mini-scale-setting">
+            <div class="mini-scale-heading">
+                <span><i class="fas ${icon}"></i>${escapeHtml(label)}</span>
+                <strong>${currentPercent}%</strong>
+            </div>
+            <div class="mini-scale-options" role="group" aria-label="${escapeHtml(label)}">
+                ${options}
+            </div>
+        </div>
+    `;
+}
+
 function miniTrailerPhotoPanel(contract = {}) {
     if (!contract.trailerPhoto) return '';
 
@@ -779,6 +808,10 @@ function renderMiniSettingsPage(contract = {}) {
                         <i class="fas ${dockVisible ? 'fa-eye-slash' : 'fa-window-restore'}"></i>
                         <span>${dockButtonText}</span>
                     </button>
+                </div>
+                <div class="mini-scale-settings">
+                    ${renderMiniScaleSetting('receiver', uiText('receiver.detail.receiverSize', {}, 'Receiver Size'), 'fa-mobile-screen-button')}
+                    ${renderMiniScaleSetting('dock', uiText('receiver.detail.dockSize', {}, 'Dock Size'), 'fa-window-restore')}
                 </div>
             `
         ]),

@@ -66,6 +66,189 @@
     margin-top: 8px;
 }
 
+.dispatch-select-control {
+    position: relative;
+    height: 42px;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(20, 27, 27, 0.98), rgba(8, 13, 14, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 7px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+.dispatch-select-control:focus-within,
+.dispatch-select-control.open {
+    background: linear-gradient(180deg, rgba(28, 31, 24, 0.99), rgba(11, 15, 14, 0.99));
+    border-color: rgba(255, 201, 40, 0.8);
+    box-shadow: 0 0 0 2px rgba(255, 201, 40, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.dispatch-select-control.open {
+    z-index: 40;
+    overflow: visible;
+}
+
+.dispatch-select-control > i:first-child,
+.dispatch-select-control > .dispatch-select-chevron {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
+.dispatch-select-control > i:first-child {
+    left: 13px;
+    width: 18px;
+    color: #ffd15b;
+    font-size: 13px;
+    text-align: center;
+}
+
+.dispatch-select-control > .dispatch-select-chevron {
+    right: 13px;
+    color: #b9c0bd;
+    font-size: 11px;
+    transition: color 140ms ease;
+}
+
+.dispatch-select-control:focus-within > .dispatch-select-chevron,
+.dispatch-select-control.open > .dispatch-select-chevron {
+    color: #ffd15b;
+}
+
+.vehicle-select-wrap .dispatch-select-control select.dispatch-select-native {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.dispatch-select-trigger {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    color: #f3f5f4;
+    border: 0;
+    border-radius: 7px;
+    padding: 0 38px 0 43px;
+    outline: 0;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: left;
+    cursor: pointer;
+}
+
+.dispatch-select-trigger:disabled {
+    color: #777f7c;
+    cursor: not-allowed;
+}
+
+.dispatch-select-value {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.dispatch-select-menu {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: -1px;
+    z-index: 50;
+    display: grid;
+    width: calc(100% + 2px);
+    max-height: 252px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 5px;
+    background: rgba(8, 13, 14, 0.99);
+    border: 1px solid rgba(255, 201, 40, 0.58);
+    border-radius: 7px;
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    scrollbar-color: rgba(255, 201, 40, 0.92) rgba(3, 7, 8, 0.94);
+    scrollbar-width: thin;
+}
+
+.dispatch-select-menu[hidden] {
+    display: none;
+}
+
+.dispatch-select-menu::-webkit-scrollbar {
+    width: 8px;
+}
+
+.dispatch-select-menu::-webkit-scrollbar-track {
+    background: rgba(3, 7, 8, 0.94);
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dispatch-select-menu::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #ffd15b, #c98a00);
+    border: 2px solid rgba(3, 7, 8, 0.94);
+    border-radius: 999px;
+}
+
+.dispatch-select-option {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 18px;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+    min-height: 34px;
+    padding: 6px 8px 6px 10px;
+    background: transparent;
+    color: #d9dddb;
+    border: 0;
+    border-radius: 5px;
+    outline: 0;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.dispatch-select-option span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.dispatch-select-option i {
+    color: #ffd15b;
+    font-size: 10px;
+    text-align: center;
+}
+
+.dispatch-select-option:hover,
+.dispatch-select-option:focus-visible {
+    background: rgba(255, 201, 40, 0.12);
+    color: #fff4ca;
+}
+
+.dispatch-select-option[aria-selected="true"] {
+    background: linear-gradient(90deg, rgba(255, 201, 40, 0.24), rgba(255, 201, 40, 0.06));
+    color: #ffd15b;
+}
+
+.dispatch-select-option:disabled {
+    color: #737b78;
+    cursor: not-allowed;
+}
+
+.dispatch-select-option:disabled i {
+    color: #737b78;
+}
+
 .priority-info {
     margin-top: 6px;
     padding: 7px 9px;

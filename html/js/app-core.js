@@ -71,15 +71,41 @@ const MINI_PAGE_ANIMATION_MS = 230;
 const DISPATCH_ANIMATION_MS = 160;
 const DISPATCH_CLEANUP_PARK_MS = 2500;
 const MINI_MOVEMENT_STORAGE_KEY = 'ls_trucking_receiver_movement_unlocked';
+const MINI_RECEIVER_SCALE_STORAGE_KEY = 'ls_trucking_receiver_scale_v1';
+const MINI_DOCK_SCALE_STORAGE_KEY = 'ls_trucking_dock_scale_v1';
+const MINI_SCALE_PRESETS = [0.75, 0.85, 1];
 const MINI_PAGE_ORDER = ['home', 'route', 'manifest', 'load', 'vehicle', 'dispatch', 'settings'];
 
 let miniMovementUnlocked = false;
+let miniReceiverScale = 1;
+let miniDockScale = 1;
+
+function normalizeMiniScale(value) {
+    if (value === null || value === undefined || value === '') return 1;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 1;
+
+    return MINI_SCALE_PRESETS.reduce((closest, preset) => (
+        Math.abs(preset - parsed) < Math.abs(closest - parsed) ? preset : closest
+    ), 1);
+}
+
+function readMiniScale(storageKey) {
+    try {
+        return normalizeMiniScale(localStorage.getItem(storageKey));
+    } catch {
+        return 1;
+    }
+}
 
 try {
     miniMovementUnlocked = localStorage.getItem(MINI_MOVEMENT_STORAGE_KEY) === 'true';
 } catch {
     miniMovementUnlocked = false;
 }
+
+miniReceiverScale = readMiniScale(MINI_RECEIVER_SCALE_STORAGE_KEY);
+miniDockScale = readMiniScale(MINI_DOCK_SCALE_STORAGE_KEY);
 
 function applyMiniMovementState() {
     if (mini) mini.classList.toggle('movement-unlocked', miniMovementUnlocked);
@@ -102,7 +128,38 @@ function isMiniMovementUnlocked() {
     return miniMovementUnlocked === true;
 }
 
+function getMiniUIScale(target) {
+    return target === 'dock' ? miniDockScale : miniReceiverScale;
+}
+
+function applyMiniUIScale() {
+    if (mini) mini.style.setProperty('--receiver-scale', String(miniReceiverScale));
+    if (miniDock) miniDock.style.setProperty('--dock-scale', String(miniDockScale));
+
+    requestAnimationFrame(() => window.dispatchEvent(new Event('lsfc:ui-scale-change')));
+}
+
+function setMiniUIScale(target, value, rerender = false) {
+    const normalized = normalizeMiniScale(value);
+    const isDock = target === 'dock';
+    const storageKey = isDock ? MINI_DOCK_SCALE_STORAGE_KEY : MINI_RECEIVER_SCALE_STORAGE_KEY;
+
+    if (isDock) miniDockScale = normalized;
+    else miniReceiverScale = normalized;
+
+    try {
+        localStorage.setItem(storageKey, String(normalized));
+    } catch {}
+
+    applyMiniUIScale();
+
+    if (rerender && miniCurrentPage === 'settings') {
+        renderMiniSettingsPage(miniLastContract || {});
+    }
+}
+
 applyMiniMovementState();
+applyMiniUIScale();
 
 function flashMiniRadio(direction = 'tx') {
     const targets = [mini, miniDock].filter(Boolean);

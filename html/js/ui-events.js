@@ -545,6 +545,13 @@ document.addEventListener('click', event => {
         return;
     }
 
+    const scaleOption = event.target.closest('[data-mini-scale-target][data-mini-scale]');
+    if (scaleOption && mini && mini.contains(scaleOption)) {
+        playUISound('click');
+        setMiniUIScale(scaleOption.dataset.miniScaleTarget, scaleOption.dataset.miniScale, true);
+        return;
+    }
+
     const dockToggle = event.target.closest('[data-mini-dock-toggle]');
     if (dockToggle && mini && mini.contains(dockToggle)) {
         if (dockToggle.disabled) {
@@ -635,6 +642,12 @@ document.addEventListener('click', event => {
 
 document.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
+
+    if (closeOpenDispatchSelect()) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+    }
 
     // If a Freight Dispatch dialog is open, close the dialog first.
     // This prevents ESC from removing NUI focus while leaving the dialog visible.
@@ -768,9 +781,11 @@ function setupMovablePanel(options) {
 
     function boxSize() {
         const rect = box.getBoundingClientRect();
+        const style = window.getComputedStyle(box);
+        const scale = Math.max(0.1, Number.parseFloat(style.getPropertyValue(options.scaleProperty)) || 1);
         return {
-            width: rect.width || box.offsetWidth || options.fallbackWidth,
-            height: rect.height || box.offsetHeight || options.fallbackHeight
+            width: rect.width || (box.offsetWidth || options.fallbackWidth) * scale,
+            height: rect.height || (box.offsetHeight || options.fallbackHeight) * scale
         };
     }
 
@@ -953,6 +968,7 @@ function setupMovablePanel(options) {
     window.addEventListener('blur', stopDrag);
 
     window.addEventListener('resize', () => applyPosition(true));
+    window.addEventListener('lsfc:ui-scale-change', () => applyPosition(true));
 }
 
 setupMovablePanel({
@@ -961,6 +977,7 @@ setupMovablePanel({
     oldStorageKey: 'ls_trucking_mini_pos',
     xProperty: '--mini-x',
     yProperty: '--mini-y',
+    scaleProperty: '--receiver-scale',
     fallbackWidth: 330,
     fallbackHeight: 704,
     blockedSelector: '.mini-screen, button, input, select, textarea, a',
@@ -975,8 +992,9 @@ setupMovablePanel({
     storageKey: 'ls_trucking_mini_dock_pos_v1',
     xProperty: '--dock-x',
     yProperty: '--dock-y',
-    fallbackWidth: 360,
-    fallbackHeight: 214,
+    scaleProperty: '--dock-scale',
+    fallbackWidth: 330,
+    fallbackHeight: 190,
     defaultPosition: (viewport, size) => ({
         x: Math.max(16, viewport.width - size.width - 22),
         y: Math.max(16, viewport.height - size.height - 34)

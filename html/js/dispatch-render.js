@@ -446,6 +446,7 @@ function renderPrioritySelector(type) {
     }
 
     prioritySelect.value = selectedPriority[type];
+    syncDispatchSelect(prioritySelect);
     updatePriorityInfo();
 }
 
@@ -474,6 +475,7 @@ function renderVehicleSelector(type) {
     const firstUnlocked = vehicles.findIndex(canUseVehicle);
     if (firstUnlocked >= 0) selectedVehicleIndex = firstUnlocked + 1;
     vehicleSelect.value = String(selectedVehicleIndex);
+    syncDispatchSelect(vehicleSelect);
 
     updateReuseBox();
     updateVehiclePreview();
@@ -1010,6 +1012,7 @@ function scheduleDispatchCleanup() {
 function closeUI() {
     clearTimeout(dispatchHideTimer);
     clearTimeout(dispatchParkTimer);
+    closeOpenDispatchSelect();
     app.classList.remove('dispatch-pre-open', 'dispatch-opening');
 
     if (app.classList.contains('hidden')) return;
