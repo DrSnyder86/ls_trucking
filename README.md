@@ -15,6 +15,73 @@ Los Santos Freight Co. is a full delivery career resource for FiveM offering pac
 
 The script is built around a dispatch tablet for selecting work, a handheld receiver for active route operations, a compact dock UI for quick route status, and a service bay UI for maintaining LSFC garage and private fleet vehicles.
 
+---
+
+## Screenshots
+### Dispatch UI
+
+<p align="center">
+  <img src="https://r2.fivemanage.com/image/MjSADCAoSkti.png" width="32%" alt="Freight Dispatch UI" />
+  <img src="https://r2.fivemanage.com/image/T4DTiQnvJkHq.png" width="32%" alt="Company stats" />
+  <img src="https://r2.fivemanage.com/image/GPA5TCuUt2K9.png" width="32%" alt="Company Garage" />   
+</p>
+<p align="center">
+  <img src="https://r2.fivemanage.com/image/PjImpifso7HQ.png" width="32%" alt="Contractor Tab" />
+  <img src="https://r2.fivemanage.com/image/8C7Ncxxk2AMm.png" width="32%" alt="Contracts" />
+  <img src="https://r2.fivemanage.com/image/Pki1Ts3kP8Gy.png" width="32%" alt="History" />   
+</p>
+
+### Receiver UI 
+<p align="center">
+  <img src="https://r2.fivemanage.com/image/AQXF7S1qTZPv.png" width="19%" alt="Mini UI" />
+  <img src="https://r2.fivemanage.com/image/5H9p7Jk7ENbt.png" width="19%" alt="Mini UI" />
+  <img src="https://r2.fivemanage.com/image/JMaNGVPUBG16.png" width="19%" alt="Mini UI" />
+  <img src="https://r2.fivemanage.com/image/pcp69CvC6UsK.png" width="19%" alt="Mini UI" />
+  <img src="https://r2.fivemanage.com/image/5Gd7YCwrZ9sV.png" width="19%" alt="Mini UI" />
+</p>
+<p align="center">
+  <img src="https://r2.fivemanage.com/image/EILDeJYrhYuV.png" width="32%" alt="Cancel UI" />
+  <img src="https://r2.fivemanage.com/image/it9spcvBTLBj.png" width="32%" alt="Drop Authorization" />
+  <img src="https://r2.fivemanage.com/image/cVjvlsJnxtcL.png" width="32%" alt="Icons" />
+</p>
+
+### Pier 400 YMAP's
+<p align="center">
+  <img src="https://r2.fivemanage.com/image/ccZDudCK2O33.jpg" width="40%" alt="Terminal" />
+  <img src="https://r2.fivemanage.com/image/lBDvnLXxJHHZ.jpg" width="40%" alt="Weigh Station" />
+</p>
+
+### LSF Trailer Texture Dictionaries
+<p align="center">
+  <img src="https://r2.fivemanage.com/image/c4rmfmqhmNt8.png" width="32%" alt="Trailer" />  
+  <img src="https://r2.fivemanage.com/image/0HBrvRAeAfEv.png" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/MRUy6TR5jy1V.png" width="32%" alt="Trailer" />
+</p>
+<p align="center">
+  <img src="https://r2.fivemanage.com/image/GDujeRCNPjRA.png" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/B3Dlc6gTgeXB.png" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/fhLE76oWpkYI.png" width="32%" alt="Trailer" />
+</p>
+<p align="center">
+  <img src="https://r2.fivemanage.com/image/hxf2uJfRhxXg.jpg" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/Wl9PMqOg7mgV.jpg" width="32%" alt="Trailer" />
+  <img src="https://r2.fivemanage.com/image/3CzeTQg2EUew.png" width="32%" alt="Trailer" />
+</p>
+
+### LSF Vehicle Liveries
+<p align="center">
+  <img src="https://r2.fivemanage.com/image/M7vd2DqJFuRt.png" width="32%" alt="Vehicle" />
+  <img src="https://r2.fivemanage.com/image/ECRr59FU9Gal.jpg" width="32%" alt="Vehicle" />
+  <img src="https://r2.fivemanage.com/image/ILTiRcVnNnxE.png" width="32%" alt="Vehicle" />
+
+  <img src="https://r2.fivemanage.com/image/VHiMlolEBYBP.png" width="32%" alt="Vehicle" />
+  <img src="https://r2.fivemanage.com/image/nwD05R77qvag.png" width="32%" alt="Vehicle" />
+  <img src="https://r2.fivemanage.com/image/Hdk5Z86iV8Qq.png" width="32%" alt="Vehicle" />
+
+  <img src="https://r2.fivemanage.com/image/2F5x14YXlCBW.jpg" width="32%" alt="Vehicle" />
+  <img src="https://r2.fivemanage.com/image/U888j6Zcn5hY.png" width="32%" alt="Vehicle" />
+</p>
+
 ## Main Features
 
 - Dispatch tablet with operations home, contracts, current job, garage, contractor, company, and route history views.
