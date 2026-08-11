@@ -7,6 +7,49 @@ local function shouldUse(configured, resource)
     return configured == 'auto' or configured == resource
 end
 
+local ND_FUEL_RESOURCES = {
+    'ND_Fuel',
+    'nd_fuel',
+    'ND_Fuel [Dev Build]'
+}
+
+local LC_FUEL_RESOURCES = {
+    'lc_fuel',
+    'lc-fuel'
+}
+
+local function resolveNDFuel(configured)
+    local normalized = tostring(configured or 'auto'):lower()
+    local wantsND = normalized == 'auto' or normalized == 'nd' or normalized:find('nd_fuel', 1, true) ~= nil
+    if not wantsND then return nil end
+
+    if type(configured) == 'string' and resourceStarted(configured) and normalized:find('nd_fuel', 1, true) then
+        return configured
+    end
+
+    for _, resource in ipairs(ND_FUEL_RESOURCES) do
+        if resourceStarted(resource) then return resource end
+    end
+
+    return nil
+end
+
+local function resolveLCFuel(configured)
+    local normalized = tostring(configured or 'auto'):lower()
+    local wantsLC = normalized == 'auto' or normalized == 'lc' or normalized == 'lc_fuel' or normalized == 'lc-fuel'
+    if not wantsLC then return nil end
+
+    if type(configured) == 'string' and resourceStarted(configured) and (normalized == 'lc_fuel' or normalized == 'lc-fuel') then
+        return configured
+    end
+
+    for _, resource in ipairs(LC_FUEL_RESOURCES) do
+        if resourceStarted(resource) then return resource end
+    end
+
+    return nil
+end
+
 Config.SetVehicleFuel = function(vehicle, amount)
     if not vehicle or vehicle == 0 then return end
 
@@ -16,6 +59,18 @@ Config.SetVehicleFuel = function(vehicle, amount)
     if configured == 'none' then
         SetVehicleFuelLevel(vehicle, amount + 0.0)
         return
+    end
+
+    local ndFuel = resolveNDFuel(configured)
+    if ndFuel then
+        local ok = pcall(function() exports[ndFuel]:SetFuel(vehicle, amount) end)
+        if ok then return end
+    end
+
+    local lcFuel = resolveLCFuel(configured)
+    if lcFuel then
+        local ok = pcall(function() exports[lcFuel]:SetFuel(vehicle, amount) end)
+        if ok then return end
     end
 
     if shouldUse(configured, 'ox_fuel') and resourceStarted('ox_fuel') then
@@ -76,6 +131,18 @@ Config.GetVehicleFuel = function(vehicle)
 
     if configured == 'none' then
         return tonumber(GetVehicleFuelLevel(vehicle))
+    end
+
+    local ndFuel = resolveNDFuel(configured)
+    if ndFuel then
+        local fuel = getExportFuel(ndFuel, vehicle)
+        if fuel ~= nil then return fuel end
+    end
+
+    local lcFuel = resolveLCFuel(configured)
+    if lcFuel then
+        local fuel = getExportFuel(lcFuel, vehicle)
+        if fuel ~= nil then return fuel end
     end
 
     if shouldUse(configured, 'ox_fuel') and resourceStarted('ox_fuel') then

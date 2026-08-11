@@ -81,6 +81,7 @@ local function BuildActiveContract(data, vehicleLabel, trailerHookStage)
         trailerDrop = contract.trailerDrop,
         receiverPed = contract.receiverPed,
         currentStop = 0,
+        deliveredAtStop = 0,
         totalStops = contract.dropoffs and #contract.dropoffs or 1,
         loaded = loaded,
         loadedCargo = loadedCargo,
@@ -247,6 +248,7 @@ local function CleanupCancelledRoute()
     Call('ClearRouteBlip')
     Call('RemoveAllZones')
     Call('CleanupActiveContractPeds', true)
+    Call('CleanupBoxTruckTrolley')
     Call('DeleteCarryProp')
     SetActiveContract(nil)
     Call('UpdateMiniUI')
@@ -320,6 +322,7 @@ function Routes.CompleteRoute()
     Call('ClearRouteBlip')
     Call('RemoveAllZones')
     Call('CleanupActiveContractPeds', true)
+    Call('CleanupBoxTruckTrolley')
     SetActiveContract(nil)
     SetTimeout(5000, function() Call('UpdateMiniUI') end)
 end

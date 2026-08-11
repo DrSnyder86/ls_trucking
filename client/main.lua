@@ -1,4 +1,7 @@
 LS_Trucking = LS_Trucking or {}
+LS_Trucking.BoxTruckTrolley = LS_Trucking.BoxTruckTrolley or {}
+LS_Trucking.BoxTruckTrolley.UpdateUI = LS_Trucking.BoxTruckTrolley.UpdateUI or function() end
+LS_Trucking.BoxTruckTrolley.Dispatch = LS_Trucking.BoxTruckTrolley.Dispatch or function() end
 
 local activeContract = nil
 local reusableVehicle = nil
@@ -31,8 +34,6 @@ local receiverAccessPending = false
 local receiverDockUserHidden = false
 local miniDockVisible = false
 local miniFullVisible = false
-local commandSuggestions = {}
-local contractorBoardRefreshToken = 0
 local receiverControlBlockUntil = 0
 local dispatchActiveTab = 'home'
 local freightHandoffPending = false
@@ -53,9 +54,12 @@ local DepotVehicles = LS_Trucking and LS_Trucking.DepotVehicles or {}
 local RouteState = LS_Trucking and LS_Trucking.RouteState or {}
 local Routes = LS_Trucking and LS_Trucking.Routes or {}
 local ContractorUI = LS_Trucking and LS_Trucking.ContractorUI or {}
-local TrailerCargoEditor = LS_Trucking and LS_Trucking.TrailerCargoEditor or {}
-local TrailerCargoTester = LS_Trucking and LS_Trucking.TrailerCargoTester or {}
 local ServiceBay = LS_Trucking and LS_Trucking.ServiceBay or {}
+local Interactions = LS_Trucking and LS_Trucking.Interactions or {}
+
+local function GetInteractions()
+    return (LS_Trucking and LS_Trucking.Interactions) or Interactions
+end
 
 local function GetConfigCoords3(coords)
     if not coords then return nil end
@@ -865,6 +869,12 @@ local function CreateRouteBlip(coords, label, blipType)
     SetBlipColour(activeBlip, style.color or 5)
     SetBlipAsShortRange(activeBlip, false)
 
+    if Config.UseMissionGPSWaypoints == true
+        and (blipType == 'pickup' or blipType == 'package' or blipType == 'crate' or blipType == 'trailer') then
+        SetBlipRoute(activeBlip, true)
+        SetBlipRouteColour(activeBlip, style.routeColor or style.color or 5)
+    end
+
     BeginTextCommandSetBlipName('STRING')
     AddTextComponentString(label or 'Trucking Route')
     EndTextCommandSetBlipName(activeBlip)
@@ -1056,16 +1066,23 @@ end)
 
 CreateThread(function()
     while true do
-        if carryingCargo then
+        if carryingCargo or (LS_Trucking.BoxTruckTrolley.prop and DoesEntityExist(LS_Trucking.BoxTruckTrolley.prop)) then
             local ped = PlayerPedId()
 
             -- Prevent sprinting/jumping while carrying freight while still allowing a reasonable walking pace.
             DisableControlAction(0, 21, true) -- INPUT_SPRINT
             DisableControlAction(0, 22, true) -- INPUT_JUMP
             DisableControlAction(0, 36, true) -- INPUT_DUCK
+            if LS_Trucking.BoxTruckTrolley.prop and DoesEntityExist(LS_Trucking.BoxTruckTrolley.prop) then
+                DisableControlAction(0, 23, true) -- INPUT_ENTER
+                DisableControlAction(0, 75, true) -- INPUT_VEH_EXIT
+            end
 
             if not IsPedInAnyVehicle(ped, false) then
-                SetPedMoveRateOverride(ped, 0.88)
+                local moveRate = LS_Trucking.BoxTruckTrolley.prop and DoesEntityExist(LS_Trucking.BoxTruckTrolley.prop)
+                    and ((Config.BoxTruckTrolley and tonumber(Config.BoxTruckTrolley.MoveRate)) or 0.78)
+                    or (tonumber(Config.PackageMoveRate) or 0.88)
+                SetPedMoveRateOverride(ped, moveRate)
             end
 
             Wait(0)
@@ -1076,25 +1093,11 @@ CreateThread(function()
 end)
 
 local function GetTargetSystem()
-    local configured = Config.TargetSystem or (Config.Target and Config.Target.System) or 'auto'
-
-    if configured == 'ox' or configured == 'ox_target' then
-        return 'ox'
-    end
-
-    if configured == 'qb' or configured == 'qb-target' then
-        return 'qb'
-    end
-
-    if GetResourceState('ox_target') == 'started' then
-        return 'ox'
-    end
-
-    if GetResourceState('qb-target') == 'started' then
-        return 'qb'
-    end
-
-    return 'ox'
+    local provider = GetInteractions()
+    if provider.GetSystem then return provider.GetSystem() end
+    if GetResourceState('ox_target') == 'started' then return 'ox' end
+    if GetResourceState('qb-target') == 'started' then return 'qb' end
+    return 'native'
 end
 
 
@@ -1176,6 +1179,14 @@ local function AddTargetEntity(entity, options)
 
     local system = GetTargetSystem()
     local converted = ConvertTargetOptions(options)
+    local provider = GetInteractions()
+
+    -- Keep a TextUI copy so auto mode can fall back if a target resource stops.
+    if provider.AddEntity then
+        provider.AddEntity(entity, converted)
+    end
+
+    if system == 'native' then return end
 
     if system == 'qb' then
         exports['qb-target']:AddTargetEntity(entity, {
@@ -1188,13 +1199,38 @@ local function AddTargetEntity(entity, options)
     exports.ox_target:addLocalEntity(entity, converted)
 end
 
-local function RemoveTargetZone(zoneId)
-    if not zoneId then return end
+local function RemoveTargetEntity(entity)
+    if not entity or entity == 0 then return end
 
-    if GetTargetSystem() == 'qb' then
-        exports['qb-target']:RemoveZone(zoneId)
-    else
-        exports.ox_target:removeZone(zoneId)
+    local system = GetTargetSystem()
+    local provider = GetInteractions()
+    if provider.RemoveEntity then
+        provider.RemoveEntity(entity)
+    end
+
+    if system == 'qb' then
+        pcall(function() exports['qb-target']:RemoveTargetEntity(entity) end)
+    elseif system == 'ox' then
+        pcall(function() exports.ox_target:removeLocalEntity(entity) end)
+    end
+end
+
+local function RemoveTargetZone(zone)
+    if not zone then return end
+
+    if type(zone) ~= 'table' then
+        zone = { id = zone, name = zone, system = GetTargetSystem() }
+    end
+
+    local provider = GetInteractions()
+    if provider.RemoveZone then
+        provider.RemoveZone(zone.name)
+    end
+
+    if zone.system == 'qb' then
+        pcall(function() exports['qb-target']:RemoveZone(zone.id) end)
+    elseif zone.system == 'ox' then
+        pcall(function() exports.ox_target:removeZone(zone.id) end)
     end
 end
 
@@ -1209,6 +1245,16 @@ end
 local function AddSphereZone(name, coords, radius, options)
     local system = GetTargetSystem()
     local converted = ConvertTargetOptions(options)
+    local provider = GetInteractions()
+
+    if provider.AddSphereZone then
+        provider.AddSphereZone(name, coords, radius, converted)
+    end
+
+    if system == 'native' then
+        zones[name] = { id = name, name = name, system = 'native' }
+        return
+    end
 
     if system == 'qb' then
         exports['qb-target']:AddCircleZone(name, coords, radius, {
@@ -1220,11 +1266,15 @@ local function AddSphereZone(name, coords, radius, options)
             distance = Config.TargetDistance or 2.5
         })
 
-        zones[name] = name
+        zones[name] = { id = name, name = name, system = 'qb' }
         return
     end
 
-    zones[name] = exports.ox_target:addSphereZone({ coords = coords, radius = radius, debug = Config.Debug, options = converted })
+    zones[name] = {
+        id = exports.ox_target:addSphereZone({ coords = coords, radius = radius, debug = Config.Debug, options = converted }),
+        name = name,
+        system = 'ox'
+    }
 end
 
 local function IsCargoDoorOpen()
@@ -1239,7 +1289,389 @@ local function IsCargoDoorOpen()
     return false
 end
 
+function LS_Trucking.BoxTruckTrolley.GetConfig()
+    return Config.BoxTruckTrolley or {}
+end
+
+function LS_Trucking.BoxTruckTrolley.IsEnabled()
+    local cfg = LS_Trucking.BoxTruckTrolley.GetConfig()
+    return cfg.Enabled ~= false
+end
+
+function LS_Trucking.BoxTruckTrolley.ShouldUse()
+    return activeContract ~= nil and activeContract.type == 'boxtruck' and LS_Trucking.BoxTruckTrolley.IsEnabled()
+end
+
+function LS_Trucking.BoxTruckTrolley.IsOut()
+    return LS_Trucking.BoxTruckTrolley.prop ~= nil and DoesEntityExist(LS_Trucking.BoxTruckTrolley.prop)
+end
+
+function LS_Trucking.BoxTruckTrolley.HasCargo()
+    if LS_Trucking.BoxTruckTrolley.cargoAttached == true then return true end
+
+    if LS_Trucking.BoxTruckTrolley.cargoProp and DoesEntityExist(LS_Trucking.BoxTruckTrolley.cargoProp) then
+        LS_Trucking.BoxTruckTrolley.cargoAttached = true
+        return true
+    end
+
+    return false
+end
+
+function LS_Trucking.BoxTruckTrolley.ReadVec3(value, fallback)
+    fallback = fallback or vec3(0.0, 0.0, 0.0)
+    if not value then return fallback end
+    return vec3(tonumber(value.x) or fallback.x, tonumber(value.y) or fallback.y, tonumber(value.z) or fallback.z)
+end
+
+function LS_Trucking.BoxTruckTrolley.DeleteCargo(resetCarryState)
+    if LS_Trucking.BoxTruckTrolley.cargoProp and DoesEntityExist(LS_Trucking.BoxTruckTrolley.cargoProp) then
+        DeleteEntity(LS_Trucking.BoxTruckTrolley.cargoProp)
+    end
+
+    LS_Trucking.BoxTruckTrolley.cargoProp = nil
+    LS_Trucking.BoxTruckTrolley.cargoType = nil
+    LS_Trucking.BoxTruckTrolley.cargoLabel = nil
+    LS_Trucking.BoxTruckTrolley.cargoAttached = false
+
+    if resetCarryState ~= false then
+        carryingCargo = false
+        if activeContract then activeContract.currentCarryCargoType = nil end
+    end
+end
+
+function LS_Trucking.BoxTruckTrolley.Cleanup(keepTasks)
+    LS_Trucking.BoxTruckTrolley.DeleteCargo(true)
+
+    if LS_Trucking.BoxTruckTrolley.prop and DoesEntityExist(LS_Trucking.BoxTruckTrolley.prop) then
+        DeleteEntity(LS_Trucking.BoxTruckTrolley.prop)
+    end
+
+    LS_Trucking.BoxTruckTrolley.prop = nil
+    LS_Trucking.BoxTruckTrolley.testMode = false
+    if not keepTasks then ClearPedTasks(PlayerPedId()) end
+end
+
+function LS_Trucking.BoxTruckTrolley.StartAnim()
+    if not LS_Trucking.BoxTruckTrolley.IsOut() then return end
+    local cfg = LS_Trucking.BoxTruckTrolley.GetConfig()
+    local anim = cfg.Animation or {}
+    local dict = anim.dict or 'missfinale_c2ig_11'
+    local name = anim.name or 'pushcar_offcliff_f'
+    local ped = PlayerPedId()
+    if IsPedInAnyVehicle(ped, false) then return end
+
+    lib.requestAnimDict(dict)
+    TaskPlayAnim(ped, dict, name, 4.0, 4.0, -1, 49, 0, false, false, false)
+end
+
+function LS_Trucking.BoxTruckTrolley.AttachCargo(cargoType)
+    if not LS_Trucking.BoxTruckTrolley.IsOut() then return false end
+
+    local cargo = GetCargoConfigForContract('boxtruck', cargoType)
+    if not cargo or not cargo.prop then return false end
+
+    LS_Trucking.BoxTruckTrolley.DeleteCargo(false)
+
+    local model = LoadModel(cargo.prop)
+    if not model then return false end
+
+    local coords = GetEntityCoords(PlayerPedId())
+    local prop = CreateObject(model, coords.x, coords.y, coords.z, true, true, false)
+    SetEntityAsMissionEntity(prop, true, true)
+    SetEntityCollision(prop, false, false)
+    SetModelAsNoLongerNeeded(model)
+
+    local cfg = LS_Trucking.BoxTruckTrolley.GetConfig()
+    local cargoOffset = cargo.trolleyOffset or cfg.DefaultCargoOffset or cfg.CargoOffset or {}
+    local pos = LS_Trucking.BoxTruckTrolley.ReadVec3(cargoOffset.pos, vec3(-0.15, 0.15, 0.58))
+    local rot = LS_Trucking.BoxTruckTrolley.ReadVec3(cargoOffset.rot, vec3(0.0, 10.0, 265.0))
+
+    AttachEntityToEntity(
+        prop,
+        LS_Trucking.BoxTruckTrolley.prop,
+        0,
+        pos.x, pos.y, pos.z,
+        rot.x, rot.y, rot.z,
+        true, true, false, true, 1, true
+    )
+
+    LS_Trucking.BoxTruckTrolley.cargoProp = prop
+    LS_Trucking.BoxTruckTrolley.cargoType = cargoType
+    LS_Trucking.BoxTruckTrolley.cargoLabel = cargo.label or T('boxtruck_trolley.default_label')
+    LS_Trucking.BoxTruckTrolley.cargoAttached = true
+    return true
+end
+
+function LS_Trucking.BoxTruckTrolley.SpawnAttached()
+    local cfg = LS_Trucking.BoxTruckTrolley.GetConfig()
+    local model = LoadModel(cfg.Model or `hei_prop_hei_warehousetrolly_02`)
+    if not model then return false end
+
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local prop = CreateObject(model, coords.x, coords.y, coords.z, true, true, false)
+    SetEntityAsMissionEntity(prop, true, true)
+    SetEntityCollision(prop, false, false)
+    SetModelAsNoLongerNeeded(model)
+
+    local attach = cfg.Attach or {}
+    local pos = LS_Trucking.BoxTruckTrolley.ReadVec3(attach.pos, vec3(-0.2, 1.25, -0.9))
+    local rot = LS_Trucking.BoxTruckTrolley.ReadVec3(attach.rot, vec3(0.0, 0.0, 180.0))
+    local bone = tonumber(attach.bone) or 0
+    local boneIndex = bone ~= 0 and GetPedBoneIndex(ped, bone) or 0
+
+    AttachEntityToEntity(
+        prop,
+        ped,
+        boneIndex,
+        pos.x, pos.y, pos.z,
+        rot.x, rot.y, rot.z,
+        true, true, false, true, 1, true
+    )
+
+    LS_Trucking.BoxTruckTrolley.prop = prop
+    LS_Trucking.BoxTruckTrolley.StartAnim()
+    return true
+end
+
+function LS_Trucking.BoxTruckTrolley.SpawnTest(cargoType)
+    if activeContract then
+        Notify('Finish or cancel the active contract before using the trolley tester.', 'error')
+        return false
+    end
+
+    if carryingCargo then
+        Notify('Set down any carried cargo before using the trolley tester.', 'error')
+        return false
+    end
+
+    cargoType = tostring(cargoType or 'freight_crate')
+    local cargo = Config.CargoTypes and Config.CargoTypes[cargoType] or nil
+    if not cargo or not cargo.prop then
+        Notify(('Unknown cargo type: %s'):format(cargoType), 'error')
+        return false
+    end
+
+    if not cargo.trolleyOffset then
+        Notify(('%s does not have a trolleyOffset in config/items.lua.'):format(cargoType), 'error')
+        return false
+    end
+
+    LS_Trucking.BoxTruckTrolley.Cleanup()
+    if not LS_Trucking.BoxTruckTrolley.SpawnAttached() then return false end
+
+    if not LS_Trucking.BoxTruckTrolley.AttachCargo(cargoType) then
+        LS_Trucking.BoxTruckTrolley.Cleanup()
+        Notify(('Could not attach cargo type: %s'):format(cargoType), 'error')
+        return false
+    end
+
+    LS_Trucking.BoxTruckTrolley.testMode = true
+    Notify(('Trolley test spawned with %s.'):format(cargo.label or cargoType), 'success')
+    return true
+end
+
+function LS_Trucking.BoxTruckTrolley.ClearTest()
+    if not LS_Trucking.BoxTruckTrolley.testMode then
+        Notify('No trolley test unit is currently spawned.', 'inform')
+        return false
+    end
+
+    LS_Trucking.BoxTruckTrolley.Cleanup()
+    Notify('Trolley test unit cleared.', 'success')
+    return true
+end
+
+function LS_Trucking.CanGrabNextStopCargo(showNotice)
+    if not activeContract then return false end
+
+    local currentStop = tonumber(activeContract.currentStop) or 0
+    local deliveredAtStop = tonumber(activeContract.deliveredAtStop) or 0
+    if currentStop <= 1 or deliveredAtStop > 0 then return true end
+
+    local previousStop = activeContract.dropoffs and activeContract.dropoffs[currentStop - 1]
+    local nextStop = activeContract.dropoffs and activeContract.dropoffs[currentStop]
+    if not previousStop or not previousStop.coords or not nextStop or not nextStop.coords then return true end
+
+    local playerCoords = GetEntityCoords(PlayerPedId())
+    local previousCoords = previousStop.coords
+    local nextCoords = nextStop.coords
+    local previousDistance = #(playerCoords - vector3(previousCoords.x + 0.0, previousCoords.y + 0.0, previousCoords.z + 0.0))
+    local nextDistance = #(playerCoords - vector3(nextCoords.x + 0.0, nextCoords.y + 0.0, nextCoords.z + 0.0))
+    if nextDistance <= 100.0 and nextDistance < previousDistance then return true end
+
+    if showNotice then
+        if nextDistance > 100.0 then
+            Notify(T('cargo.approach_next_stop_first', { distance = math.ceil(nextDistance - 100.0) }), 'warning')
+        else
+            Notify(T('cargo.proceed_toward_next_stop'), 'warning')
+        end
+    end
+    return false
+end
+
+function LS_Trucking.BoxTruckTrolley.Take()
+    if not LS_Trucking.BoxTruckTrolley.ShouldUse() then return end
+    if LS_Trucking.BoxTruckTrolley.IsOut() then Notify(T('boxtruck_trolley.already_out'), 'inform') return end
+    if carryingCargo then Notify(T('boxtruck_trolley.clear_cargo_first'), 'error') return end
+    if not activeContract.loaded or not activeContract.verifiedCargo then Notify(T('boxtruck_trolley.verify_load_first'), 'error') return end
+    if not IsCargoDoorOpen() then Notify(T('boxtruck_trolley.open_doors_take'), 'error') return end
+
+    if not Progress(T('boxtruck_trolley.progress_take'), Config.Progress.grabCargo or 1800, { dict = 'pickup_object', clip = 'pickup_low' }) then return end
+
+    if not LS_Trucking.BoxTruckTrolley.SpawnAttached() then return end
+    activeContract.notice = T('boxtruck_trolley.notice_ready')
+    Notify(T('boxtruck_trolley.taken'), 'success')
+    LS_Trucking.BoxTruckTrolley.UpdateUI()
+end
+
+function LS_Trucking.BoxTruckTrolley.Store()
+    if not LS_Trucking.BoxTruckTrolley.IsOut() then return end
+    if LS_Trucking.BoxTruckTrolley.HasCargo() or carryingCargo then Notify(T('boxtruck_trolley.unload_before_store'), 'error') return end
+    if not IsCargoDoorOpen() then Notify(T('boxtruck_trolley.open_doors_store'), 'error') return end
+
+    if not Progress(T('boxtruck_trolley.progress_store'), Config.Progress.loadCargo or 1800, { dict = 'pickup_object', clip = 'pickup_low' }) then return end
+
+    LS_Trucking.BoxTruckTrolley.Cleanup(true)
+    ClearPedTasks(PlayerPedId())
+    if activeContract then
+        activeContract.notice = T('boxtruck_trolley.notice_stored')
+    end
+    Notify(T('boxtruck_trolley.stored'), 'success')
+    LS_Trucking.BoxTruckTrolley.UpdateUI()
+end
+
+function LS_Trucking.BoxTruckTrolley.LoadCargo()
+    if not LS_Trucking.BoxTruckTrolley.ShouldUse() then return end
+    if not LS_Trucking.BoxTruckTrolley.IsOut() then Notify(T('boxtruck_trolley.take_first'), 'error') return end
+    if LS_Trucking.BoxTruckTrolley.HasCargo() then Notify(T('boxtruck_trolley.already_loaded'), 'error') return end
+    if carryingCargo then Notify(T('boxtruck_trolley.deliver_current_first'), 'error') return end
+    if not LS_Trucking.CanGrabNextStopCargo(true) then return end
+    if not IsCargoDoorOpen() then Notify(T('boxtruck_trolley.open_doors_load'), 'error') return end
+
+    if not Progress(T('boxtruck_trolley.progress_load'), Config.Progress.grabCargo or 1800) then return end
+
+    local result = lib.callback.await('ls_trucking:server:grabCargoFromVehicle', false)
+    if not result or not result.success then Notify(result and result.message or T('boxtruck_trolley.load_failed'), 'error') return end
+
+    activeContract.currentCarryCargoType = result.cargoType
+    if LS_Trucking.BoxTruckTrolley.AttachCargo(result.cargoType) then
+        carryingCargo = true
+        LS_Trucking.BoxTruckTrolley.StartAnim()
+        activeContract.notice = T('boxtruck_trolley.notice_push')
+        Notify(T('boxtruck_trolley.loaded', { label = result.label or T('boxtruck_trolley.default_label') }), 'success')
+    else
+        PlayCargoPickupTransition(activeContract.type, result.cargoType)
+        activeContract.notice = T('boxtruck_trolley.notice_carry_fallback')
+        Notify(T('boxtruck_trolley.carry_fallback', { label = result.label or T('boxtruck_trolley.default_label') }), 'warning')
+    end
+
+    LS_Trucking.BoxTruckTrolley.UpdateUI()
+end
+
+function LS_Trucking.BoxTruckTrolley.HandleDeliveryResult(result)
+    activeContract.loadedCargo = result.loaded
+    activeContract.currentStop = result.currentStop
+    activeContract.deliveredAtStop = result.deliveredAtStop or 0
+
+    if result.routeComplete then
+        LS_Trucking.BoxTruckTrolley.Cleanup(true)
+        CompleteRoute()
+        return
+    end
+
+    local currentStop = activeContract.dropoffs[activeContract.currentStop]
+    local trolleyMode = LS_Trucking.BoxTruckTrolley.ShouldUse()
+    if result.stopComplete then
+        SetActiveDestination(currentStop.label, currentStop.coords)
+        activeContract.notice = trolleyMode
+            and T('boxtruck_trolley.stop_complete')
+            or 'Stop complete. Drive to the next stop, open your trunk, and grab another item.'
+        CreateRouteBlip(currentStop.coords, currentStop.label, GetCargoDeliveryBlipType(activeContract.type))
+        LS_Trucking.BoxTruckTrolley.Dispatch(T('boxtruck_trolley.stop_dispatch', { stop = activeContract.currentStop, total = activeContract.totalStops }), 'inform', 'destination', { notify = false })
+    else
+        SetActiveDestination(currentStop.label, currentStop.coords)
+        activeContract.notice = trolleyMode
+            and T('boxtruck_trolley.need_more', { count = result.requiredAtStop - result.deliveredAtStop })
+            or ('This stop still needs %s more item(s). Open your trunk and grab another.'):format(result.requiredAtStop - result.deliveredAtStop)
+        Notify(activeContract.notice, 'inform')
+    end
+
+    LS_Trucking.BoxTruckTrolley.UpdateUI()
+end
+
+function LS_Trucking.BoxTruckTrolley.DeliverCargo()
+    if not LS_Trucking.BoxTruckTrolley.ShouldUse() then return false end
+    if not LS_Trucking.BoxTruckTrolley.HasCargo() then
+        if carryingCargo then return false end
+        Notify(T('boxtruck_trolley.load_before_drop'), 'error')
+        return true
+    end
+
+    if not Progress(T('boxtruck_trolley.progress_unload'), Config.Progress.deliverCargo or 1800) then return true end
+
+    local result = lib.callback.await('ls_trucking:server:deliverCargoOne', false)
+    if not result or not result.success then Notify(result and result.message or T('boxtruck_trolley.deliver_failed'), 'error') return true end
+
+    LS_Trucking.BoxTruckTrolley.DeleteCargo(true)
+    LS_Trucking.BoxTruckTrolley.StartAnim()
+    LS_Trucking.BoxTruckTrolley.HandleDeliveryResult(result)
+    return true
+end
+
+function LS_Trucking.CanDeliverCurrentCargo()
+    if not activeContract or activeContract.loaded ~= true then return false end
+
+    if LS_Trucking.BoxTruckTrolley.ShouldUse() then
+        return LS_Trucking.BoxTruckTrolley.HasCargo() or carryingCargo
+    end
+
+    return carryingCargo
+end
+
+function LS_Trucking.DeliverCurrentCargo()
+    if not activeContract or activeContract.loaded ~= true then return false end
+
+    if LS_Trucking.BoxTruckTrolley.ShouldUse() and LS_Trucking.BoxTruckTrolley.DeliverCargo() then
+        return true
+    end
+
+    if not carryingCargo then return false end
+    if not Progress(T('delivery_interaction.checking_spot'), Config.Progress.deliverCargo, { dict = 'anim@heists@box_carry@', clip = 'idle' }) then return false end
+
+    local result = lib.callback.await('ls_trucking:server:deliverCargoOne', false)
+    if not result or not result.success then
+        Notify(result and result.message or T('boxtruck_trolley.deliver_failed'), 'error')
+        return false
+    end
+
+    PlayCargoSetDownTransition()
+    LS_Trucking.BoxTruckTrolley.HandleDeliveryResult(result)
+    return true
+end
+
+CreateThread(function()
+    while true do
+        if LS_Trucking.BoxTruckTrolley.IsOut() then
+            local ped = PlayerPedId()
+            local cfg = LS_Trucking.BoxTruckTrolley.GetConfig()
+            local anim = cfg.Animation or {}
+            local dict = anim.dict or 'missfinale_c2ig_11'
+            local name = anim.name or 'pushcar_offcliff_f'
+
+            if not IsEntityPlayingAnim(ped, dict, name, 3) then
+                LS_Trucking.BoxTruckTrolley.StartAnim()
+            end
+
+            Wait(1000)
+        else
+            Wait(1000)
+        end
+    end
+end)
+
 local function CleanupJobVehicle()
+    LS_Trucking.BoxTruckTrolley.Cleanup()
     DeleteCarryProp()
     if spawnedTrailer and DoesEntityExist(spawnedTrailer) then
         local cargoProps = LS_Trucking and LS_Trucking.TrailerCargoProps or {}
@@ -1489,6 +1921,14 @@ local function DispatchChatter(message, notifyType, soundType, options)
     end
 
     UpdateMiniUI()
+end
+
+function LS_Trucking.BoxTruckTrolley.UpdateUI(passive)
+    UpdateMiniUI(passive)
+end
+
+function LS_Trucking.BoxTruckTrolley.Dispatch(message, notifyType, soundType, options)
+    DispatchChatter(message, notifyType, soundType, options)
 end
 
 LS_Trucking.AssistedCargoLoading = LS_Trucking.AssistedCargoLoading or {}
@@ -2266,8 +2706,11 @@ local function VerifyLoadedCargo(fromReceiver)
     activeContract.verifiedCargo = true
     activeContract.loaded = true
     activeContract.currentStop = result.currentStop or 1
+    activeContract.deliveredAtStop = 0
     activeContract.stage = 'Deliver cargo'
-    activeContract.notice = 'Cargo verified. Drive to the first stop. Open the trunk, grab one package, and deliver it.'
+    activeContract.notice = LS_Trucking.BoxTruckTrolley.ShouldUse()
+        and T('boxtruck_trolley.verified_notice')
+        or 'Cargo verified. Drive to the first stop. Open the trunk, grab one package, and deliver it.'
     activeContract.autoLoadActive = false
     activeContract.autoLoadPaused = false
     activeContract.autoLoadLabel = ''
@@ -2288,6 +2731,8 @@ end
 
 local function GrabCargoFromVehicle()
     if not activeContract then return end
+    if LS_Trucking.BoxTruckTrolley.ShouldUse() then Notify(T('boxtruck_trolley.use_trolley'), 'inform') return end
+    if not LS_Trucking.CanGrabNextStopCargo(true) then return end
     if not IsCargoDoorOpen() then Notify('Open the vehicle trunk or rear cargo door before grabbing cargo.', 'error') return end
     if carryingCargo then Notify('You are already carrying cargo.', 'error') return end
     if not Progress('Reaching into open trunk...', Config.Progress.grabCargo, { dict = 'pickup_object', clip = 'pickup_low' }) then return end
@@ -2557,17 +3002,41 @@ local function AddVehicleCargoTarget()
     if vehicleTargetAdded then return end
     if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then return end
     AddTargetEntity(spawnedVehicle, {
-        { name = 'ls_trucking_load_cargo_one', label = 'Load Carried Cargo', icon = 'fa-solid fa-box', distance = 3.0, canInteract = function() return activeContract ~= nil and activeContract.type ~= 'trailer' and carryingCargo and not activeContract.loaded and not activeContract.cargoReady and not (LS_Trucking.AssistedCargoLoading and LS_Trucking.AssistedCargoLoading.IsEnabled()) end, onSelect = LoadCargoIntoVehicle },
-        { name = 'ls_trucking_verify_loaded_cargo', label = 'Verify Loaded Cargo', icon = 'fa-solid fa-clipboard-check', distance = 3.0, canInteract = function() return (Config.LoadVerificationMode or 'receiver') == 'target' and activeContract ~= nil and activeContract.type ~= 'trailer' and activeContract.cargoReady and not activeContract.verifiedCargo and not carryingCargo end, onSelect = VerifyLoadedCargo },
-        { name = 'ls_trucking_grab_cargo_one', label = 'Grab Delivery Cargo', icon = 'fa-solid fa-box-open', distance = 3.0, canInteract = function() return activeContract ~= nil and activeContract.loaded and activeContract.verifiedCargo and activeContract.type ~= 'trailer' and not carryingCargo end, onSelect = GrabCargoFromVehicle },
-        { name = 'ls_trucking_view_load_checklist', label = 'View Load Checklist', icon = 'fa-solid fa-clipboard-list', distance = 3.0, canInteract = function(entity, distance, coords)
+        { name = 'ls_trucking_load_cargo_one', label = T('interactions.load_carried_cargo'), icon = 'fa-solid fa-box', distance = 3.0, canInteract = function() return activeContract ~= nil and activeContract.type ~= 'trailer' and carryingCargo and not activeContract.loaded and not activeContract.cargoReady and not (LS_Trucking.AssistedCargoLoading and LS_Trucking.AssistedCargoLoading.IsEnabled()) end, onSelect = LoadCargoIntoVehicle },
+        { name = 'ls_trucking_verify_loaded_cargo', label = T('interactions.verify_loaded_cargo'), icon = 'fa-solid fa-clipboard-check', distance = 3.0, canInteract = function() return (Config.LoadVerificationMode or 'receiver') == 'target' and activeContract ~= nil and activeContract.type ~= 'trailer' and activeContract.cargoReady and not activeContract.verifiedCargo and not carryingCargo end, onSelect = VerifyLoadedCargo },
+        { name = 'ls_trucking_grab_boxtruck_trolley', label = T('boxtruck_trolley.target_take'), icon = 'fa-solid fa-dolly', distance = 3.0, canInteract = function(entity, distance, coords)
+            return LS_Trucking.BoxTruckTrolley.ShouldUse()
+                and activeContract.loaded
+                and activeContract.verifiedCargo
+                and not carryingCargo
+                and not LS_Trucking.BoxTruckTrolley.IsOut()
+                and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
+        end, onSelect = LS_Trucking.BoxTruckTrolley.Take },
+        { name = 'ls_trucking_load_trolley_crate', label = T('boxtruck_trolley.target_load'), icon = 'fa-solid fa-boxes-stacked', distance = 3.0, canInteract = function(entity, distance, coords)
+            return LS_Trucking.BoxTruckTrolley.ShouldUse()
+                and activeContract.loaded
+                and activeContract.verifiedCargo
+                and LS_Trucking.BoxTruckTrolley.IsOut()
+                and not LS_Trucking.BoxTruckTrolley.HasCargo()
+                and not carryingCargo
+                and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
+        end, onSelect = LS_Trucking.BoxTruckTrolley.LoadCargo },
+        { name = 'ls_trucking_store_boxtruck_trolley', label = T('boxtruck_trolley.target_store'), icon = 'fa-solid fa-dolly-flatbed', distance = 3.0, canInteract = function(entity, distance, coords)
+            return LS_Trucking.BoxTruckTrolley.ShouldUse()
+                and LS_Trucking.BoxTruckTrolley.IsOut()
+                and not LS_Trucking.BoxTruckTrolley.HasCargo()
+                and not carryingCargo
+                and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
+        end, onSelect = LS_Trucking.BoxTruckTrolley.Store },
+        { name = 'ls_trucking_grab_cargo_one', label = T('interactions.grab_delivery_cargo'), icon = 'fa-solid fa-box-open', distance = 3.0, canInteract = function() return activeContract ~= nil and activeContract.loaded and activeContract.verifiedCargo and activeContract.type ~= 'trailer' and not carryingCargo and not LS_Trucking.BoxTruckTrolley.ShouldUse() end, onSelect = GrabCargoFromVehicle },
+        { name = 'ls_trucking_view_load_checklist', label = T('interactions.view_load_checklist'), icon = 'fa-solid fa-clipboard-list', distance = 3.0, canInteract = function(entity, distance, coords)
             return activeContract ~= nil
                 and activeContract.type == 'trailer'
                 and activeContract.trailerAttached
                 and not activeContract.trailerHooked
                 and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
         end, onSelect = ShowTrailerLoadChecklist },
-        { name = 'ls_trucking_secure_truck_load', label = 'Secure Load Attached', icon = 'fa-solid fa-link', distance = 3.0, canInteract = function(entity, distance, coords)
+        { name = 'ls_trucking_secure_truck_load', label = T('interactions.secure_load_attached'), icon = 'fa-solid fa-link', distance = 3.0, canInteract = function(entity, distance, coords)
             return activeContract ~= nil
                 and activeContract.type == 'trailer'
                 and activeContract.trailerAttached
@@ -2576,7 +3045,7 @@ local function AddVehicleCargoTarget()
                 and not (activeContract.loadChecklist and activeContract.loadChecklist.truckSecure)
                 and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
         end, onSelect = SecureTruckLoadConnection },
-        { name = 'ls_trucking_secure_trailer_load_from_truck', label = 'Confirm Trailer Load Secure', icon = 'fa-solid fa-shield-alt', distance = 3.0, canInteract = function(entity, distance, coords)
+        { name = 'ls_trucking_secure_trailer_load_from_truck', label = T('interactions.confirm_trailer_load_secure'), icon = 'fa-solid fa-shield-alt', distance = 3.0, canInteract = function(entity, distance, coords)
             local checklist = activeContract and activeContract.loadChecklist or {}
 
             return activeContract ~= nil
@@ -2588,7 +3057,7 @@ local function AddVehicleCargoTarget()
                 and not checklist.trailerSecure
                 and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
         end, onSelect = SecureTrailerLoad },
-        { name = 'ls_trucking_complete_load_checklist', label = 'Complete Load Checklist', icon = 'fa-solid fa-clipboard-check', distance = 3.0, canInteract = function(entity, distance, coords)
+        { name = 'ls_trucking_complete_load_checklist', label = T('interactions.complete_load_checklist'), icon = 'fa-solid fa-clipboard-check', distance = 3.0, canInteract = function(entity, distance, coords)
             return (Config.LoadVerificationMode or 'receiver') == 'target'
                 and activeContract ~= nil
                 and activeContract.type == 'trailer'
@@ -2597,7 +3066,7 @@ local function AddVehicleCargoTarget()
                 and IsAssignedTrailerAttached()
                 and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
         end, onSelect = CompleteTrailerLoadChecklist },
-        { name = 'ls_trucking_disconnect_contract_trailer', label = 'Disconnect Contract Trailer', icon = 'fa-solid fa-link-slash', distance = 3.0, canInteract = function(entity, distance, coords)
+        { name = 'ls_trucking_disconnect_contract_trailer', label = T('interactions.disconnect_contract_trailer'), icon = 'fa-solid fa-link-slash', distance = 3.0, canInteract = function(entity, distance, coords)
             return LS_Trucking.TrailerDropMarker
                 and LS_Trucking.TrailerDropMarker.CanDisconnectTrailer
                 and LS_Trucking.TrailerDropMarker.CanDisconnectTrailer()
@@ -2618,7 +3087,7 @@ AddTrailerLoadTarget = function()
     AddTargetEntity(spawnedTrailer, {
         {
             name = 'ls_trucking_secure_trailer_load',
-            label = 'Confirm Load Secure',
+            label = T('interactions.confirm_load_secure'),
             icon = 'fa-solid fa-shield-alt',
             distance = 3.5,
             canInteract = function(entity, distance, coords)
@@ -2889,12 +3358,14 @@ local function AddPickupPedTarget(ped, contractType)
     local pedLabel = pedData.label or 'Pickup Worker'
     local handoff = Config.FreightHandoff or {}
     local handoffRequired = handoff.Enabled ~= false and handoff.RequirePickupSignature ~= false
-    local pickupLabel = contractType == 'boxtruck' and 'Pick Up Route Crate' or 'Pick Up Route Package'
+    local pickupLabel = contractType == 'boxtruck'
+        and T('interactions.pickup_route_crate')
+        or T('interactions.pickup_route_package')
 
     AddTargetEntity(ped, {
         {
             name = ('ls_trucking_talk_pickup_%s'):format(contractType),
-            label = ('Talk to %s'):format(pedLabel),
+            label = T('interactions.talk_to', { label = pedLabel }),
             icon = 'fa-solid fa-comments',
             distance = Config.TargetDistance,
             canInteract = function()
@@ -2930,7 +3401,7 @@ end
 
 local function AddReceiverPedTarget(ped, contractType, routeIndex)
     local pedLabel = activeContract and activeContract.receiverPed and activeContract.receiverPed.label or 'Receiving Clerk'
-    AddTargetEntity(ped, { { name = ('ls_trucking_finalize_trailer_%s_%s'):format(contractType, routeIndex), label = ('Talk to %s'):format(pedLabel), icon = 'fa-solid fa-comments', distance = Config.TargetDistance, canInteract = function() return activeContract ~= nil and activeContract.type == contractType and activeContract.routeIndex == routeIndex and activeContract.trailerDropped end, onSelect = function() HandleReceiverPedInteraction(ped, pedLabel, activeContract and activeContract.receiverPed and activeContract.receiverPed.scenario) end } })
+    AddTargetEntity(ped, { { name = ('ls_trucking_finalize_trailer_%s_%s'):format(contractType, routeIndex), label = T('interactions.talk_to', { label = pedLabel }), icon = 'fa-solid fa-comments', distance = Config.TargetDistance, canInteract = function() return activeContract ~= nil and activeContract.type == contractType and activeContract.routeIndex == routeIndex and activeContract.trailerDropped end, onSelect = function() HandleReceiverPedInteraction(ped, pedLabel, activeContract and activeContract.receiverPed and activeContract.receiverPed.scenario) end } })
 end
 
 local function CleanupActiveContractPeds(delay)
@@ -2945,11 +3416,7 @@ local function CleanupActiveContractPeds(delay)
     local function removePeds()
         for key, ped in pairs(pedsToClean) do
             if ped and DoesEntityExist(ped) then
-                if GetTargetSystem() == 'qb' then
-                    pcall(function() exports['qb-target']:RemoveTargetEntity(ped) end)
-                else
-                    pcall(function() exports.ox_target:removeLocalEntity(ped) end)
-                end
+                RemoveTargetEntity(ped)
                 DeleteEntity(ped)
             end
             LS_Trucking.FreightHandoff.ClearPed(ped)
@@ -3046,40 +3513,8 @@ end)
 local function SetupRouteTargets()
     RemoveAllZones()
     if not activeContract then return end
-    if activeContract.type == 'van' or activeContract.type == 'boxtruck' then
-        for index, stop in ipairs(activeContract.dropoffs or {}) do
-            local dropoffTarget = Config.DropoffTarget or {}
-            local targetCoords = vector3(stop.coords.x, stop.coords.y, stop.coords.z + (tonumber(dropoffTarget.HeightOffset) or 0.75))
-            local targetRadius = math.max(1.5, tonumber(dropoffTarget.Radius) or 3.5)
-            local targetDistance = math.max(Config.TargetDistance or 2.5, tonumber(dropoffTarget.Distance) or 3.5)
-            AddSphereZone(('dropoff_%s'):format(index), targetCoords, targetRadius, { { name = ('ls_trucking_dropoff_%s'):format(index), label = ('Deliver Cargo - %s'):format(stop.label), icon = 'fa-solid fa-box-open', distance = targetDistance, canInteract = function() return activeContract and activeContract.loaded and activeContract.currentStop == index and carryingCargo end, onSelect = function()
-                if not activeContract or activeContract.currentStop ~= index then return end
-                if not Progress('Checking delivery spot...', Config.Progress.deliverCargo, { dict = 'anim@heists@box_carry@', clip = 'idle' }) then return end
-                local result = lib.callback.await('ls_trucking:server:deliverCargoOne', false)
-                if not result or not result.success then Notify(result and result.message or 'Could not deliver cargo.', 'error') return end
-                PlayCargoSetDownTransition()
-                activeContract.loadedCargo = result.loaded
-                activeContract.currentStop = result.currentStop
-                if result.routeComplete then
-                    CompleteRoute()
-                else
-                    local currentStop = activeContract.dropoffs[activeContract.currentStop]
-                    if result.stopComplete then
-                        SetActiveDestination(currentStop.label, currentStop.coords)
-                        activeContract.notice = 'Stop complete. Drive to the next stop, open your trunk, and grab another item.'
-                        CreateRouteBlip(currentStop.coords, currentStop.label, GetCargoDeliveryBlipType(activeContract.type))
-                        DispatchChatter(('Stop complete. Proceed to stop %s of %s.'):format(activeContract.currentStop, activeContract.totalStops), 'inform', 'destination', { notify = false })
-                    else
-                        SetActiveDestination(currentStop.label, currentStop.coords)
-                        activeContract.notice = ('This stop still needs %s more item(s). Open your trunk and grab another.'):format(result.requiredAtStop - result.deliveredAtStop)
-                        Notify(activeContract.notice, 'inform')
-                    end
-                end
-                UpdateMiniUI()
-            end } })
-        end
-    elseif activeContract.type == 'trailer' and (Config.TrailerDropMarker or {}).Enabled == false then
-        AddSphereZone('trailer_drop', activeContract.trailerDrop.coords, activeContract.trailerDrop.radius or 18.0, { { name = 'ls_trucking_confirm_trailer_drop', label = 'Confirm Trailer Dropped In Yard', icon = 'fa-solid fa-warehouse', distance = 3.5, canInteract = function() return activeContract and activeContract.type == 'trailer' and activeContract.trailerHooked and not activeContract.trailerDropped end, onSelect = function()
+    if activeContract.type == 'trailer' and (Config.TrailerDropMarker or {}).Enabled == false then
+        AddSphereZone('trailer_drop', activeContract.trailerDrop.coords, activeContract.trailerDrop.radius or 18.0, { { name = 'ls_trucking_confirm_trailer_drop', label = T('interactions.confirm_trailer_drop'), icon = 'fa-solid fa-warehouse', distance = 3.5, canInteract = function() return activeContract and activeContract.type == 'trailer' and activeContract.trailerHooked and not activeContract.trailerDropped end, onSelect = function()
             if IsAssignedTrailerAttached() then Notify('Detach the trailer inside the receiving yard first.', 'error') return end
             if not Progress('Confirming trailer drop in yard...', Config.Progress.confirmTrailerDrop or 2500, {
                 dict = 'missheistdockssetup1clipboard@base',
@@ -3119,12 +3554,28 @@ if LS_Trucking.TrailerDropMarker and LS_Trucking.TrailerDropMarker.ConfigureClie
     })
 end
 
+if LS_Trucking.DeliveryInteraction and LS_Trucking.DeliveryInteraction.ConfigureClient then
+    LS_Trucking.DeliveryInteraction.ConfigureClient({
+        GetActiveContract = function() return activeContract end,
+        CanDeliverCargo = LS_Trucking.CanDeliverCurrentCargo,
+        DeliverCurrentCargo = LS_Trucking.DeliverCurrentCargo,
+        IsDeliveryInteractionBlocked = function()
+            return dispatchUIVisible or fullReceiverVisible
+        end
+    })
+end
+
 if Routes.ConfigureClient then
     Routes.ConfigureClient({
         Notify = Notify,
         ShowFreightCancelDialog = ShowFreightCancelDialog,
         GetActiveContract = function() return activeContract end,
-        SetActiveContract = function(value) activeContract = value end,
+        SetActiveContract = function(value)
+            if value and LS_Trucking.BoxTruckTrolley.testMode then
+                LS_Trucking.BoxTruckTrolley.Cleanup()
+            end
+            activeContract = value
+        end,
         GetGarageVehicle = function() return garageVehicle end,
         SetGarageVehicle = function(value) garageVehicle = value end,
         SetReusableVehicle = function(value) reusableVehicle = value end,
@@ -3150,6 +3601,7 @@ if Routes.ConfigureClient then
         ClearRouteBlip = ClearRouteBlip,
         RemoveAllZones = RemoveAllZones,
         DeleteCarryProp = DeleteCarryProp,
+        CleanupBoxTruckTrolley = LS_Trucking.BoxTruckTrolley.Cleanup,
         ResetAssistedCargoLoading = function()
             if LS_Trucking.AssistedCargoLoading and LS_Trucking.AssistedCargoLoading.Reset then
                 LS_Trucking.AssistedCargoLoading.Reset()
@@ -3333,250 +3785,16 @@ local function HandleReceiverVehicleControl(action)
     })
 end
 
-local function DispatchMapCoords(coords)
-    if not coords then return nil end
-
-    return {
-        x = coords.x + 0.0,
-        y = coords.y + 0.0,
-        z = coords.z + 0.0
-    }
-end
-
-local function DispatchMapZone(coords)
-    if not coords then return 'San Andreas' end
-
-    local x = tonumber(coords.x) or 0.0
-    local y = tonumber(coords.y) or 0.0
-
-    if y > 5600 then return 'Paleto Bay / North County' end
-    if y > 2200 then return 'Blaine County' end
-    if y < -2400 then return 'Port of Los Santos' end
-    if x < -1500 then return 'West Coast' end
-    if x > 1200 then return 'East County' end
-    return 'Los Santos'
-end
-
-local function DispatchMapStreetAddress(coords)
-    if not coords then return 'Address unavailable' end
-
-    local streetHash, crossingHash = GetStreetNameAtCoord(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0)
-    local street = streetHash and streetHash ~= 0 and GetStreetNameFromHashKey(streetHash) or nil
-    local crossing = crossingHash and crossingHash ~= 0 and GetStreetNameFromHashKey(crossingHash) or nil
-
-    if street and street ~= '' and crossing and crossing ~= '' and crossing ~= street then
-        return ('%s / %s'):format(street, crossing)
-    end
-
-    if street and street ~= '' then return street end
-
-    return DispatchMapZone(coords)
-end
-
-local function GetDispatchHomeConfig()
-    return Config.DispatchHome or {}
-end
-
-local function DispatchHomePhoto(key)
-    local photos = GetDispatchHomeConfig().Photos or {}
-    local photo = photos[key]
-    if photo and photo ~= '' then return photo end
-
-    return nil
-end
-
-local function DispatchTrailerDepotPhoto(depotKey)
-    local photos = GetDispatchHomeConfig().Photos or {}
-    local depotPhotos = photos.trailerDepots or {}
-    local photo = depotPhotos[depotKey] or photos.trailerDepot
-    if photo and photo ~= '' then return photo end
-
-    return nil
-end
-
-local function AddDispatchMapPoint(points, point)
-    if not point or not point.coords then return end
-
-    point.zone = point.zone or DispatchMapZone(point.coords)
-    point.address = point.address or DispatchMapStreetAddress(point.coords)
-    point.details = point.details or {
-        { icon = 'fa-road', label = 'Street Address', value = point.address },
-        { icon = 'fa-clipboard-check', label = 'Use', value = point.description or 'LSFC operating point.' }
-    }
-
-    points[#points + 1] = point
-end
-
-local function BuildDispatchHomeMapData()
-    local points = {}
-    local depot = Config.Depot or {}
-    local contracts = Config.Contracts or {}
-    local homeConfig = GetDispatchHomeConfig()
-
-    AddDispatchMapPoint(points, {
-        id = 'depot-terminal',
-        category = 'terminal',
-        icon = 'fas fa-tower-broadcast',
-        shortLabel = 'LSFC',
-        label = 'Los Santos Freight Co. Terminal',
-        description = 'Primary dispatch terminal for contracts, route review, vehicle requests, and company paperwork.',
-        coords = DispatchMapCoords(depot.terminal or (Config.DispatchBlip and Config.DispatchBlip.coords)),
-        photo = DispatchHomePhoto('terminal'),
-        details = {
-            { icon = 'fa-file-contract', label = 'Functions', value = 'Dispatch board, current jobs, history, contractor desk' },
-            { icon = 'fa-road', label = 'Street Address', value = DispatchMapStreetAddress(depot.terminal or (Config.DispatchBlip and Config.DispatchBlip.coords)) }
-        }
+if LS_Trucking.DispatchData and LS_Trucking.DispatchData.ConfigureClient then
+    LS_Trucking.DispatchData.ConfigureClient({
+        GetActiveContract = function() return activeContract end,
+        GetCurrentDriverInfo = function() return currentDriverInfo end,
+        SetCurrentDriverInfo = function(value) currentDriverInfo = value end,
+        GetReuseData = GetReuseData,
+        IsDispatchVisible = function() return dispatchUIVisible end,
+        GetDispatchActiveTab = function() return dispatchActiveTab end,
+        Notify = Notify
     })
-
-    AddDispatchMapPoint(points, {
-        id = 'depot-vehicle-spawn',
-        category = 'vehicle',
-        icon = 'fas fa-truck-fast',
-        shortLabel = 'UNIT',
-        label = 'Company Vehicle Spawn',
-        description = 'Company route vehicles are staged here after contract approval.',
-        coords = DispatchMapCoords(depot.vehicleSpawn),
-        photo = DispatchHomePhoto('vehicleSpawn'),
-        details = {
-            { icon = 'fa-truck-fast', label = 'Functions', value = 'Company contract vehicle pickup' },
-            { icon = 'fa-circle-info', label = 'Spawn Check', value = 'Area must be clear before vehicle release' },
-            { icon = 'fa-road', label = 'Street Address', value = DispatchMapStreetAddress(depot.vehicleSpawn) }
-        }
-    })
-
-    AddDispatchMapPoint(points, {
-        id = 'depot-garage-spawn',
-        category = 'garage',
-        icon = 'fas fa-warehouse',
-        shortLabel = 'GAR',
-        label = 'Garage Vehicle Spawn',
-        description = 'Stored company and contractor units are released from this garage staging area.',
-        coords = DispatchMapCoords(depot.garageSpawn or depot.vehicleSpawn),
-        photo = DispatchHomePhoto('garageSpawn'),
-        details = {
-            { icon = 'fa-warehouse', label = 'Functions', value = 'Company garage and private fleet pickup' },
-            { icon = 'fa-key', label = 'Access', value = 'Assigned vehicle owner receives keys' },
-            { icon = 'fa-road', label = 'Street Address', value = DispatchMapStreetAddress(depot.garageSpawn or depot.vehicleSpawn) }
-        }
-    })
-
-    local pickupTypes = {
-        { type = 'van', category = 'van', label = 'Van Package Pickup', photo = DispatchHomePhoto('vanPickup'), icon = 'fas fa-box', shortLabel = 'VAN' },
-        { type = 'boxtruck', category = 'boxtruck', label = 'Box Truck Freight Pickup', photo = DispatchHomePhoto('boxTruckPickup'), icon = 'fas fa-truck-moving', shortLabel = 'BOX' }
-    }
-
-    for _, pickupType in ipairs(pickupTypes) do
-        local contract = contracts[pickupType.type]
-        local pickup = contract and contract.pickup
-
-        AddDispatchMapPoint(points, {
-            id = ('pickup-%s'):format(pickupType.type),
-            category = pickupType.category,
-            icon = pickupType.icon,
-            shortLabel = pickupType.shortLabel,
-            label = (pickup and pickup.label) or pickupType.label,
-            description = contract and contract.description or 'Freight pickup location.',
-            coords = DispatchMapCoords(pickup and pickup.coords),
-            photo = pickupType.photo,
-            details = {
-                { icon = 'fa-boxes-stacked', label = 'Cargo', value = contract and contract.cargo or 'Cargo' },
-                { icon = 'fa-route', label = 'Route Type', value = contract and contract.label or pickupType.label },
-                { icon = 'fa-road', label = 'Street Address', value = DispatchMapStreetAddress(pickup and pickup.coords) }
-            }
-        })
-    end
-
-    local trailerDepotKeys = {}
-    for key in pairs(Config.TrailerDepots or {}) do trailerDepotKeys[#trailerDepotKeys + 1] = key end
-    table.sort(trailerDepotKeys)
-
-    for _, key in ipairs(trailerDepotKeys) do
-        local trailerDepot = Config.TrailerDepots[key]
-        AddDispatchMapPoint(points, {
-            id = ('trailer-%s'):format(key),
-            category = 'trailer',
-            icon = 'fas fa-trailer',
-            shortLabel = 'TRL',
-            label = trailerDepot.label or 'Trailer Depot',
-            description = 'Trailer hookup yard for assigned trailer haul contracts.',
-            coords = DispatchMapCoords(trailerDepot.pickup),
-            photo = DispatchTrailerDepotPhoto(key),
-            details = {
-                { icon = 'fa-trailer', label = 'Functions', value = 'Trailer pickup, hookup, and yard release' },
-                { icon = 'fa-square-parking', label = 'Spawn Spots', value = tostring(#(trailerDepot.spawns or {})) },
-                { icon = 'fa-road', label = 'Street Address', value = DispatchMapStreetAddress(trailerDepot.pickup) }
-            }
-        })
-    end
-
-    return {
-        points = points,
-        mapImage = homeConfig.MapImage,
-        mapBounds = homeConfig.MapBounds,
-        mapZoom = homeConfig.MapZoom,
-        mapZoomMin = homeConfig.MapZoomMin,
-        mapZoomMax = homeConfig.MapZoomMax,
-        mapZoomStep = homeConfig.MapZoomStep
-    }
-end
-
-local function BuildDispatchUIData()
-    local data = lib.callback.await('ls_trucking:server:getDispatchData', false)
-    if not data or not data.allowed then return nil, data and data.message or 'Unable to open trucking dispatch.' end
-    currentDriverInfo = data.player or currentDriverInfo
-    if currentDriverInfo and currentDriverInfo.citizenid and RouteHistory.SetCharacter then RouteHistory.SetCharacter(currentDriverInfo.citizenid) end
-    data.reuse = GetReuseData()
-    data.config = { allowVehicleReuseAfterRoute = Config.AllowVehicleReuseAfterRoute, requireSameTypeForVehicleReuse = Config.RequireSameTypeForVehicleReuse, radioFrequency = Config.RadioFrequency, locale = Config.Locale or 'en', uiSounds = Config.UI or {} }
-    data.dispatchHome = BuildDispatchHomeMapData()
-    data.lastRouteSummary = RouteHistory.GetLast()
-    data.routeHistory = RouteHistory.GetHistory()
-    data.currentJob = RouteState.BuildCurrentJob and RouteState.BuildCurrentJob(activeContract) or nil
-    return data
-end
-
-local function RefreshDispatchUI(delayMs, attempts)
-    if not dispatchUIVisible then return end
-    delayMs = tonumber(delayMs) or 0
-    attempts = math.max(1, tonumber(attempts) or 1)
-
-    CreateThread(function()
-        if delayMs > 0 then Wait(delayMs) end
-
-        for attempt = 1, attempts do
-            if not dispatchUIVisible then return end
-
-            local data, message = BuildDispatchUIData()
-            if data then
-                SendNUIMessage({ action = 'refreshDispatch', data = data })
-                return
-            end
-
-            if attempt < attempts then
-                Wait(550)
-            else
-                Notify(message or 'Unable to refresh trucking dispatch.', 'error')
-            end
-        end
-    end)
-end
-
-local function GetContractorBoardRefreshMs()
-    local minutes = tonumber(Config.PrivateContractor and Config.PrivateContractor.ContractBoardRefreshMinutes) or 60
-    return math.max(60000, math.floor(minutes * 60000))
-end
-
-local function StartContractorBoardRefreshLoop()
-    contractorBoardRefreshToken = contractorBoardRefreshToken + 1
-    local token = contractorBoardRefreshToken
-
-    CreateThread(function()
-        while dispatchUIVisible and token == contractorBoardRefreshToken do
-            Wait(GetContractorBoardRefreshMs())
-            if dispatchUIVisible and token == contractorBoardRefreshToken and dispatchActiveTab == 'contractor' then
-                RefreshDispatchUI(0, 1)
-            end
-        end
-    end)
 end
 
 LS_Trucking.RequestReceiverAccess = function()
@@ -3614,12 +3832,12 @@ LS_Trucking.ToggleDutyStatus = function()
     Notify(result.message or 'Duty status updated.', result.success and 'success' or 'error')
 
     if result.success and dispatchUIVisible then
-        RefreshDispatchUI(250, 1)
+        LS_Trucking.DispatchData.Refresh(250, 1)
     end
 end
 
 function OpenDispatch()
-    local data, message = BuildDispatchUIData()
+    local data, message = LS_Trucking.DispatchData.Build()
     if not data then Notify(message or 'Unable to open trucking dispatch.', 'error') return end
     StartTabletAnim()
     dispatchUIVisible = true
@@ -3627,7 +3845,7 @@ function OpenDispatch()
     SetKeepInput(false)
     SetNuiFocus(true, true)
     SendNUIMessage({ action = 'open', data = data })
-    StartContractorBoardRefreshLoop()
+    LS_Trucking.DispatchData.StartContractorRefresh()
 end
 
 RegisterNetEvent('ls_trucking:client:openDispatch', OpenDispatch)
@@ -3679,68 +3897,6 @@ RegisterNetEvent('ls_trucking:client:toggleDock', ToggleReceiverDock)
 RegisterNetEvent('ls_trucking:client:toggleMiniUI', ToggleReceiverDock)
 RegisterNetEvent('ls_trucking:client:cancelActiveContract', CancelActiveContract)
 
-local function AddCommandSuggestion(command, help, params)
-    command = tostring(command or ''):gsub('^/', '')
-    if command == '' or commandSuggestions[command] then return end
-
-    commandSuggestions[command] = true
-    TriggerEvent('chat:addSuggestion', ('/%s'):format(command), help, params or {})
-end
-
-local function RegisterCommandSuggestions()
-    AddCommandSuggestion(Config.Command or 'trucking', 'Open the Los Santos Freight Co. dispatch tablet.')
-
-    local receiverCommand = Config.FullReceiverCommand or 'truckreceiver'
-    AddCommandSuggestion(receiverCommand, 'Toggle the LS Freight handheld receiver.')
-
-    if Config.MiniUIToggleCommand and Config.MiniUIToggleCommand ~= receiverCommand then
-        AddCommandSuggestion(Config.MiniUIToggleCommand, 'Toggle the compact LS Freight route dock.')
-    end
-
-    AddCommandSuggestion(Config.CancelCommand or 'canceltrucking', 'Cancel your active LS Freight route.')
-
-    local showAdminCommands = lib.callback.await('ls_trucking:server:canUseAdminCommand', false) == true
-    if not showAdminCommands then return end
-
-    AddCommandSuggestion('lstruck_resetjob', 'Admin: force reset your active trucking job.')
-    AddCommandSuggestion('lstruck_clearpeds', 'Admin: clear active contract worker peds.')
-    AddCommandSuggestion('lstruck_giveitems', 'Admin: give yourself cargo items for the active route.')
-    AddCommandSuggestion('lstruck_summary', 'Admin: open a route state summary.')
-    AddCommandSuggestion('lstraileredit', 'Admin: open the trailer cargo prop editor.', {
-        { name = 'trailerKey', help = 'Config.RouteTrailers key, for example flatbed_crates' }
-    })
-    AddCommandSuggestion('lstrailertest', 'Admin: spawn a configured trailer without starting a contract.', {
-        { name = 'trailerKey', help = 'Config.RouteTrailers key, for example flatbed_crates' }
-    })
-    AddCommandSuggestion('lstrailerclear', 'Admin: remove the currently spawned trailer test unit.')
-    AddCommandSuggestion('lstruck_rank', 'Admin: set trucking rank XP.', {
-        { name = 'rank', help = 'Rank number to apply' }
-    })
-    AddCommandSuggestion('lstruck_rep', 'Admin: adjust trucking reputation.', {
-        { name = 'amount', help = 'Reputation amount to add or remove' }
-    })
-    AddCommandSuggestion('lstruck_resetstats', 'Admin: reset your trucking stats.')
-end
-
-CreateThread(function()
-    Wait(750)
-    RegisterCommandSuggestions()
-end)
-
-local receiverCommandName = Config.FullReceiverCommand or 'truckreceiver'
-RegisterCommand(Config.Command or 'trucking', OpenDispatch, false)
-RegisterCommand(receiverCommandName, ToggleFullReceiver, false)
-if Config.MiniUIToggleCommand and Config.MiniUIToggleCommand ~= receiverCommandName then
-    RegisterCommand(Config.MiniUIToggleCommand, ToggleReceiverDock, false)
-end
-if RegisterKeyMapping and Config.DispatchKey then
-    RegisterKeyMapping(Config.Command or 'trucking', 'Open Los Santos Freight dispatch', 'keyboard', Config.DispatchKey)
-end
-if RegisterKeyMapping and Config.FullReceiverKey then
-    RegisterKeyMapping(receiverCommandName, 'Toggle LS Freight handheld receiver', 'keyboard', Config.FullReceiverKey)
-end
-RegisterCommand(Config.CancelCommand, CancelActiveContract, false)
-
 RegisterNUICallback('freightDialogClose', function(_, cb)
     local returnFocus = freightDialogReturnFocus == true
     freightDialogReturnFocus = false
@@ -3790,7 +3946,7 @@ RegisterNUICallback('dispatchTabChanged', function(data, cb)
     cb(true)
 
     if dispatchUIVisible and dispatchActiveTab == 'contractor' then
-        RefreshDispatchUI(650, 2)
+        LS_Trucking.DispatchData.Refresh(650, 2)
     end
 end)
 
@@ -3839,7 +3995,7 @@ RegisterNUICallback('startContract', function(data, cb)
     LS_Trucking.ResolveContractRequest(result, result and result.success and ('Dispatch approved %s. Contract %s confirmed. Vehicle release and GPS authorized.'):format(result.contract and result.contract.routeLabel or 'the selected route', result.contractId or 'pending') or nil)
     if not result or not result.success then cb({ success = false }) return end
     if not StartLocalContract(result, reuseVehicle) then
-        RefreshDispatchUI(650, 2)
+        LS_Trucking.DispatchData.Refresh(650, 2)
         cb({ success = false })
         return
     end
@@ -4088,7 +4244,7 @@ end
 if ContractorUI.RegisterClient then
     ContractorUI.RegisterClient({
         Notify = Notify,
-        RefreshDispatchUI = RefreshDispatchUI,
+        RefreshDispatchUI = LS_Trucking.DispatchData.Refresh,
         ShowFreightConfirm = ShowFreightConfirm,
         GetActiveContract = function() return activeContract end,
         GetSpawnedVehicle = function() return spawnedVehicle end,
@@ -4151,7 +4307,7 @@ LS_Trucking.BuildDutyTargetOption = function()
 
     return {
         name = 'ls_trucking_toggle_duty',
-        label = dutyConfig.label or 'Clock In / Out',
+        label = dutyConfig.label or T('interactions.clock_in_out'),
         icon = dutyConfig.icon or 'fa-solid fa-clock',
         distance = Config.TargetDistance,
         onSelect = LS_Trucking.ToggleDutyStatus
@@ -4176,9 +4332,9 @@ CreateThread(function()
             SetBlockingOfNonTemporaryEvents(dispatchPed, true)
             if Config.DispatchPed.scenario then TaskStartScenarioInPlace(dispatchPed, Config.DispatchPed.scenario, 0, true) end
             local dispatchOptions = {
-                { name = 'ls_trucking_open_dispatch_ped', label = 'Open Freight Dispatch', icon = 'fa-solid fa-tablet-screen-button', distance = Config.TargetDistance, onSelect = OpenDispatch },
-                { name = 'ls_trucking_return_company_vehicle', label = 'Return Company Vehicle', icon = 'fa-solid fa-rotate-left', distance = Config.TargetDistance, canInteract = function() return spawnedVehicle ~= nil and DoesEntityExist(spawnedVehicle) and contractorVehicle == nil and activeContract == nil end, onSelect = ReturnCompanyVehicle },
-                { name = 'ls_trucking_store_contractor_vehicle', label = 'Store Contractor Vehicle', icon = 'fa-solid fa-square-parking', distance = Config.TargetDistance, canInteract = function() return spawnedVehicle ~= nil and DoesEntityExist(spawnedVehicle) and contractorVehicle ~= nil and activeContract == nil end, onSelect = StoreContractorVehicle }
+                { name = 'ls_trucking_open_dispatch_ped', label = T('interactions.open_dispatch'), icon = 'fa-solid fa-tablet-screen-button', distance = Config.TargetDistance, onSelect = OpenDispatch },
+                { name = 'ls_trucking_return_company_vehicle', label = T('interactions.return_company_vehicle'), icon = 'fa-solid fa-rotate-left', distance = Config.TargetDistance, canInteract = function() return spawnedVehicle ~= nil and DoesEntityExist(spawnedVehicle) and contractorVehicle == nil and activeContract == nil end, onSelect = ReturnCompanyVehicle },
+                { name = 'ls_trucking_store_contractor_vehicle', label = T('interactions.store_contractor_vehicle'), icon = 'fa-solid fa-square-parking', distance = Config.TargetDistance, canInteract = function() return spawnedVehicle ~= nil and DoesEntityExist(spawnedVehicle) and contractorVehicle ~= nil and activeContract == nil end, onSelect = StoreContractorVehicle }
             }
 
             if LS_Trucking.DutyTargetEnabled() and ((Config.DutyTarget or Config.DutyLocation or {}).useDispatchPed ~= false) then
@@ -4190,7 +4346,7 @@ CreateThread(function()
         end
     end
     if Config.UseTerminalTargetZone then
-        AddSphereZone('ls_trucking_open_dispatch_terminal', Config.Depot.terminal, 2.0, { { name = 'ls_trucking_open_dispatch_terminal', label = 'Open Freight Dispatch', icon = 'fa-solid fa-tablet-screen-button', distance = Config.TargetDistance, onSelect = OpenDispatch } })
+        AddSphereZone('ls_trucking_open_dispatch_terminal', Config.Depot.terminal, 2.0, { { name = 'ls_trucking_open_dispatch_terminal', label = T('interactions.open_dispatch'), icon = 'fa-solid fa-tablet-screen-button', distance = Config.TargetDistance, onSelect = OpenDispatch } })
     end
     if LS_Trucking.DutyTargetEnabled() and (not Config.UsePed or ((Config.DutyTarget or Config.DutyLocation or {}).useDispatchPed == false)) then
         local dutyCoords = LS_Trucking.GetDutyTargetCoords()
@@ -4201,15 +4357,6 @@ CreateThread(function()
     end
 end)
 
-
-function LS_Trucking.AdminCommandEnabled()
-    local allowed = lib.callback.await('ls_trucking:server:canUseAdminCommand', false)
-    if allowed then return true end
-
-    Notify('You need admin permissions to use this LS Freight command.', 'error')
-    return false
-end
-
 function LS_Trucking.ForceJobCleanup(message, keepVehicle)
     if message then Notify(message, 'warning') end
 
@@ -4217,6 +4364,7 @@ function LS_Trucking.ForceJobCleanup(message, keepVehicle)
     ClearRouteBlip()
     RemoveAllZones()
     CleanupActiveContractPeds(true)
+    LS_Trucking.BoxTruckTrolley.Cleanup()
     DeleteCarryProp()
     if LS_Trucking.AssistedCargoLoading and LS_Trucking.AssistedCargoLoading.Reset then
         LS_Trucking.AssistedCargoLoading.Reset()
@@ -4233,75 +4381,19 @@ function LS_Trucking.ForceJobCleanup(message, keepVehicle)
     UpdateMiniUI()
 end
 
-RegisterCommand('lstruck_resetjob', function()
-    if not LS_Trucking.AdminCommandEnabled() then return end
-    LS_Trucking.ForceJobCleanup('Admin: active trucking job has been force reset.', false)
-end, false)
-
-RegisterCommand('lstruck_clearpeds', function()
-    if not LS_Trucking.AdminCommandEnabled() then return end
-    CleanupActiveContractPeds(false)
-    Notify('Admin: active contract peds cleared.', 'success')
-end, false)
-
-RegisterCommand('lstruck_giveitems', function()
-    if not LS_Trucking.AdminCommandEnabled() then return end
-    TriggerServerEvent('ls_trucking:server:debugGiveItems')
-end, false)
-
-RegisterCommand('lstruck_summary', function()
-    if not LS_Trucking.AdminCommandEnabled() then return end
-
-    if not activeContract then
-        ShowFreightDialog('Admin Route Summary', 'No active trucking contract.', 'Close')
-        return
-    end
-
-    ShowFreightDialog('Admin Route Summary', {
-        ('Contract ID: %s'):format(activeContract.contractId or 'N/A'),
-        ('Type: %s'):format(activeContract.type or 'N/A'),
-        ('Route: %s'):format(activeContract.routeLabel or activeContract.label or 'N/A'),
-        ('Stage: %s'):format(activeContract.stage or 'N/A'),
-        ('Vehicle: %s'):format(activeContract.vehicleLabel or 'N/A'),
-        ('Plate: %s'):format(activeContract.plate or 'N/A'),
-        ('Cargo: %s/%s'):format(activeContract.loadedCargo or 0, activeContract.requiredCargo or 0),
-        ('Stop: %s/%s'):format(activeContract.currentStop or 0, activeContract.totalStops or 0),
-        ('Trailer Hooked: %s'):format(tostring(activeContract.trailerHooked == true)),
-        ('Trailer Dropped: %s'):format(tostring(activeContract.trailerDropped == true)),
-    }, 'Close')
-end, false)
-
-RegisterCommand('lstraileredit', function(_, args)
-    if not LS_Trucking.AdminCommandEnabled() then return end
-
-    local trailerKey = args and args[1] or 'flatbed_crates'
-    if TrailerCargoEditor.Open then
-        TrailerCargoEditor.Open(trailerKey)
-    else
-        Notify('Trailer cargo editor is unavailable.', 'error')
-    end
-end, false)
-
-RegisterCommand('lstrailertest', function(_, args)
-    if not LS_Trucking.AdminCommandEnabled() then return end
-
-    local trailerKey = args and args[1] or 'flatbed_crates'
-    if TrailerCargoTester.Spawn then
-        TrailerCargoTester.Spawn(trailerKey)
-    else
-        Notify('Trailer test spawner is unavailable.', 'error')
-    end
-end, false)
-
-RegisterCommand('lstrailerclear', function()
-    if not LS_Trucking.AdminCommandEnabled() then return end
-
-    if TrailerCargoTester.Clear then
-        TrailerCargoTester.Clear(false)
-    else
-        Notify('Trailer test spawner is unavailable.', 'error')
-    end
-end, false)
+if LS_Trucking.ClientCommands and LS_Trucking.ClientCommands.RegisterClient then
+    LS_Trucking.ClientCommands.RegisterClient({
+        Notify = Notify,
+        OpenDispatch = OpenDispatch,
+        ToggleFullReceiver = ToggleFullReceiver,
+        ToggleReceiverDock = ToggleReceiverDock,
+        CancelActiveContract = CancelActiveContract,
+        ForceJobCleanup = LS_Trucking.ForceJobCleanup,
+        CleanupActiveContractPeds = CleanupActiveContractPeds,
+        GetActiveContract = function() return activeContract end,
+        ShowFreightDialog = ShowFreightDialog
+    })
+end
 
 CreateThread(function()
     local missingVehicleTicks = 0
@@ -4341,10 +4433,11 @@ CreateThread(function()
             if carryingCargo and IsEntityDead(PlayerPedId()) then
                 local now = GetGameTimer()
                 if now - lastDeadCargoCleanup > 10000 then
+                    LS_Trucking.BoxTruckTrolley.Cleanup()
                     DeleteCarryProp()
                     carryingCargo = false
                     lastDeadCargoCleanup = now
-                    Notify('Cargo carry animation was reset because your player went down.', 'warning')
+                    Notify('Cargo handling was reset because your player went down.', 'warning')
                 end
             end
         else
@@ -4356,16 +4449,12 @@ end)
 
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
-    for command in pairs(commandSuggestions) do
-        TriggerEvent('chat:removeSuggestion', ('/%s'):format(command))
-    end
     SetKeepInput(false)
     StopReceiverAnim()
     StopTabletAnim()
     ClearRouteBlip()
     RemoveAllZones()
-    if TrailerCargoEditor.Close then TrailerCargoEditor.Close(true) end
-    if TrailerCargoTester.Clear then TrailerCargoTester.Clear(true) end
+    LS_Trucking.BoxTruckTrolley.Cleanup()
     local cargoProps = LS_Trucking and LS_Trucking.TrailerCargoProps or {}
     if cargoProps.CleanupAll then cargoProps.CleanupAll() end
     CleanupJobVehicle()
