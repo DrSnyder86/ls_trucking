@@ -329,6 +329,19 @@ Included counts:
 
 Vehicle and trailer photo names are intended to match config table/model names where possible. To replace an image, keep the filename and path the same, or update the matching `photo` value in the config.
 
+### Inventory Item Images
+
+The `inventory_images` folder includes four complete visual options for the cargo and manifest items:
+
+- `Regular` - clean default item artwork.
+- `Arcade` - brighter artwork with a more game-styled finish.
+- `Brass Noir` - dark artwork with muted brass accents.
+- `Neon` - higher-contrast artwork with brighter accent colors.
+
+Each option contains the same 12 PNG filenames used by the included inventory item definitions. Choose one complete set and copy the PNG files from inside that theme folder into your inventory resource's item-image directory. Copy the files themselves rather than the theme folder.
+
+Keep the original filenames unchanged. The item definitions in `install/ox_inventory_items.lua` and `install/qb_inventory_items.lua` reference those names directly. Only one image option is needed, and choosing a different option does not require changing the LS Trucking config or item definitions.
+
 Font Awesome is vendored locally:
 
 - CSS: `html/vendor/fontawesome/css`
