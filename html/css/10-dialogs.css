@@ -635,3 +635,412 @@
     margin-top: 2px !important;
 }
 
+/* Unified freight document dialogs */
+.freight-dialog-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 560px !important;
+    max-height: 88vh !important;
+    border-radius: 8px !important;
+    border-color: rgba(74,163,255,0.52) !important;
+    background: rgba(5,10,13,0.985) !important;
+}
+
+.freight-dialog.dialog-confirm .freight-dialog-panel,
+.freight-dialog.dialog-cancel .freight-dialog-panel {
+    width: 500px !important;
+}
+
+.freight-dialog.dialog-manifest .freight-dialog-panel {
+    width: 620px !important;
+}
+
+.freight-dialog.dialog-summary .freight-dialog-panel {
+    width: 650px !important;
+}
+
+.freight-dialog.dialog-checklist .freight-dialog-panel {
+    width: 540px !important;
+}
+
+.freight-dialog.dialog-handoff .freight-dialog-panel {
+    width: 620px !important;
+}
+
+.freight-dialog-header {
+    flex: 0 0 auto !important;
+    min-height: 64px !important;
+    padding: 11px 15px !important;
+    background: linear-gradient(90deg, rgba(35,108,170,0.26), rgba(35,108,170,0.055)) !important;
+}
+
+.freight-dialog-logo {
+    width: 38px !important;
+    height: 38px !important;
+    border-width: 1px !important;
+    border-radius: 6px !important;
+}
+
+.freight-dialog-logo i {
+    font-size: 16px !important;
+}
+
+.freight-dialog-brand-text small {
+    margin-bottom: 1px !important;
+    font-size: 8px !important;
+    letter-spacing: 3px !important;
+}
+
+.freight-dialog-brand-text strong {
+    font-size: 18px !important;
+    letter-spacing: 0 !important;
+}
+
+.freight-dialog-brand-text span {
+    max-width: 470px !important;
+    margin-top: 3px !important;
+    font-size: 10px !important;
+    letter-spacing: 0 !important;
+}
+
+.freight-dialog-content,
+.freight-dialog-content.printout {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    max-height: 68vh !important;
+    padding: 12px 14px !important;
+    background: rgba(1,5,7,0.58) !important;
+}
+
+.freight-dialog-actions {
+    flex: 0 0 auto !important;
+    gap: 8px !important;
+    padding: 10px 12px !important;
+    background: rgba(0,0,0,0.34) !important;
+}
+
+.freight-dialog-actions button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    min-width: 132px !important;
+    height: 38px !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+}
+
+.freight-dialog-actions button i {
+    font-size: 11px !important;
+}
+
+.printout-paper {
+    display: grid !important;
+    gap: 9px !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.print-group {
+    overflow: hidden !important;
+    border: 1px solid rgba(255,255,255,0.09) !important;
+    border-radius: 6px !important;
+    background: rgba(255,255,255,0.022) !important;
+}
+
+.print-section {
+    padding: 6px 9px !important;
+    border-top: 0 !important;
+    border-bottom: 1px solid rgba(74,163,255,0.18) !important;
+    background: rgba(74,163,255,0.075) !important;
+    color: #9bd0ff !important;
+    font-size: 9px !important;
+    letter-spacing: 0 !important;
+}
+
+.print-group-body {
+    min-width: 0 !important;
+}
+
+.print-group-overview .print-group-body,
+.print-group-contract-information .print-group-body,
+.print-group-delivery-time .print-group-body,
+.print-group-payout-summary .print-group-body {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.print-row {
+    display: grid !important;
+    grid-template-columns: minmax(98px, 38%) minmax(0, 1fr) !important;
+    min-height: 29px !important;
+    border-bottom: 1px solid rgba(255,255,255,0.055) !important;
+}
+
+.print-group-body > .print-row:last-child {
+    border-bottom: 0 !important;
+}
+
+.print-row span,
+.print-row strong {
+    display: flex !important;
+    align-items: center !important;
+    min-width: 0 !important;
+    padding: 6px 8px !important;
+}
+
+.print-row span {
+    border-right: 1px solid rgba(255,255,255,0.055) !important;
+    background: rgba(0,0,0,0.14) !important;
+    color: rgba(218,229,236,0.62) !important;
+    font-size: 9px !important;
+    letter-spacing: 0 !important;
+}
+
+.print-row strong {
+    justify-content: flex-end !important;
+    color: #eef5fa !important;
+    font-size: 11px !important;
+    line-height: 1.22 !important;
+    text-align: right !important;
+    overflow-wrap: anywhere !important;
+}
+
+.print-row.is-complete strong {
+    color: #83ef8a !important;
+}
+
+.print-row.is-pending strong {
+    color: #ffd170 !important;
+}
+
+.print-note,
+.print-line {
+    padding: 7px 9px !important;
+    border-bottom: 1px solid rgba(255,255,255,0.045) !important;
+    color: rgba(238,245,250,0.78) !important;
+    font-size: 11px !important;
+    line-height: 1.32 !important;
+    text-align: left !important;
+}
+
+.print-note:last-child,
+.print-line:last-child {
+    border-bottom: 0 !important;
+}
+
+.print-stop-entry {
+    display: grid !important;
+    grid-template-columns: 34px minmax(0, 1fr) !important;
+    gap: 9px !important;
+    align-items: center !important;
+    min-width: 0 !important;
+    padding: 8px 9px !important;
+    border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+.print-stop-entry:last-child {
+    border-bottom: 0 !important;
+}
+
+.print-stop-entry > span {
+    display: grid !important;
+    place-items: center !important;
+    width: 29px !important;
+    height: 29px !important;
+    border: 1px solid rgba(74,163,255,0.34) !important;
+    border-radius: 50% !important;
+    background: rgba(74,163,255,0.075) !important;
+    color: #9bd0ff !important;
+    font-size: 9px !important;
+    font-weight: 900 !important;
+}
+
+.print-stop-entry > div {
+    min-width: 0 !important;
+}
+
+.print-stop-entry strong,
+.print-stop-entry small {
+    display: block !important;
+    overflow-wrap: anywhere !important;
+}
+
+.print-stop-entry strong {
+    color: #f5f8fa !important;
+    font-size: 12px !important;
+    line-height: 1.18 !important;
+}
+
+.print-stop-entry small {
+    margin-top: 3px !important;
+    color: rgba(218,229,236,0.65) !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+}
+
+.freight-form {
+    gap: 10px !important;
+}
+
+.freight-form-warning {
+    padding: 10px 11px !important;
+    border-left: 3px solid rgba(255,188,83,0.78) !important;
+    border-radius: 5px !important;
+    border-color: rgba(255,188,83,0.26) !important;
+    background: rgba(255,188,83,0.065) !important;
+    color: #f2dfbd !important;
+    font-size: 12px !important;
+}
+
+.freight-form-warning strong {
+    color: #ffd170 !important;
+}
+
+.freight-form-label {
+    font-size: 9px !important;
+    letter-spacing: 0 !important;
+}
+
+.freight-reason-list {
+    display: grid !important;
+    gap: 6px !important;
+}
+
+.freight-reason-option {
+    display: block !important;
+    cursor: pointer !important;
+}
+
+.freight-reason-option input {
+    position: absolute !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.freight-reason-option span {
+    display: flex !important;
+    align-items: center !important;
+    gap: 9px !important;
+    min-height: 36px !important;
+    padding: 8px 10px !important;
+    border: 1px solid rgba(255,255,255,0.10) !important;
+    border-radius: 6px !important;
+    background: rgba(255,255,255,0.025) !important;
+    color: rgba(245,247,248,0.82) !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+}
+
+.freight-reason-option i {
+    color: rgba(218,229,236,0.26) !important;
+    font-size: 8px !important;
+}
+
+.freight-reason-option input:checked + span {
+    border-color: rgba(213,84,84,0.52) !important;
+    background: rgba(213,84,84,0.09) !important;
+    color: #fff !important;
+}
+
+.freight-reason-option input:checked + span i {
+    color: #ff8181 !important;
+    box-shadow: 0 0 8px rgba(255,90,90,0.34) !important;
+}
+
+.freight-form-check {
+    padding: 9px 10px !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+}
+
+.handoff-status-line {
+    padding: 8px 10px !important;
+    border-radius: 6px !important;
+}
+
+.handoff-detail-row {
+    grid-template-columns: 136px minmax(0, 1fr) !important;
+    min-height: 29px !important;
+}
+
+.handoff-detail-row span {
+    font-size: 9px !important;
+    letter-spacing: 0 !important;
+}
+
+.handoff-signature-pad {
+    min-height: 72px !important;
+    padding: 10px 14px !important;
+    border-radius: 6px !important;
+}
+
+.trailer-inspection h2 {
+    margin: 0 0 16px;
+    font-size: 16px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.inspection-check {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) minmax(70px, 30%);
+    align-items: center;
+    gap: 10px;
+    min-height: 58px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgb(255 255 255 / 12%);
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.inspection-check i {
+    color: #a8b4bc;
+    font-size: 16px;
+}
+
+.inspection-check strong {
+    color: #b8c3cb;
+    font-size: 12px;
+    text-align: right;
+}
+
+.inspection-check.is-complete i,
+.inspection-check.is-complete strong {
+    color: #64ec96;
+}
+
+.inspection-check.is-running i,
+.inspection-check.is-running strong {
+    color: #ffd45b;
+}
+
+.trailer-inspection p {
+    margin: 16px 0 0;
+    color: #bdcbd5;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.freight-dialog.dialog-checklist .freight-dialog-actions {
+    flex-wrap: wrap;
+}
+
+.freight-dialog.dialog-checklist .freight-dialog-actions button {
+    height: auto !important;
+    min-height: 38px;
+    max-width: 100%;
+    padding: 10px 14px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.freight-dialog.dialog-checklist .freight-dialog-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+

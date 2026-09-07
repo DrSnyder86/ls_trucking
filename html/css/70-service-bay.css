@@ -713,7 +713,7 @@
 
 .service-bay-option-meta {
     display: grid;
-    grid-template-columns: 1fr 1fr 0.9fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 5px;
     margin-top: 5px;
 }
@@ -729,7 +729,7 @@
     display: block;
     overflow: hidden;
     color: #aeb7b0;
-    font-size: 7.6px;
+    font-size: 8.5px;
     font-weight: 950;
     letter-spacing: 0.045em;
     line-height: 1;

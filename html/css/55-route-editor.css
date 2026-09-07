@@ -1,0 +1,1157 @@
+/* Admin contract route editor */
+.route-editor {
+    position: fixed;
+    inset: 0;
+    z-index: 124;
+    pointer-events: none;
+    color: #edf4ef;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.route-editor-panel {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    width: min(760px, calc(100vw - 48px));
+    max-height: calc(100vh - 48px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    pointer-events: auto;
+    background: linear-gradient(180deg, rgba(16, 22, 20, 0.99), rgba(5, 9, 8, 0.99));
+    border: 1px solid rgba(111, 245, 126, 0.3);
+    border-radius: 8px;
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.76),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.route-editor-panel *,
+.route-editor-panel *::before,
+.route-editor-panel *::after {
+    box-sizing: border-box;
+    letter-spacing: 0;
+}
+
+.route-editor-panel button,
+.route-editor-panel input,
+.route-editor-panel select,
+.route-editor-panel textarea {
+    font: inherit;
+}
+
+.route-editor-panel button {
+    border: 0;
+    cursor: pointer;
+}
+
+.route-editor-panel button:disabled {
+    cursor: not-allowed;
+    filter: saturate(0.25);
+    opacity: 0.45;
+}
+
+.route-editor-header {
+    min-height: 70px;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto 34px;
+    gap: 10px;
+    align-items: center;
+    padding: 11px 13px;
+    background: linear-gradient(90deg, rgba(64, 150, 76, 0.18), rgba(255, 255, 255, 0.025));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.route-editor-title-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    color: #0b160d;
+    background: linear-gradient(180deg, #75ff87, #31b948);
+    border-radius: 8px;
+    box-shadow:
+        inset 0 1px rgba(255, 255, 255, 0.5),
+        0 8px 18px rgba(0, 0, 0, 0.28);
+    font-size: 18px;
+}
+
+.route-editor-title {
+    min-width: 0;
+}
+
+.route-editor-title small,
+.route-editor-section-heading small,
+.route-editor-context > label > span,
+.route-editor-field-grid label > span,
+.route-editor-input-field > span,
+.route-editor-coordinate-label > span {
+    display: block;
+    color: rgba(186, 218, 191, 0.62);
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+
+.route-editor-title strong {
+    display: block;
+    margin-top: 2px;
+    color: #fff;
+    font-size: 18px;
+    line-height: 1.08;
+}
+
+.route-editor-title > span {
+    display: block;
+    margin-top: 3px;
+    overflow: hidden;
+    color: #6eff82;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.route-editor-current-position {
+    max-width: 210px;
+    padding: 7px 9px;
+    text-align: right;
+    background: rgba(0, 0, 0, 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 6px;
+}
+
+.route-editor-current-position small {
+    display: block;
+    color: #91a695;
+    font-size: 8px;
+    font-weight: 900;
+}
+
+.route-editor-current-position code {
+    display: block;
+    margin-top: 3px;
+    color: #ffd66b;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 10px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.route-editor-close,
+.route-editor-icon-button {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    color: #e8efea;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 6px;
+}
+
+.route-editor-close:hover,
+.route-editor-icon-button:hover {
+    color: #79ff89;
+    background: rgba(121, 255, 137, 0.12);
+    border-color: rgba(121, 255, 137, 0.28) !important;
+}
+
+.route-editor-context {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(210px, 1.15fr) 176px;
+    gap: 8px;
+    align-items: end;
+    padding: 10px 13px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.route-editor-existing-field {
+    grid-column: 1 / -1;
+}
+
+.route-editor-existing-field .route-editor-select-trigger {
+    height: 44px;
+}
+
+.route-editor-context > label,
+.route-editor-field-grid > label {
+    min-width: 0;
+}
+
+.route-editor-context > label > span,
+.route-editor-field-grid label > span,
+.route-editor-input-field > span {
+    margin: 0 0 5px 1px;
+}
+
+.route-editor-select {
+    position: relative;
+    min-width: 0;
+}
+
+.route-editor-select select,
+.route-editor-field-grid input,
+.route-editor-input-field input,
+.route-editor-coordinate-grid input {
+    width: 100%;
+    height: 34px;
+    min-width: 0;
+    outline: none;
+    color: #eef5ef;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.route-editor-select select {
+    appearance: none;
+    padding: 0 25px 0 29px;
+    cursor: pointer;
+}
+
+.route-editor-select.plain select {
+    padding-left: 9px;
+}
+
+.route-editor-select select.route-editor-select-native {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.route-editor-select-trigger {
+    width: 100%;
+    height: 34px;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 25px 0 29px;
+    overflow: hidden;
+    color: #eef5ef;
+    text-align: left;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.13) !important;
+    border-radius: 6px;
+    outline: none;
+}
+
+.route-editor-select.plain .route-editor-select-trigger {
+    padding-left: 9px;
+}
+
+.route-editor-trailer-assignment .route-editor-select-trigger {
+    height: 44px;
+}
+
+.route-editor-select-copy,
+.route-editor-select-copy strong,
+.route-editor-select-copy small {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.route-editor-select-copy {
+    width: 100%;
+}
+
+.route-editor-select-copy strong {
+    color: #eef5ef;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.15;
+}
+
+.route-editor-select-copy small {
+    margin-top: 3px;
+    color: #8fa294;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.route-editor-select-trigger:focus-visible,
+.route-editor-select.is-open .route-editor-select-trigger {
+    border-color: rgba(117, 255, 135, 0.66) !important;
+    box-shadow: 0 0 0 2px rgba(117, 255, 135, 0.09);
+}
+
+.route-editor-select > i {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
+.route-editor-select > i:first-child {
+    left: 9px;
+    color: #75ff87;
+    font-size: 10px;
+}
+
+.route-editor-select > i:last-child {
+    right: 9px;
+    color: #8aa08e;
+    font-size: 9px;
+}
+
+.route-editor-select.is-open > i:last-child {
+    color: #75ff87;
+}
+
+.route-editor-select-menu {
+    position: fixed;
+    z-index: 4;
+    display: grid;
+    gap: 2px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 5px;
+    pointer-events: auto;
+    color: #e6eee8;
+    background: rgba(5, 10, 8, 0.995);
+    border: 1px solid rgba(117, 255, 135, 0.55);
+    border-radius: 6px;
+    box-shadow:
+        0 15px 34px rgba(0, 0, 0, 0.78),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    scrollbar-color: rgba(117, 255, 135, 0.88) rgba(2, 6, 4, 0.96);
+    scrollbar-width: thin;
+}
+
+.route-editor-select-menu[hidden] {
+    display: none;
+}
+
+.route-editor-select-menu::-webkit-scrollbar {
+    width: 7px;
+}
+
+.route-editor-select-menu::-webkit-scrollbar-track {
+    background: rgba(2, 6, 4, 0.96);
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.route-editor-select-menu::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #75ff87, #278c39);
+    border: 2px solid rgba(2, 6, 4, 0.96);
+    border-radius: 8px;
+}
+
+.route-editor-select-option {
+    width: 100%;
+    min-height: 31px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 16px;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 7px 6px 9px;
+    color: #dce5de;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-radius: 5px;
+    outline: none;
+    font: inherit;
+    cursor: pointer;
+}
+
+.route-editor-select-menu.has-descriptions .route-editor-select-option {
+    min-height: 45px;
+}
+
+.route-editor-select-option-copy,
+.route-editor-select-option-copy strong,
+.route-editor-select-option-copy small {
+    display: block;
+    min-width: 0;
+}
+
+.route-editor-select-option-copy strong {
+    overflow: hidden;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.route-editor-select-option-copy small {
+    margin-top: 3px;
+    color: #91a095;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.route-editor-select-option > i {
+    color: #75ff87;
+    font-size: 9px;
+    text-align: center;
+}
+
+.route-editor-select-option:hover,
+.route-editor-select-option:focus-visible {
+    color: #fff;
+    background: rgba(117, 255, 135, 0.11);
+}
+
+.route-editor-select-option[aria-selected='true'] {
+    color: #83ff92;
+    background: linear-gradient(90deg, rgba(117, 255, 135, 0.2), rgba(117, 255, 135, 0.04));
+}
+
+.route-editor-select select:focus,
+.route-editor-field-grid input:focus,
+.route-editor-input-field input:focus,
+.route-editor-coordinate-grid input:focus {
+    border-color: rgba(117, 255, 135, 0.66);
+    box-shadow: 0 0 0 2px rgba(117, 255, 135, 0.09);
+}
+
+.route-editor-context-actions {
+    grid-column: 3;
+    grid-row: 1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.route-editor-context-actions button,
+.route-editor-estimate,
+.route-editor-capture,
+.route-editor-export-body button,
+.route-editor-footer-actions button {
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: #e8efea;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.route-editor-context-actions button,
+.route-editor-estimate {
+    min-width: 0;
+    padding: 0 8px;
+    overflow: hidden;
+}
+
+.route-editor-context-actions button:hover,
+.route-editor-estimate:hover,
+.route-editor-capture:hover,
+.route-editor-export-body button:hover,
+.route-editor-footer-actions button:hover {
+    color: #fff;
+    background: rgba(117, 255, 135, 0.13);
+    border-color: rgba(117, 255, 135, 0.3);
+}
+
+.route-editor-workspace {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+    gap: 10px;
+    padding: 10px 13px;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.route-editor-workspace::-webkit-scrollbar {
+    width: 4px;
+}
+
+.route-editor-workspace::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.22);
+}
+
+.route-editor-workspace::-webkit-scrollbar-thumb {
+    background: rgba(117, 255, 135, 0.38);
+    border-radius: 4px;
+}
+
+.route-editor-builder-column,
+.route-editor-inspector-column {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.route-editor-section {
+    min-width: 0;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 7px;
+}
+
+.route-editor-section-heading {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 9px;
+    margin-bottom: 9px;
+}
+
+.route-editor-section-heading > div:first-child {
+    min-width: 0;
+}
+
+.route-editor-section-heading strong {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    color: #f5f8f5;
+    font-size: 13px;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.route-editor-point-editor .route-editor-section-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+}
+
+.route-editor-point-editor .route-editor-section-heading strong {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+}
+
+.route-editor-point-editor .route-editor-heading-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.route-editor-point-editor .route-editor-point-action {
+    width: 100%;
+}
+
+.route-editor-mode,
+.route-editor-validation-count {
+    flex: 0 0 auto;
+    padding: 4px 6px;
+    color: #79ff89;
+    background: rgba(117, 255, 135, 0.09);
+    border: 1px solid rgba(117, 255, 135, 0.18);
+    border-radius: 4px;
+    font-size: 8px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.route-editor-field-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 100px;
+    gap: 7px;
+    align-items: end;
+}
+
+.route-editor-field-grid.two-column {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.route-editor-field-grid.compact-fields {
+    grid-template-columns: minmax(0, 1fr);
+    margin-bottom: 9px;
+}
+
+.route-editor-wide-field {
+    grid-column: 1 / -1;
+}
+
+.route-editor-field-grid input,
+.route-editor-input-field input {
+    padding: 0 9px;
+}
+
+.route-editor-estimate {
+    width: 100%;
+}
+
+.route-editor-capture {
+    flex: 0 0 auto;
+    padding: 0 10px;
+    color: #102013;
+    background: linear-gradient(180deg, #75ff87, #31b948);
+    border-color: transparent;
+}
+
+.route-editor-capture:hover {
+    color: #071009;
+    background: linear-gradient(180deg, #8cff99, #45cf59);
+}
+
+.route-editor-stop-list {
+    display: grid;
+    gap: 5px;
+}
+
+.route-editor-stop {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+    align-items: center;
+    padding: 5px;
+    background: rgba(0, 0, 0, 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 6px;
+}
+
+.route-editor-stop.is-selected {
+    background: rgba(117, 255, 135, 0.07);
+    border-color: rgba(117, 255, 135, 0.35);
+}
+
+.route-editor-stop-main {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 7px;
+    align-items: center;
+    padding: 2px;
+    color: inherit;
+    text-align: left;
+    background: transparent;
+}
+
+.route-editor-stop-number {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    color: #75ff87;
+    background: rgba(117, 255, 135, 0.09);
+    border-radius: 5px;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.route-editor-stop-copy {
+    min-width: 0;
+}
+
+.route-editor-stop-copy strong,
+.route-editor-stop-copy small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.route-editor-stop-copy strong {
+    color: #edf4ef;
+    font-size: 11px;
+}
+
+.route-editor-stop-copy small {
+    margin-top: 3px;
+    color: #89968c;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 8px;
+}
+
+.route-editor-stop-actions,
+.route-editor-heading-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.route-editor-heading-actions {
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.route-editor-point-action {
+    min-width: 0;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 0 8px;
+    color: #e8efea;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 6px;
+    font-size: 9px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.route-editor-point-action:hover {
+    color: #79ff89;
+    background: rgba(121, 255, 137, 0.12);
+    border-color: rgba(121, 255, 137, 0.28) !important;
+}
+
+.route-editor-stop-actions .route-editor-icon-button {
+    width: 25px;
+    height: 28px;
+    font-size: 9px;
+}
+
+.route-editor-stop-actions .route-editor-icon-button:last-child:hover {
+    color: #ff9d96;
+    background: rgba(255, 92, 80, 0.12);
+    border-color: rgba(255, 92, 80, 0.28) !important;
+}
+
+.route-editor-empty {
+    min-height: 105px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 15px;
+    color: #859188;
+    text-align: center;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+}
+
+.route-editor-empty i {
+    color: rgba(117, 255, 135, 0.6);
+    font-size: 18px;
+}
+
+.route-editor-empty strong {
+    color: #cbd3cd;
+    font-size: 11px;
+}
+
+.route-editor-empty span {
+    max-width: 240px;
+    font-size: 9px;
+    line-height: 1.3;
+}
+
+.route-editor-empty.compact {
+    min-height: 80px;
+}
+
+.route-editor-input-field {
+    display: block;
+    margin-bottom: 9px;
+}
+
+.route-editor-unload-field,
+.route-editor-radius-field {
+    max-width: 175px;
+}
+
+.route-editor-coordinate-label {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 7px;
+    margin-bottom: 6px;
+}
+
+.route-editor-coordinate-label code {
+    overflow: hidden;
+    color: #ffd66b;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 8px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.route-editor-coordinate-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+}
+
+.route-editor-coordinate-grid.has-heading {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.route-editor-coordinate-grid label {
+    min-width: 0;
+}
+
+.route-editor-coordinate-grid label > span {
+    display: block;
+    margin: 0 0 3px 1px;
+    color: #849087;
+    font-size: 8px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.route-editor-coordinate-grid input {
+    height: 31px;
+    padding: 0 6px;
+    color: #ffd66b;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 9px;
+    text-align: right;
+}
+
+.route-editor-trailer-points {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.route-editor-trailer-point {
+    min-width: 0;
+    min-height: 54px;
+    display: grid;
+    grid-template-columns: 25px minmax(0, 1fr) auto;
+    gap: 7px;
+    align-items: center;
+    padding: 7px;
+    color: #eaf0eb;
+    text-align: left;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 6px;
+}
+
+.route-editor-trailer-point.is-selected {
+    background: rgba(117, 255, 135, 0.07);
+    border-color: rgba(117, 255, 135, 0.38) !important;
+}
+
+.route-editor-trailer-point > i {
+    color: #75ff87;
+    font-size: 15px;
+    text-align: center;
+}
+
+.route-editor-trailer-point > span {
+    min-width: 0;
+}
+
+.route-editor-trailer-point strong,
+.route-editor-trailer-point small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.route-editor-trailer-point strong {
+    font-size: 10px;
+}
+
+.route-editor-trailer-point small {
+    margin-top: 3px;
+    color: #849087;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 7px;
+}
+
+.route-editor-trailer-point em {
+    padding: 3px 4px;
+    color: #75ff87;
+    background: rgba(117, 255, 135, 0.09);
+    border-radius: 3px;
+    font-size: 7px;
+    font-style: normal;
+    font-weight: 900;
+}
+
+.route-editor-validation-count.has-errors {
+    color: #ff9d96;
+    background: rgba(255, 92, 80, 0.09);
+    border-color: rgba(255, 92, 80, 0.2);
+}
+
+.route-editor-validation-count.has-warnings {
+    color: #ffd66b;
+    background: rgba(255, 202, 66, 0.08);
+    border-color: rgba(255, 202, 66, 0.2);
+}
+
+.route-editor-summary-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+    margin-bottom: 7px;
+}
+
+.route-editor-summary-row span {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px;
+    color: #aeb8b0;
+    background: rgba(0, 0, 0, 0.23);
+    border-radius: 5px;
+    font-size: 8px;
+    white-space: nowrap;
+}
+
+.route-editor-summary-row i,
+.route-editor-summary-row b {
+    color: #75ff87;
+}
+
+.route-editor-issue-list {
+    display: grid;
+    gap: 4px;
+}
+
+.route-editor-issue {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr);
+    gap: 5px;
+    align-items: start;
+    padding: 6px;
+    color: #c9d0ca;
+    background: rgba(255, 255, 255, 0.025);
+    border-left: 2px solid #ffd66b;
+    border-radius: 3px;
+    font-size: 8px;
+    line-height: 1.3;
+}
+
+.route-editor-issue.is-error {
+    border-left-color: #ff6d63;
+}
+
+.route-editor-issue.is-error i {
+    color: #ff8f87;
+}
+
+.route-editor-issue.is-warning i {
+    color: #ffd66b;
+}
+
+.route-editor-issue.is-clear {
+    border-left-color: #75ff87;
+}
+
+.route-editor-issue.is-clear i {
+    color: #75ff87;
+}
+
+.route-editor-footer {
+    flex: 0 0 auto;
+    padding: 9px 13px 11px;
+    background: rgba(0, 0, 0, 0.25);
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.route-editor-export {
+    margin-bottom: 8px;
+    background: rgba(0, 0, 0, 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+}
+
+.route-editor-export summary {
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 9px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.route-editor-export summary::-webkit-details-marker {
+    display: none;
+}
+
+.route-editor-export summary > span {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 15px auto minmax(0, 1fr);
+    gap: 6px;
+    align-items: center;
+}
+
+.route-editor-export summary i {
+    color: #75ff87;
+    font-size: 10px;
+}
+
+.route-editor-export summary strong {
+    color: #e9efea;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.route-editor-export summary small {
+    overflow: hidden;
+    color: #7f8d82;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 8px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.route-editor-export summary > i {
+    transition: transform 140ms ease;
+}
+
+.route-editor-export[open] summary > i {
+    transform: rotate(180deg);
+}
+
+.route-editor-export-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 104px;
+    gap: 7px;
+    padding: 0 8px 8px;
+}
+
+.route-editor-export-body textarea {
+    min-width: 0;
+    height: 104px;
+    resize: vertical;
+    padding: 8px;
+    outline: none;
+    color: #d8e8da;
+    background: #030605;
+    border: 1px solid rgba(117, 255, 135, 0.14);
+    border-radius: 5px;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 8px;
+    line-height: 1.35;
+    user-select: text;
+}
+
+.route-editor-export-body button {
+    align-self: start;
+}
+
+.route-editor-footer-actions {
+    display: grid;
+    grid-template-columns: 1fr 0.8fr 1fr 0.7fr;
+    gap: 6px;
+}
+
+.route-editor-footer-actions button {
+    height: 36px;
+    padding: 0 10px;
+}
+
+.route-editor-footer-actions .route-editor-primary {
+    color: #0a140c;
+    background: linear-gradient(180deg, #75ff87, #31b948);
+    border-color: transparent;
+}
+
+.route-editor-footer-actions .route-editor-primary:hover {
+    color: #071009;
+    background: linear-gradient(180deg, #8cff99, #45cf59);
+}
+
+.route-editor-footer-actions .route-editor-secondary.is-active {
+    color: #75ff87;
+    background: rgba(117, 255, 135, 0.12);
+    border-color: rgba(117, 255, 135, 0.36);
+}
+
+.route-editor-footer-actions .route-editor-danger {
+    color: #ffaaa4;
+    background: rgba(255, 92, 80, 0.08);
+    border-color: rgba(255, 92, 80, 0.2);
+}
+
+.route-editor-footer-actions .route-editor-danger:hover {
+    color: #fff;
+    background: rgba(205, 54, 45, 0.55);
+    border-color: rgba(255, 125, 116, 0.5);
+}
+
+@media (max-height: 790px) {
+    .route-editor-panel {
+        top: 12px;
+        right: 12px;
+        max-height: calc(100vh - 24px);
+    }
+
+    .route-editor-header {
+        min-height: 60px;
+        padding-block: 8px;
+    }
+
+    .route-editor-context,
+    .route-editor-workspace {
+        padding-block: 8px;
+    }
+
+    .route-editor-section {
+        padding: 8px;
+    }
+}
+
+@media (max-width: 760px) {
+    .route-editor-panel {
+        top: 8px;
+        right: 8px;
+        width: calc(100vw - 16px);
+        max-height: calc(100vh - 16px);
+    }
+
+    .route-editor-current-position {
+        display: none;
+    }
+
+    .route-editor-header {
+        grid-template-columns: 42px minmax(0, 1fr) 34px;
+    }
+
+    .route-editor-context {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .route-editor-existing-field {
+        grid-column: 1 / -1;
+    }
+
+    .route-editor-context-actions {
+        grid-column: 1 / -1;
+        grid-row: auto;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .route-editor-workspace {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .route-editor-trailer-points {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

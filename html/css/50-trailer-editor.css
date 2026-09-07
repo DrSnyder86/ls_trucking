@@ -168,6 +168,69 @@
     font-weight: 800;
 }
 
+.trailer-editor-select-control {
+    width: 100%;
+    height: 34px;
+    border-color: rgba(255,255,255,0.12);
+    border-radius: 8px;
+    background: rgba(0,0,0,0.48);
+}
+
+.trailer-editor-select-control:focus-within,
+.trailer-editor-select-control.open {
+    border-color: rgba(121,255,134,0.72);
+    background: linear-gradient(180deg, rgba(15,31,20,0.99), rgba(5,12,8,0.99));
+    box-shadow: 0 0 0 2px rgba(121,255,134,0.09), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.trailer-editor-select-control > i:first-child {
+    left: 10px;
+    color: #79ff86;
+    font-size: 11px;
+}
+
+.trailer-editor-select-control > .dispatch-select-chevron {
+    right: 10px;
+    color: rgba(225,235,225,0.7);
+}
+
+.trailer-editor-select-control .dispatch-select-trigger {
+    padding: 0 31px 0 34px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.trailer-editor-select-control .dispatch-select-menu {
+    max-height: 220px;
+    border-color: rgba(121,255,134,0.48);
+    background: rgba(5,12,8,0.995);
+    scrollbar-color: rgba(121,255,134,0.9) rgba(2,8,5,0.96);
+}
+
+.trailer-editor-select-control .dispatch-select-menu::-webkit-scrollbar-track {
+    background: rgba(2,8,5,0.96);
+}
+
+.trailer-editor-select-control .dispatch-select-menu::-webkit-scrollbar-thumb {
+    border-color: rgba(2,8,5,0.96);
+    background: linear-gradient(180deg, #79ff86, #35b949);
+}
+
+.trailer-editor-select-control .dispatch-select-option:hover,
+.trailer-editor-select-control .dispatch-select-option:focus-visible {
+    color: #edfff0;
+    background: rgba(121,255,134,0.12);
+}
+
+.trailer-editor-select-control .dispatch-select-option[aria-selected="true"] {
+    color: #79ff86;
+    background: linear-gradient(90deg, rgba(121,255,134,0.22), rgba(121,255,134,0.04));
+}
+
+.trailer-editor-select-control .dispatch-select-option i {
+    color: #79ff86;
+}
+
 .trailer-editor-step-row {
     grid-template-columns: 48px 1fr;
     align-items: center;
@@ -376,6 +439,23 @@
     color: rgba(225,235,225,0.58);
     font-size: 11px;
     line-height: 1.35;
+}
+
+.trailer-editor-help {
+    display: grid;
+    grid-template-columns: 15px minmax(0, 1fr);
+    gap: 7px;
+    align-items: start;
+    padding: 8px 9px;
+    border: 1px solid rgba(121,255,134,0.1);
+    border-radius: 7px;
+    background: rgba(121,255,134,0.035);
+}
+
+.trailer-editor-help i {
+    margin-top: 2px;
+    color: rgba(121,255,134,0.72);
+    font-size: 10px;
 }
 
 .trailer-editor-watermark {

@@ -38,6 +38,7 @@ function renderTrailerCargoEditor(state = {}) {
             trailerCargoEditorPropSelect.appendChild(option);
         });
         trailerCargoEditorPropSelect.value = String(current.selectedIndex || 1);
+        syncDispatchSelect(trailerCargoEditorPropSelect);
     }
 
     if (trailerCargoEditorStep) trailerCargoEditorStep.value = current.step || 0.05;
@@ -75,6 +76,9 @@ function showTrailerCargoEditor(state = {}) {
 
 function hideTrailerCargoEditor() {
     if (trailerCargoEditor) trailerCargoEditor.classList.add('hidden');
+    if (dispatchSelectControllers.has(trailerCargoEditorPropSelect)) {
+        setDispatchSelectOpen(dispatchSelectControllers.get(trailerCargoEditorPropSelect), false);
+    }
     stopTrailerEditorCameraDrag();
     trailerCargoEditorState = null;
 }
@@ -176,6 +180,12 @@ function queueTrailerEditorCameraDrag(deltaX, deltaY) {
 
 function stopTrailerEditorCameraDrag() {
     trailerEditorCameraDrag = null;
+    trailerEditorCameraDeltaX = 0;
+    trailerEditorCameraDeltaY = 0;
+    if (trailerEditorCameraFrame) {
+        window.cancelAnimationFrame(trailerEditorCameraFrame);
+        trailerEditorCameraFrame = null;
+    }
     trailerCargoEditor?.querySelector('[data-trailer-editor-camera-pad]')?.classList.remove('is-dragging');
 }
 

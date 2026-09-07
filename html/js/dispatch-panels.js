@@ -46,13 +46,15 @@ function buildHomePreviewPanel() {
     const photoHtml = point.photo
         ? `<img src="${escapeHTML(point.photo)}" alt="${escapeHTML(point.label || 'Dispatch location')}" loading="lazy">`
         : `<div class="dispatch-location-photo-fallback"><i class="${escapeHTML(point.icon || meta.icon)}"></i><span>${escapeHTML(meta.label)}</span></div>`;
-    const detailRows = details.length
-        ? details.map(row => renderPreviewInfo(row.icon || 'fa-circle-info', row.label || 'Info', row.value ?? 'N/A', row.subtext || '')).join('')
-        : [
-            renderPreviewInfo('fa-layer-group', 'Type', meta.label),
-            renderPreviewInfo('fa-road', 'Street Address', displayDispatchAddress(point)),
-            renderPreviewInfo('fa-clipboard-check', 'Use', point.description || 'LSFC operating point.')
-        ].join('');
+    const repeatedDetailLabels = new Set(['type', 'street address', 'address', 'use']);
+    const detailRows = details
+        .filter(row => {
+            const label = String(row?.label || '').trim().toLowerCase();
+            const value = String(row?.value ?? '').trim();
+            return value && value.toLowerCase() !== 'n/a' && !repeatedDetailLabels.has(label);
+        })
+        .map(row => renderPreviewInfo(row.icon || 'fa-circle-info', row.label || 'Info', row.value, row.subtext || ''))
+        .join('');
     const insights = getCompanyInsights(dispatchData || {});
 
     previewContext.innerHTML = `
@@ -72,9 +74,7 @@ function buildHomePreviewPanel() {
                 ${renderPreviewMetric('Address', displayDispatchAddress(point))}
                 ${renderPreviewMetric('Zone', point.zone || 'San Andreas')}
             </div>
-            <div class="dispatch-location-details">
-                ${detailRows}
-            </div>
+            ${detailRows ? `<div class="dispatch-location-details">${detailRows}</div>` : ''}
             <button class="dispatch-gps-button" data-dispatch-set-gps="${escapeHTML(point.id || '')}">
                 <i class="fas fa-location-arrow"></i>
                 <span>Set GPS</span>
@@ -91,11 +91,14 @@ function buildHomePreviewPanel() {
 
 function getGarageVehicleKey(vehicle) {
     if (!vehicle) return '';
-    return `${vehicle.type || 'vehicle'}:${Number(vehicle.index || 0)}`;
+    return vehicle.garageId || `${vehicle.type || 'vehicle'}:${Number(vehicle.index || 0)}`;
 }
 
 function getSelectedGarageVehicle() {
-    const garage = dispatchData?.garage || [];
+    const fullGarage = dispatchData?.garage || [];
+    const garage = selectedGarageType === 'all'
+        ? fullGarage
+        : fullGarage.filter(vehicle => vehicle.type === selectedGarageType);
     if (!garage.length) {
         selectedGarageKey = null;
         return null;
@@ -114,8 +117,25 @@ function getActiveContractorVehicle(contractor) {
     return (contractor?.vehicles || []).find(vehicle => vehicle.out) || null;
 }
 
+function getSelectedContractorPickupDepot(contractor) {
+    const depots = contractor?.pickupDepots || [];
+    const vehicleType = contractor?.pickupDepotVehicleType || getActiveContractorVehicle(contractor)?.type;
+    if (!vehicleType || !depots.length) return null;
+
+    const selectedKey = selectedContractorPickupDepotByType[vehicleType] || contractor?.defaultPickupDepotKey;
+    const selected = depots.find(depot => String(depot.key || '') === String(selectedKey || '')) || depots[0];
+    selectedContractorPickupDepotByType[vehicleType] = selected.key;
+    return selected;
+}
+
+function getContractorBoard(contractor) {
+    const pickupDepot = getSelectedContractorPickupDepot(contractor);
+    const board = pickupDepot && contractor?.boardsByDepot?.[pickupDepot.key];
+    return Array.isArray(board) ? board : contractor?.board || [];
+}
+
 function getPrimaryContractorBoard(contractor) {
-    const board = contractor?.board || [];
+    const board = getContractorBoard(contractor);
     return board.find(contract => contract.canStart) || board[0] || null;
 }
 
@@ -172,7 +192,7 @@ function getSelectedContractorDailyRoute(contractor) {
 }
 
 function getSelectedContractorContract(contractor) {
-    const board = contractor?.board || [];
+    const board = getContractorBoard(contractor);
     if (!board.length) {
         selectedContractorContractKey = null;
         return null;
@@ -243,8 +263,12 @@ function syncContractorSelection(contractor) {
 }
 
 function renderContractorStopsOrDepot(route) {
+    if (route?.pickupDepotLabel) {
+        return renderPreviewMetric(uiText('contractor.pickup', {}, 'Pickup'), route.pickupDepotLabel);
+    }
+
     if (route?.type === 'trailer' && route.trailerDepotLabel) {
-        return renderPreviewMetric('Depot', route.trailerDepotLabel);
+        return renderPreviewMetric(uiText('contractor.pickup', {}, 'Pickup'), route.trailerDepotLabel);
     }
 
     return renderPreviewMetric('Stops', route?.stopCount || 0);
@@ -342,10 +366,10 @@ function renderContractorVehiclePreview(contractor, vehicle) {
                     <i class="fas fa-truck"></i>${spawnLabel}
                 </button>
                 <button class="preview-action secondary" data-preview-contractor-store-vehicle ${sameOut ? '' : 'disabled'}>
-                    <i class="fas fa-warehouse"></i>Store Unit
+                    <i class="fas fa-warehouse"></i>${escapeHTML(uiText('action.storeUnit', {}, 'Store Unit'))}
                 </button>
-                <button class="preview-action danger" data-preview-contractor-sell-vehicle="${escapeHTML(getContractorVehicleKey(vehicle))}" data-resale-price="${Number(vehicle.resalePrice || 0)}" data-original-price="${Number(vehicle.originalPrice || 0)}" data-mileage="${Number(vehicle.mileage || 0)}" ${sellDisabled ? 'disabled' : ''}>
-                    <i class="fas fa-dollar-sign"></i>Sell Unit
+                <button class="preview-action danger" data-preview-contractor-sell-vehicle="${escapeHTML(getContractorVehicleKey(vehicle))}" data-vehicle-label="${escapeHTML(vehicle.label || 'Contractor Vehicle')}" data-vehicle-plate="${escapeHTML(vehicle.plate || 'NO PLATE')}" data-resale-price="${Number(vehicle.resalePrice || 0)}" data-original-price="${Number(vehicle.originalPrice || 0)}" data-mileage="${Number(vehicle.mileage || 0)}" ${sellDisabled ? 'disabled' : ''}>
+                    <i class="fas fa-dollar-sign"></i>${escapeHTML(uiText('action.sellVehicle', {}, 'Sell Vehicle'))}
                 </button>
             </div>
         </div>
@@ -377,7 +401,7 @@ function renderContractorContractPreview(contractor, contract) {
                 </div>
                 <span class="preview-pill ${contract.canStart ? 'green' : ''}">${escapeHTML(contract.daily ? 'Daily' : contract.priorityShortLabel || contract.priorityLabel || 'Standard')}</span>
             </div>
-            <p>${escapeHTML([contract.typeLabel || contractorTypeLabel(contract.type), contract.destination, contract.vehicleLabel || 'Spawn a matching private unit first'].filter(Boolean).join(' - '))}</p>
+            <p>${escapeHTML([contract.typeLabel || contractorTypeLabel(contract.type), contract.pickupDepotLabel, contract.destination].filter(Boolean).join(' - '))}</p>
             ${renderContractorTrailerPreview(contract)}
             <div class="preview-metric-grid two">
                 ${renderPreviewMetric('Payout', `${formatMoney(contract.payoutMin || 0)}-${formatMoney(contract.payoutMax || 0)}`)}
@@ -386,7 +410,7 @@ function renderContractorContractPreview(contractor, contract) {
                 ${renderPreviewMetric('Length', contract.routeLength || 'Pending')}
             </div>
             <div class="preview-action-row single">
-                <button class="preview-action" data-preview-contractor-start="${Number(contract.vehicleId || 0)}" data-priority="${escapeHTML(contract.priorityKey || 'standard')}" data-route-index="${Number(contract.routeIndex || 0)}" data-daily-route-key="${escapeHTML(contract.dailyRouteKey || '')}" ${canStart ? '' : 'disabled'}>
+                <button class="preview-action" data-preview-contractor-start="${Number(contract.vehicleId || 0)}" data-priority="${escapeHTML(contract.priorityKey || 'standard')}" data-route-index="${Number(contract.routeIndex || 0)}" data-daily-route-key="${escapeHTML(contract.dailyRouteKey || '')}" data-pickup-depot-key="${escapeHTML(contract.pickupDepotKey || '')}" ${canStart ? '' : 'disabled'}>
                     <i class="fas fa-file-signature"></i>${startLabel}
                 </button>
             </div>
@@ -423,7 +447,18 @@ function renderContractorMarketPreview(contractor, vehicle) {
                 ${renderPreviewMetric('Fleet Slots', `${(contractor.vehicles || []).length} / ${contractor.maxOwnedVehicles || 0}`)}
             </div>
             <div class="preview-action-row single">
-                <button class="preview-action" data-preview-contractor-buy-type="${escapeHTML(vehicle.type || '')}" data-preview-contractor-buy-index="${Number(vehicle.index || 1)}" ${disabled ? 'disabled' : ''}>
+                <button
+                    class="preview-action"
+                    data-preview-contractor-buy-type="${escapeHTML(vehicle.type || '')}"
+                    data-preview-contractor-buy-index="${Number(vehicle.index || 1)}"
+                    data-vehicle-label="${escapeHTML(vehicle.label || 'Contractor Vehicle')}"
+                    data-vehicle-type-label="${escapeHTML(vehicle.typeLabel || contractorTypeLabel(vehicle.type))}"
+                    data-vehicle-price="${Number(vehicle.price || 0)}"
+                    data-min-rank="${Number(vehicle.minRank || 1)}"
+                    data-fleet-count="${Number((contractor.vehicles || []).length)}"
+                    data-fleet-max="${Number(contractor.maxOwnedVehicles || 0)}"
+                    ${disabled ? 'disabled' : ''}
+                >
                     <i class="fas fa-key"></i>${owned ? uiText('common.owned', {}, 'Owned') : locked ? uiText('common.rankLocked', {}, 'Rank Locked') : uiText('action.purchaseVehicle', {}, 'Purchase Vehicle')}
                 </button>
             </div>
@@ -454,33 +489,31 @@ function buildCurrentPreviewPanel() {
         const cargoProgress = requiredCargo > 0 ? clampPercent((deliveredCargo / requiredCargo) * 100) : 0;
         const displayProgress = Math.max(stopProgress, cargoProgress);
 
+        const progressLabel = `${displayProgress}%`;
+        const cargoLabel = job.cargo || 'Assigned freight';
+        const conditionLabel = job.cargoConditionLabel || 'Stable';
+
         previewContext.innerHTML = `
             <div class="route-box preview-status-card">
                 <div class="preview-context-head">
                     <div>
-                        <small>ACTIVE ROUTE CONTROL</small>
-                        <h2>${escapeHTML(job.label || 'Active Job')}</h2>
+                        <small>DISPATCH LINK</small>
+                        <h2>${escapeHTML(job.id || 'Active Contract')}</h2>
                     </div>
                     <span class="preview-pill green">ACTIVE</span>
                 </div>
-                <p>${escapeHTML(job.stage || 'Route in progress')}</p>
+                <p>Receiver and dock telemetry are online for this assignment.</p>
                 <div class="company-progress-bar"><span style="width:${displayProgress}%"></span></div>
-                <div class="preview-metric-grid">
-                    ${renderPreviewMetric('Payout', formatMoney(job.payout))}
-                    ${renderPreviewMetric('Cargo', `${job.loadedCargo || 0} / ${job.requiredCargo || 0}`)}
-                    ${renderPreviewMetric('Stops', `${job.currentStop || 0} / ${job.totalStops || 0}`)}
-                    ${renderPreviewMetric('Condition', job.cargoConditionLabel || 'Stable')}
-                    ${renderPreviewMetric('Progress', `${displayProgress}%`, 'Estimated from cargo/stops')}
-                    ${renderPreviewMetric('Contract', job.id || 'Active')}
-                    ${renderPreviewMetric('Destination', job.destination || 'N/A', job.destinationAddress || '')}
-                    ${renderPreviewMetric('Vehicle', job.vehicleLabel || 'N/A', job.plate || '')}
-                    ${renderPreviewMetric('ETA', job.expectedCompletion || job.estimatedTime || 'N/A')}
+                <div class="preview-metric-grid two">
+                    ${renderPreviewMetric('Route Progress', progressLabel)}
+                    ${renderPreviewMetric('Priority', job.priorityLabel || 'Standard')}
                 </div>
             </div>
             <div class="selected preview-brief-card">
-                ${renderPreviewInfo('fa-tower-broadcast', 'Dispatch Status', 'Route telemetry active', 'Receiver and dock data are live.')}
-                ${renderPreviewInfo('fa-circle-info', 'Next Step', job.stage || 'Follow the route checklist.')}
-                ${renderPreviewInfo('fa-boxes-stacked', 'Cargo', job.cargo || 'Assigned freight', job.cargoConditionNote || job.cargoConditionLabel || 'Cargo status live.')}
+                <div class="preview-card-title"><i class="fas fa-clipboard-list"></i><span>Assignment Brief</span></div>
+                ${renderPreviewInfo('fa-boxes-stacked', 'Freight', cargoLabel)}
+                ${renderPreviewInfo('fa-shield-halved', 'Cargo Status', conditionLabel, job.cargoConditionNote || '')}
+                ${renderPreviewInfo('fa-tower-broadcast', 'Signal', 'Telemetry connected', job.lastUpdate ? `Updated ${job.lastUpdate}` : '')}
             </div>
         `;
         return;
@@ -521,30 +554,31 @@ function buildHistoryPreviewPanel() {
         return;
     }
 
-    const timeData = latest.time || {};
-    const cargoSummary = routeSummaryContents(latest);
+    const totalPayout = history.reduce((total, summary) => total + Number(summary?.payout || 0), 0);
+    const onTimeCount = history.filter(summary => summary?.time?.late !== true).length;
+    const cleanCount = history.filter(summary => Number(summary?.cargoCondition?.damagePercent || 0) <= 0).length;
+    const exceptionCount = history.filter(summary => summary?.time?.late === true || Number(summary?.cargoCondition?.damagePercent || 0) > 0 || summary?.event?.label).length;
     previewContext.innerHTML = `
         <div class="route-box preview-status-card">
             <div class="preview-context-head">
                 <div>
-                    <small>LATEST COMPLETED ROUTE</small>
-                    <h2>${escapeHTML(routeSummaryTitle(latest))}</h2>
+                    <small>CLOSEOUT ARCHIVE</small>
+                    <h2>${history.length} Completed ${history.length === 1 ? 'Route' : 'Routes'}</h2>
                 </div>
-                <span class="preview-pill green">LOGGED</span>
+                <span class="preview-pill green">CURRENT</span>
             </div>
-            <p>${escapeHTML(routeSummarySubtitle(latest))}</p>
+            <p>Recent dispatch records retained on this terminal.</p>
             <div class="preview-metric-grid two">
-                ${renderPreviewMetric('Final Payout', formatMoney(latest.payout || 0))}
-                ${renderPreviewMetric('XP / Rep', `${latest.xp || 0} XP / ${latest.rep || 0} REP`)}
-                ${renderPreviewMetric('Timing', timeData.label || 'Complete', formatSeconds(timeData.elapsedSeconds || 0))}
-                ${renderPreviewMetric('Load', cargoSummary, latest.cargoCondition?.label || '')}
-                ${renderPreviewMetric('Vehicle', latest.vehicleLabel || 'Company Vehicle')}
-                ${renderPreviewMetric('History Saved', `${history.length} recent`)}
+                ${renderPreviewMetric('Logged Payout', formatMoney(totalPayout))}
+                ${renderPreviewMetric('On Time', `${onTimeCount} / ${history.length}`)}
+                ${renderPreviewMetric('Clean Cargo', `${cleanCount} / ${history.length}`)}
+                ${renderPreviewMetric('Exceptions', exceptionCount)}
             </div>
         </div>
         <div class="selected preview-brief-card">
-            ${renderPreviewInfo('fa-circle-info', 'Expandable Tiles', 'Open any route card to review payout, XP, timing, cargo, and event data.')}
-            ${renderPreviewInfo('fa-tower-broadcast', 'Receiver Copy', 'The same summaries are available from the receiver Dispatch Log.')}
+            <div class="preview-card-title"><i class="fas fa-clock-rotate-left"></i><span>Latest Closeout</span></div>
+            ${renderPreviewInfo('fa-route', 'Route', routeSummaryTitle(latest), latest.completedAt || '')}
+            ${renderPreviewInfo('fa-money-bill-wave', 'Final Payout', formatMoney(latest.payout || 0), `${latest.xp || 0} XP / ${latest.rep || 0} REP`)}
         </div>
     `;
 }
@@ -556,7 +590,7 @@ function buildGaragePreviewPanel() {
         previewContext.innerHTML = `
             <div class="route-box preview-status-card">
                 <div class="preview-context-head">
-                    <div><small>COMPANY GARAGE</small><h2>${uiText('empty.fleetDataTitle', {}, 'No Fleet Data')}</h2></div>
+                    <div><small>${uiText('garage.assignedFleet', {}, 'ASSIGNED COMPANY FLEET')}</small><h2>${uiText('empty.fleetDataTitle', {}, 'No Fleet Data')}</h2></div>
                     <span class="preview-pill">OFFLINE</span>
                 </div>
                 <p>${uiText('empty.fleetData', {}, 'No company vehicles are currently configured.')}</p>
@@ -567,34 +601,44 @@ function buildGaragePreviewPanel() {
 
     const minRank = Number(vehicle.minRank || 1);
     const locked = playerRank() < minRank;
-    const status = vehicle.stored ? uiText('common.stored', {}, 'Stored') : uiText('common.out', {}, 'Out');
+    const garageState = dispatchData?.garageState || {};
+    const status = vehicle.stored ? uiText('common.available', {}, 'Available') : uiText('garage.checkedOut', {}, 'Checked Out');
     const image = vehicle.photo || '';
+    const plate = vehicle.plate || uiText('garage.assignedOnCheckout', {}, 'Assigned on checkout');
+    const blockedByOtherUnit = garageState.blocked && vehicle.stored;
+    const activeRoute = Boolean(dispatchData?.currentJob);
+    const requestDisabled = locked || !vehicle.stored || blockedByOtherUnit || activeRoute;
+    let requestLabel = uiText('action.request', {}, 'Request');
+    if (locked) requestLabel = uiText('common.rankLocked', {}, 'Rank Locked');
+    else if (!vehicle.stored) requestLabel = uiText('action.unitOut', {}, 'Unit Out');
+    else if (activeRoute) requestLabel = uiText('action.routeActive', {}, 'Route Active');
+    else if (blockedByOtherUnit) requestLabel = uiText('garage.otherUnitOut', {}, 'Another Unit Is Out');
 
     previewContext.innerHTML = `
         <div class="route-box preview-status-card">
             <div class="preview-context-head">
                 <div>
-                    <small>SELECTED UNIT</small>
+                    <small>${uiText('garage.selectedUnit', {}, 'SELECTED UNIT')}</small>
                     <h2>${escapeHTML(garageDisplayLabel(vehicle.label, vehicle.type))}</h2>
                 </div>
                 <span class="preview-pill ${vehicle.stored ? 'green' : ''}">${escapeHTML(status)}</span>
             </div>
             ${image ? `<img class="preview-vehicle-image" src="${escapeHTML(image)}" alt="${escapeHTML(vehicle.label || 'Vehicle')}">` : ''}
             <div class="preview-metric-grid two">
-                ${renderPreviewMetric('Plate', vehicle.plate || 'NO PLATE')}
-                ${renderPreviewMetric('Required Rank', `Rank ${minRank}`)}
-                ${renderPreviewMetric('Type', titleFromType(vehicle.type))}
-                ${renderPreviewMetric('Access', locked ? 'Locked' : 'Cleared')}
+                ${renderPreviewMetric(uiText('serviceBay.summary.plate', {}, 'Plate'), plate)}
+                ${renderPreviewMetric(uiText('contractor.purchaseRequiredRank', {}, 'Required Rank'), uiText('status.rankPlus', { rank: minRank }, `Rank ${minRank}+`))}
+                ${renderPreviewMetric(uiText('contractor.purchaseVehicleType', {}, 'Vehicle Class'), titleFromType(vehicle.type))}
+                ${renderPreviewMetric(uiText('garage.access', {}, 'Access'), locked ? uiText('common.locked', {}, 'Locked') : uiText('garage.cleared', {}, 'Cleared'))}
             </div>
             <div class="preview-action-row">
-                <button class="preview-action" data-preview-spawn-garage data-type="${escapeHTML(vehicle.type || '')}" data-index="${Number(vehicle.index || 1)}" ${locked ? 'disabled' : ''}>
-                    <i class="fas fa-warehouse"></i>${locked ? uiText('common.rankLocked', {}, 'Rank Locked') : uiText('action.request', {}, 'Request')}
+                <button class="preview-action" data-preview-spawn-garage data-type="${escapeHTML(vehicle.type || '')}" data-index="${Number(vehicle.index || 1)}" ${requestDisabled ? 'disabled' : ''}>
+                    <i class="fas fa-key"></i>${escapeHTML(requestLabel)}
                 </button>
             </div>
         </div>
         <div class="selected preview-brief-card">
-            ${renderPreviewInfo('fa-circle-info', 'Garage Note', vehicle.stored ? uiText('garage.noteStored', {}, 'Spawned vehicles can be returned to save upgrades.') : uiText('garage.noteOut', {}, 'Return the vehicle at the garage to store changes.'))}
-            ${renderPreviewInfo('fa-key', 'Vehicle Source', 'Company fleet', 'Use contracts tab to assign company freight.')}
+            ${renderPreviewInfo('fa-screwdriver-wrench', uiText('garage.companyMaintained', {}, 'Company Maintained'), uiText('garage.companyMaintainedDescription', {}, 'Fuel and mechanical condition are refreshed by the depot.'))}
+            ${renderPreviewInfo('fa-floppy-disk', uiText('garage.savedProfile', {}, 'Saved Vehicle Profile'), vehicle.assigned ? uiText('garage.savedProfileDescription', {}, 'Plate and approved modifications are retained for this driver.') : uiText('garage.profileOnCheckout', {}, 'A plate and saved profile will be created on first checkout.'))}
         </div>
     `;
 }
@@ -739,27 +783,19 @@ function renderCompanyDashboard(data = dispatchData || {}) {
 }
 
 function buildCompanyPreviewPanel() {
+    const player = dispatchData?.player || {};
     const contractor = dispatchData?.contractor || {};
-    const insights = getCompanyInsights(dispatchData || {});
-    const companyStats = dispatchData?.companyStats || {};
-    const topDriver = Array.isArray(companyStats.topDrivers) ? companyStats.topDrivers[0] : null;
-    const deliveryLeader = Array.isArray(companyStats.mostDeliveries) ? companyStats.mostDeliveries[0] : null;
-    const contractorLeader = Array.isArray(companyStats.contractorRep) ? companyStats.contractorRep[0] : null;
+    const rankProgress = getCompanyRankProgress(dispatchData || {});
+    const routeCount = normalizeRouteHistory(dispatchData?.routeHistory || dispatchData?.lastRouteSummary).length;
+    const contractorStatus = contractor.licensed ? 'Licensed' : contractor.unlocked ? 'License Available' : `Unlocks Rank ${contractor.unlockRank || 1}`;
 
     previewContext.innerHTML = `
         <div class="selected preview-brief-card">
-            <div class="preview-card-title"><i class="fas fa-chart-line"></i><span>Company Snapshot</span></div>
-            ${renderPreviewInfo('fa-id-card', 'Contractor Rep', contractor.rep || 0, contractor.licensed ? 'Private authority licensed' : 'Private authority pending')}
-            ${renderPreviewInfo('fa-shield-halved', 'Damage-Free Streak', `${insights.damageFreeStreak} routes`, 'Recent clean deliveries')}
-            ${renderPreviewInfo('fa-stopwatch', 'On-Time Streak', `${insights.onTimeStreak} routes`, 'Recent on-time deliveries')}
-            ${renderPreviewInfo('fa-warehouse', 'Most Used Depot', insights.mostUsedDepot.value, insights.mostUsedDepot.count ? `${insights.mostUsedDepot.count} logged routes` : '')}
-            ${renderPreviewInfo('fa-truck-fast', 'Most Used Vehicle', insights.mostUsedVehicle.value, insights.mostUsedVehicle.count ? `${insights.mostUsedVehicle.count} logged routes` : '')}
-        </div>
-        <div class="selected preview-brief-card">
-            <div class="preview-card-title"><i class="fas fa-trophy"></i><span>Leaderboard</span></div>
-            ${renderPreviewInfo('fa-trophy', 'Top Driver', topDriver ? `${topDriver.label} - ${formatInteger(topDriver.xp || 0)} XP` : 'No leaderboard records yet.')}
-            ${renderPreviewInfo('fa-boxes-stacked', 'Most Deliveries', deliveryLeader ? `${deliveryLeader.label} - ${deliveryLeader.jobsCompleted || 0} jobs` : 'No delivery records yet.')}
-            ${renderPreviewInfo('fa-id-badge', 'Contractor Lead', contractorLeader ? `${contractorLeader.label} - ${contractorLeader.contractorRep || 0} rep` : 'No contractor records yet.')}
+            <div class="preview-card-title"><i class="fas fa-id-card-clip"></i><span>Driver Credentials</span></div>
+            ${renderPreviewInfo('fa-ranking-star', 'Company Clearance', `Rank ${player.rank || 1}`, player.rankLabel || 'Company Driver')}
+            ${renderPreviewInfo('fa-arrow-trend-up', 'Next Rank', rankProgress.remaining > 0 ? `${formatInteger(rankProgress.remaining)} XP required` : 'Current rank complete')}
+            ${renderPreviewInfo('fa-id-badge', 'Private Authority', contractorStatus, contractor.licensed ? `${formatInteger(contractor.rep || 0)} contractor rep` : '')}
+            ${renderPreviewInfo('fa-box-archive', 'Route Archive', `${routeCount} recent ${routeCount === 1 ? 'record' : 'records'}`)}
         </div>
     `;
 }
@@ -1001,12 +1037,30 @@ if (dispatchHome) {
 }
 
 if (garageList) {
-    garageList.addEventListener('click', event => {
+    const selectGarageCard = event => {
         const card = event.target.closest('.garage-card');
         if (!card || !garageList.contains(card)) return;
 
+        if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+        if (event.type === 'keydown') event.preventDefault();
+
         playUISound('click');
         selectedGarageKey = card.dataset.garageKey || null;
+        renderGarage(dispatchData || {});
+        renderPreviewContextPanel();
+    };
+
+    garageList.addEventListener('click', selectGarageCard);
+    garageList.addEventListener('keydown', selectGarageCard);
+}
+
+if (garageToolbar) {
+    garageToolbar.addEventListener('click', event => {
+        const filter = event.target.closest('[data-garage-filter]');
+        if (!filter || !garageToolbar.contains(filter)) return;
+
+        playUISound('click');
+        selectedGarageType = filter.dataset.garageFilter || 'all';
         renderGarage(dispatchData || {});
         renderPreviewContextPanel();
     });

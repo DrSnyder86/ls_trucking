@@ -191,43 +191,74 @@ function routeSummaryFields(summary = {}) {
 function routeSummarySections(summary = {}) {
     const timeData = summary.time || {};
     const payoutRows = [];
+    const adjustments = routeSummaryAdjustments(summary);
 
     if (Number(summary.mileageBonus || 0) > 0) {
         payoutRows.push(
             ['Contract Base', formatMoney(summary.contractBasePayout || 0)],
             ['Mileage Bonus', `${formatMoney(summary.mileageBonus)} (${Number(summary.routeMiles || 0).toFixed(1)} mi @ ${formatMoney(summary.mileageRate || 0)}/mi)`]
         );
+    } else {
+        payoutRows.push(['Base Pay', formatMoney(summary.basePayout || summary.payout || 0)]);
     }
 
-    payoutRows.push(
-        ['Adjusted Base', formatMoney(summary.basePayout || summary.payout || 0)],
-        ['Adjustments', routeSummaryAdjustments(summary)],
-        ['Final Payout', formatMoney(summary.payout || 0)],
-        ['XP / Rep', `${summary.xp || 0} XP / ${summary.rep || 0} Rep`]
-    );
+    if (adjustments !== 'None') payoutRows.push(['Adjustments', adjustments]);
+    if (summary.contractorDailyBonus && Number(summary.contractorDailyBonus) > 0) {
+        payoutRows.push(['Daily Bonus', formatMoney(summary.contractorDailyBonus)]);
+    }
+
+    payoutRows.push(['Final Payout', formatMoney(summary.payout || 0)]);
+    payoutRows.push(['Driver Credit', `${summary.xp || 0} XP / ${summary.rep || 0} Rep`]);
+
+    const routeRows = [
+        ['Route', routeSummaryTitle(summary)],
+        ['Load', summary.priorityLabel || 'Standard'],
+        ['Contents', routeSummaryContents(summary)],
+        ['Vehicle', summary.vehicleLabel || 'Company Vehicle'],
+        ['Distance', summary.routeLength || 'N/A']
+    ];
+
+    if (Number(summary.totalStops || 0) > 0 || Number(summary.requiredCargo || 0) > 0) {
+        routeRows.push(['Stops / Cargo', `${summary.totalStops || 0} stops / ${summary.deliveredCargo || 0} of ${summary.requiredCargo || 0}`]);
+    }
+
+    if (summary.contractType === 'trailer' && summary.safeSpeed) {
+        routeRows.push(['Safe Speed', `${Math.floor(Number(summary.safeSpeed))} MPH`]);
+    }
+
+    const exceptionRows = [];
+    if (isLateRouteSummary(summary)) exceptionRows.push(['Timing', timeData.label || 'Late delivery']);
+    if (!isDamageFreeRouteSummary(summary) && summary.cargoCondition?.label) {
+        exceptionRows.push(['Cargo Condition', summary.cargoCondition.label]);
+    }
+    if (!isDamageFreeRouteSummary(summary) && summary.cargoCondition?.note) {
+        exceptionRows.push(['Condition Notes', summary.cargoCondition.note]);
+    }
+    if (summary.contractType === 'trailer' && Number(summary.damagePercent || 0) > 0) {
+        exceptionRows.push(['Trailer Damage', `${Math.floor(Number(summary.damagePercent || 0))}%`]);
+    }
+    if (summary.randomEvent?.label && String(summary.randomEvent.label).toLowerCase() !== 'none') {
+        exceptionRows.push(['Dispatch Event', summary.randomEvent.label]);
+        if (summary.randomEvent.description) exceptionRows.push(['Event Details', summary.randomEvent.description]);
+    }
 
     const sections = [
         {
-            title: 'Contract',
+            key: 'assignment',
+            title: 'Assignment',
             rows: [
-                ['Contract', summary.contractId || 'N/A'],
                 ['Driver', summary.driverName || 'Driver'],
                 ['Type', titleFromType(summary.contractType)],
                 ['Completed', summary.completedAt || 'N/A']
             ]
         },
         {
-            title: 'Route & Load',
-            rows: [
-                ['Route', routeSummaryTitle(summary)],
-                ['Load Type', summary.priorityLabel || 'Standard'],
-                ['Contents', routeSummaryContents(summary)],
-                ['Vehicle', summary.vehicleLabel || 'Company Vehicle'],
-                ['Route Length', summary.routeLength || 'N/A'],
-                ['Stops / Cargo', `${summary.totalStops || 0} stops / ${summary.deliveredCargo || 0} of ${summary.requiredCargo || 0}`]
-            ]
+            key: 'route',
+            title: 'Route & Equipment',
+            rows: routeRows
         },
         {
+            key: 'timing',
             title: 'Timing',
             rows: [
                 ['Estimated', formatSeconds(timeData.estimatedSeconds || summary.estimatedSeconds || 0)],
@@ -236,28 +267,16 @@ function routeSummarySections(summary = {}) {
             ]
         },
         {
-            title: 'Condition & Events',
-            rows: [
-                ['Cargo Condition', summary.cargoCondition?.label || 'N/A'],
-                ['Condition Notes', summary.cargoCondition?.note || 'None'],
-                ['Dispatch Event', summary.randomEvent?.label || 'None'],
-                ['Event Details', summary.randomEvent?.description || 'None']
-            ]
+            key: 'exceptions',
+            title: 'Exceptions',
+            rows: exceptionRows
         },
         {
-            title: 'Payout',
+            key: 'settlement',
+            title: 'Settlement',
             rows: payoutRows
         }
     ];
-
-    if (summary.contractType === 'trailer') {
-        sections[3].rows.splice(2, 0, ['Trailer Damage', `${Math.floor(Number(summary.damagePercent || 0))}%`]);
-    }
-
-    if (summary.contractorDailyBonus && Number(summary.contractorDailyBonus) > 0) {
-        const finalPayoutIndex = sections[4].rows.findIndex(([label]) => label === 'Final Payout');
-        sections[4].rows.splice(finalPayoutIndex, 0, ['Daily Bonus', formatMoney(summary.contractorDailyBonus)]);
-    }
 
     const paperworkRows = [];
     if (summary.pickupSignature) {
@@ -275,32 +294,50 @@ function routeSummarySections(summary = {}) {
         );
     }
     if (paperworkRows.length) {
-        sections.splice(sections.length - 1, 0, { title: 'Handoff Paperwork', rows: paperworkRows });
+        sections.splice(sections.length - 1, 0, { key: 'handoff', title: 'Handoff Record', rows: paperworkRows });
     }
 
     return sections;
 }
 
+function routeSummaryValueVisible(value) {
+    if (value === null || value === undefined || value === '') return false;
+    const normalized = String(value).trim().toLowerCase();
+    return normalized !== 'n/a' && normalized !== 'none' && normalized !== '-';
+}
+
+function renderRouteSummarySection(section = {}) {
+    const rows = (section.rows || [])
+        .filter(([, value]) => routeSummaryValueVisible(value))
+        .map(([label, value]) => `
+            <div class="summary-print-row ${label === 'Final Payout' ? 'is-total' : ''}">
+                <span>${escapeHTML(label)}</span>
+                <strong>${escapeHTML(value)}</strong>
+            </div>
+        `).join('');
+
+    if (!rows) return '';
+
+    return `
+        <section class="summary-print-section summary-print-section-${escapeHTML(section.key || 'details')}">
+            <h3>${escapeHTML(section.title)}</h3>
+            <div class="summary-print-table">${rows}</div>
+        </section>
+    `;
+}
+
 function renderRouteSummaryPrintout(summary = {}) {
-    const sections = routeSummarySections(summary).map(section => {
-        const rows = section.rows
-            .filter(([, value]) => value !== null && value !== undefined && value !== '')
-            .map(([label, value]) => `
-                <div class="summary-print-row">
-                    <span>${escapeHTML(label)}</span>
-                    <strong>${escapeHTML(value)}</strong>
-                </div>
-            `).join('');
-
-        if (!rows) return '';
-
-        return `
-            <section class="summary-print-section">
-                <h3>${escapeHTML(section.title)}</h3>
-                <div class="summary-print-table">${rows}</div>
-            </section>
-        `;
-    }).join('');
+    const sections = routeSummarySections(summary);
+    const byKey = key => sections.find(section => section.key === key);
+    const assignment = renderRouteSummarySection(byKey('assignment'));
+    const route = renderRouteSummarySection(byKey('route'));
+    const timing = renderRouteSummarySection(byKey('timing'));
+    const exceptions = renderRouteSummarySection(byKey('exceptions'));
+    const handoff = renderRouteSummarySection(byKey('handoff'));
+    const settlement = renderRouteSummarySection(byKey('settlement'));
+    const noExceptions = !exceptions
+        ? `<div class="summary-print-clear"><i class="fas fa-circle-check"></i><span><strong>No Exceptions</strong>Freight received without a reported delay, damage claim, or dispatch event.</span></div>`
+        : exceptions;
 
     return `
         <div class="route-summary-printout">
@@ -309,9 +346,15 @@ function renderRouteSummaryPrintout(summary = {}) {
                     <small>LOS SANTOS FREIGHT CO.</small>
                     <strong>Route Completion Report</strong>
                 </div>
-                <span>${escapeHTML(summary.contractId || 'N/A')}</span>
+                <div class="summary-print-stamp">
+                    <span>Closed</span>
+                    <strong>${escapeHTML(summary.contractId || 'N/A')}</strong>
+                </div>
             </div>
-            ${sections}
+            <div class="summary-print-grid summary-print-grid-primary">${assignment}${route}</div>
+            <div class="summary-print-grid summary-print-grid-secondary">${timing}${noExceptions}</div>
+            ${handoff}
+            ${settlement}
         </div>
     `;
 }

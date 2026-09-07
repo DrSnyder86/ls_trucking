@@ -17,6 +17,8 @@ const noCurrentJob = document.getElementById('noCurrentJob');
 const cancelJobBtn = document.getElementById('cancelJobBtn');
 const manifestJobBtn = document.getElementById('manifestJobBtn');
 const returnGarageBtn = document.getElementById('returnGarageBtn');
+const garageToolbar = document.getElementById('garageToolbar');
+const garageActions = document.getElementById('garageActions');
 const dispatchCloseBtn = document.getElementById('dispatchCloseBtn');
 const contractorContent = document.getElementById('contractorContent');
 const companyDashboard = document.getElementById('companyDashboard');
@@ -46,13 +48,17 @@ let dispatchMapZoom = null;
 let dispatchMapPan = { x: 0, y: 0 };
 let dispatchMapDrag = null;
 let selectedGarageKey = null;
+let selectedGarageType = 'all';
 let contractorMarketVisible = false;
+let selectedContractorView = 'contracts';
+let contractorViewScrollTop = { contracts: 0, dedicated: 0, fleet: 0 };
 let selectedContractorPanel = 'vehicle';
 let selectedContractorDailyRouteKey = null;
 let selectedContractorDailyType = null;
 let selectedContractorVehicleId = null;
 let selectedContractorContractKey = null;
 let selectedContractorMarketKey = null;
+let selectedContractorPickupDepotByType = {};
 let miniPulseTimer = null;
 let miniLastSignature = '';
 let miniDockLastSignature = '';
@@ -63,22 +69,23 @@ let trailerCargoEditorState = null;
 let miniDockHideTimer = null;
 let miniPageTransitionTimer = null;
 let dispatchHideTimer = null;
-let dispatchParkTimer = null;
 let dispatchCleanupTimers = [];
 let dispatchRenderSignatures = {};
 const RECEIVER_ANIMATION_MS = 240;
 const MINI_PAGE_ANIMATION_MS = 230;
 const DISPATCH_ANIMATION_MS = 160;
-const DISPATCH_CLEANUP_PARK_MS = 2500;
 const MINI_MOVEMENT_STORAGE_KEY = 'ls_trucking_receiver_movement_unlocked';
 const MINI_RECEIVER_SCALE_STORAGE_KEY = 'ls_trucking_receiver_scale_v1';
 const MINI_DOCK_SCALE_STORAGE_KEY = 'ls_trucking_dock_scale_v1';
+const MINI_WALLPAPER_STORAGE_KEY = 'ls_trucking_receiver_wallpaper_v1';
+const MINI_WALLPAPER_STORAGE_LIMIT = 2500000;
 const MINI_SCALE_PRESETS = [0.75, 0.85, 1];
 const MINI_PAGE_ORDER = ['home', 'route', 'manifest', 'load', 'vehicle', 'dispatch', 'settings'];
 
 let miniMovementUnlocked = false;
 let miniReceiverScale = 1;
 let miniDockScale = 1;
+let miniCustomWallpaper = '';
 
 function normalizeMiniScale(value) {
     if (value === null || value === undefined || value === '') return 1;
@@ -98,6 +105,17 @@ function readMiniScale(storageKey) {
     }
 }
 
+function readMiniCustomWallpaper() {
+    try {
+        const wallpaper = localStorage.getItem(MINI_WALLPAPER_STORAGE_KEY) || '';
+        return /^data:image\/(?:jpeg|png|webp);base64,/i.test(wallpaper) && wallpaper.length <= MINI_WALLPAPER_STORAGE_LIMIT
+            ? wallpaper
+            : '';
+    } catch {
+        return '';
+    }
+}
+
 try {
     miniMovementUnlocked = localStorage.getItem(MINI_MOVEMENT_STORAGE_KEY) === 'true';
 } catch {
@@ -106,6 +124,7 @@ try {
 
 miniReceiverScale = readMiniScale(MINI_RECEIVER_SCALE_STORAGE_KEY);
 miniDockScale = readMiniScale(MINI_DOCK_SCALE_STORAGE_KEY);
+miniCustomWallpaper = readMiniCustomWallpaper();
 
 function applyMiniMovementState() {
     if (mini) mini.classList.toggle('movement-unlocked', miniMovementUnlocked);
@@ -139,6 +158,46 @@ function applyMiniUIScale() {
     requestAnimationFrame(() => window.dispatchEvent(new Event('lsfc:ui-scale-change')));
 }
 
+function hasMiniCustomWallpaper() {
+    return miniCustomWallpaper !== '';
+}
+
+function applyMiniWallpaper() {
+    if (!mini) return;
+
+    if (miniCustomWallpaper) {
+        mini.style.setProperty('--receiver-wallpaper-image', `url("${miniCustomWallpaper}")`);
+    } else {
+        mini.style.removeProperty('--receiver-wallpaper-image');
+    }
+}
+
+function setMiniCustomWallpaper(wallpaper, rerender = false) {
+    if (!/^data:image\/(?:jpeg|png|webp);base64,/i.test(wallpaper) || wallpaper.length > MINI_WALLPAPER_STORAGE_LIMIT) {
+        return false;
+    }
+
+    try {
+        localStorage.setItem(MINI_WALLPAPER_STORAGE_KEY, wallpaper);
+    } catch {
+        return false;
+    }
+
+    miniCustomWallpaper = wallpaper;
+    applyMiniWallpaper();
+    if (rerender && miniCurrentPage === 'settings') renderMiniSettingsPage(miniLastContract || {});
+    return true;
+}
+
+function resetMiniCustomWallpaper(rerender = false) {
+    miniCustomWallpaper = '';
+    try {
+        localStorage.removeItem(MINI_WALLPAPER_STORAGE_KEY);
+    } catch {}
+    applyMiniWallpaper();
+    if (rerender && miniCurrentPage === 'settings') renderMiniSettingsPage(miniLastContract || {});
+}
+
 function setMiniUIScale(target, value, rerender = false) {
     const normalized = normalizeMiniScale(value);
     const isDock = target === 'dock';
@@ -160,6 +219,7 @@ function setMiniUIScale(target, value, rerender = false) {
 
 applyMiniMovementState();
 applyMiniUIScale();
+applyMiniWallpaper();
 
 function flashMiniRadio(direction = 'tx') {
     const targets = [mini, miniDock].filter(Boolean);
@@ -246,3 +306,11 @@ function playUISound(type = 'click') {
         audio.play().catch(() => {});
     } catch {}
 }
+
+window.stopUISounds = function stopUISounds() {
+    Object.values(uiSoundCache).forEach(audio => {
+        if (!audio) return;
+        audio.pause();
+        audio.currentTime = 0;
+    });
+};

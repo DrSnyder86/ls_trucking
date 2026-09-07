@@ -149,6 +149,7 @@ if (dispatchCloseBtn) {
 }
 
 function hideMiniReceiverSurface() {
+    clearQueuedMiniRefresh();
     hideReceiverWithAnimation(() => {
         mini.classList.remove('dispatch-flash', 'radio-rx-flash');
         miniLastSignature = '';
@@ -199,11 +200,25 @@ function flushDispatchRefresh() {
 
 function clearQueuedDispatchRefresh() {
     pendingDispatchRefreshData = null;
+    if (dispatchRefreshFrame) {
+        if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(dispatchRefreshFrame);
+        else clearTimeout(dispatchRefreshFrame);
+        dispatchRefreshFrame = null;
+    }
     if (dispatchRefreshTimer) {
         clearTimeout(dispatchRefreshTimer);
         dispatchRefreshTimer = null;
     }
     lastDispatchRefreshAt = 0;
+}
+
+function clearQueuedMiniRefresh() {
+    pendingMiniRefreshContract = null;
+    if (!miniRefreshFrame) return;
+
+    if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(miniRefreshFrame);
+    else clearTimeout(miniRefreshFrame);
+    miniRefreshFrame = null;
 }
 
 function queueDispatchRefresh(data) {
@@ -247,6 +262,97 @@ function renderRouteHistoryPreservingScroll(history) {
     const scrollState = getDispatchScrollState();
     renderRouteHistory(history);
     restoreDispatchScrollState(scrollState);
+}
+
+function confirmContractorVehiclePurchase(button) {
+    if (!button || button.disabled) {
+        playUISound('error');
+        return;
+    }
+
+    const vehicleType = button.dataset.previewContractorBuyType || button.dataset.contractorBuyType || '';
+    const vehicleIndex = Number(button.dataset.previewContractorBuyIndex || button.dataset.contractorBuyIndex || 1);
+    if (!vehicleType || vehicleIndex <= 0) {
+        playUISound('error');
+        return;
+    }
+
+    const fleetCount = Math.max(0, Number(button.dataset.fleetCount || 0));
+    const fleetMax = Math.max(fleetCount, Number(button.dataset.fleetMax || fleetCount));
+    const purchase = {
+        vehicleType,
+        vehicleIndex,
+        vehicleLabel: button.dataset.vehicleLabel || 'Contractor Vehicle',
+        vehicleTypeLabel: button.dataset.vehicleTypeLabel || contractorTypeLabel(vehicleType),
+        price: Math.max(0, Number(button.dataset.vehiclePrice || 0)),
+        minRank: Math.max(1, Number(button.dataset.minRank || 1)),
+        fleetCount,
+        fleetMax
+    };
+    const purchaseDetails = [
+        `${uiText('label.vehicle', {}, 'Vehicle')}: ${purchase.vehicleLabel}`,
+        `${uiText('contractor.purchaseVehicleType', {}, 'Vehicle class')}: ${purchase.vehicleTypeLabel}`,
+        `${uiText('contractor.purchasePrice', {}, 'Purchase price')}: ${formatMoney(purchase.price)}`,
+        `${uiText('contractor.purchaseRequiredRank', {}, 'Required rank')}: ${uiText('common.rank', {}, 'Rank')} ${purchase.minRank}`,
+        `${uiText('contractor.purchaseFleetCapacity', {}, 'Fleet capacity')}: ${purchase.fleetCount} / ${purchase.fleetMax}`,
+        '',
+        uiText('contractor.purchaseImmediate', {}, 'The purchase price will be charged immediately and this unit will be added to your private fleet.')
+    ].join('\n');
+
+    showLocalFreightConfirm({
+        header: uiText('contractor.purchaseConfirmTitle', {}, 'Purchase Contractor Vehicle'),
+        content: purchaseDetails,
+        variant: 'confirm',
+        confirmLabel: uiText('action.purchaseVehicle', {}, 'Purchase Vehicle'),
+        cancelLabel: uiText('action.cancel', {}, 'Cancel'),
+        confirmIcon: 'fa-key',
+        openSound: 'confirm',
+        confirmSound: 'confirm'
+    }, result => {
+        if (!result?.confirmed) return;
+        button.disabled = true;
+        setTimeout(() => { button.disabled = false; }, 8000);
+        post('purchaseContractorVehicle', { ...purchase, confirmed: true });
+    });
+}
+
+let vehicleCheckoutPending = false;
+
+function requestVehicleCheckout(button, endpoint, payload) {
+    if (!button || button.disabled || vehicleCheckoutPending) {
+        playUISound('error');
+        return;
+    }
+
+    const processingLabel = uiText('garage.preparingUnit', {}, 'Preparing Unit');
+    const configuredDuration = Number(dispatchData?.config?.vehicleCheckoutDuration);
+    const progressDuration = Number.isFinite(configuredDuration) ? Math.max(500, configuredDuration) : 2500;
+    const originalHTML = button.innerHTML;
+    const originalAriaLabel = button.getAttribute('aria-label');
+
+    vehicleCheckoutPending = true;
+    button.disabled = true;
+    button.classList.add('vehicle-checkout-pending');
+    button.style.setProperty('--vehicle-checkout-duration', `${progressDuration}ms`);
+    button.setAttribute('aria-busy', 'true');
+    button.setAttribute('aria-label', processingLabel);
+    button.innerHTML = `<span class="vehicle-checkout-label"><i class="fas fa-gear fa-spin" aria-hidden="true"></i><span>${escapeHTML(processingLabel)}</span></span>`;
+    playUISound('confirm');
+
+    const finish = () => {
+        vehicleCheckoutPending = false;
+        if (!button.isConnected) return;
+
+        button.disabled = false;
+        button.classList.remove('vehicle-checkout-pending');
+        button.style.removeProperty('--vehicle-checkout-duration');
+        button.removeAttribute('aria-busy');
+        if (originalAriaLabel === null) button.removeAttribute('aria-label');
+        else button.setAttribute('aria-label', originalAriaLabel);
+        button.innerHTML = originalHTML;
+    };
+
+    Promise.resolve(post(endpoint, payload)).finally(finish);
 }
 
 if (previewContext) {
@@ -293,12 +399,7 @@ if (previewContext) {
 
         const garageSpawn = event.target.closest('[data-preview-spawn-garage]');
         if (garageSpawn) {
-            if (garageSpawn.disabled) {
-                playUISound('error');
-                return;
-            }
-            playUISound('confirm');
-            post('spawnGarageVehicle', {
+            requestVehicleCheckout(garageSpawn, 'spawnGarageVehicle', {
                 vehicleType: garageSpawn.dataset.type || '',
                 vehicleIndex: Number(garageSpawn.dataset.index || 1)
             });
@@ -314,12 +415,9 @@ if (previewContext) {
 
         const previewSpawnContractor = event.target.closest('[data-preview-contractor-spawn-vehicle]');
         if (previewSpawnContractor) {
-            if (previewSpawnContractor.disabled) {
-                playUISound('error');
-                return;
-            }
-            playUISound('confirm');
-            post('spawnContractorVehicle', { vehicleId: Number(previewSpawnContractor.dataset.previewContractorSpawnVehicle || 0) });
+            requestVehicleCheckout(previewSpawnContractor, 'spawnContractorVehicle', {
+                vehicleId: Number(previewSpawnContractor.dataset.previewContractorSpawnVehicle || 0)
+            });
             return;
         }
 
@@ -340,14 +438,38 @@ if (previewContext) {
                 playUISound('error');
                 return;
             }
-            playUISound('alert');
-            previewSellContractor.disabled = true;
-            setTimeout(() => { previewSellContractor.disabled = false; }, 8000);
-            post('sellContractorVehicle', {
+            const sale = {
                 vehicleId: Number(previewSellContractor.dataset.previewContractorSellVehicle || 0),
+                vehicleLabel: previewSellContractor.dataset.vehicleLabel || 'Contractor Vehicle',
+                plate: previewSellContractor.dataset.vehiclePlate || 'NO PLATE',
                 resalePrice: Number(previewSellContractor.dataset.resalePrice || 0),
                 originalPrice: Number(previewSellContractor.dataset.originalPrice || 0),
                 mileage: Number(previewSellContractor.dataset.mileage || 0)
+            };
+            const saleDetails = [
+                `${uiText('label.vehicle', {}, 'Vehicle')}: ${sale.vehicleLabel} (${sale.plate})`,
+                `${uiText('contractor.saleOriginalPrice', {}, 'Original price')}: ${formatMoney(sale.originalPrice)}`,
+                `${uiText('contractor.saleMileage', {}, 'Recorded mileage')}: ${sale.mileage.toFixed(1)} mi`,
+                `${uiText('contractor.saleResaleValue', {}, 'Estimated resale value')}: ${formatMoney(sale.resalePrice)}`,
+                '',
+                uiText('contractor.salePermanent', {}, 'This sale is permanent and cannot be reversed.')
+            ].join('\n');
+
+            showLocalFreightConfirm({
+                header: uiText('contractor.saleConfirmTitle', {}, 'Sell Contractor Vehicle'),
+                content: saleDetails,
+                variant: 'cancel',
+                confirmLabel: uiText('action.sellVehicle', {}, 'Sell Vehicle'),
+                cancelLabel: uiText('action.keepVehicle', {}, 'Keep Vehicle'),
+                confirmClass: 'danger',
+                confirmIcon: 'fa-dollar-sign',
+                openSound: 'alert',
+                confirmSound: 'alert'
+            }, result => {
+                if (!result?.confirmed) return;
+                previewSellContractor.disabled = true;
+                setTimeout(() => { previewSellContractor.disabled = false; }, 8000);
+                post('sellContractorVehicle', { ...sale, confirmed: true });
             });
             return;
         }
@@ -365,22 +487,15 @@ if (previewContext) {
                 vehicleId: Number(previewStartContractor.dataset.previewContractorStart || 0),
                 priorityKey: previewStartContractor.dataset.priority || 'standard',
                 routeIndex: Number(previewStartContractor.dataset.routeIndex || 0) || null,
-                dailyRouteKey: previewStartContractor.dataset.dailyRouteKey || null
+                dailyRouteKey: previewStartContractor.dataset.dailyRouteKey || null,
+                pickupDepotKey: previewStartContractor.dataset.pickupDepotKey || null
             });
             return;
         }
 
         const previewBuyContractor = event.target.closest('[data-preview-contractor-buy-type]');
         if (previewBuyContractor) {
-            if (previewBuyContractor.disabled) {
-                playUISound('error');
-                return;
-            }
-            playUISound('confirm');
-            post('purchaseContractorVehicle', {
-                vehicleType: previewBuyContractor.dataset.previewContractorBuyType,
-                vehicleIndex: Number(previewBuyContractor.dataset.previewContractorBuyIndex || 1)
-            });
+            confirmContractorVehiclePurchase(previewBuyContractor);
             return;
         }
 
@@ -400,6 +515,7 @@ if (previewContext) {
             event.preventDefault();
             event.stopPropagation();
             playUISound('click');
+            selectedContractorView = 'fleet';
             contractorMarketVisible = !contractorMarketVisible;
             if (contractorMarketVisible) selectedContractorPanel = 'market';
             renderContractor(dispatchData || {});
@@ -413,10 +529,33 @@ if (contractorContent) {
         const marketToggle = event.target.closest('[data-contractor-market-toggle]');
         if (marketToggle) {
             playUISound('click');
+            selectedContractorView = 'fleet';
             contractorMarketVisible = !contractorMarketVisible;
-            if (contractorMarketVisible) selectedContractorPanel = 'market';
+            selectedContractorPanel = contractorMarketVisible ? 'market' : 'vehicle';
             renderContractor(dispatchData || {});
             renderPreviewContextPanel();
+            return;
+        }
+
+        const contractorView = event.target.closest('[data-contractor-view]');
+        if (contractorView) {
+            const nextView = contractorView.dataset.contractorView || 'contracts';
+            if (!['contracts', 'dedicated', 'fleet'].includes(nextView)) return;
+
+            const scrollPanel = contractorContent.closest('.left-panel');
+            contractorViewScrollTop[selectedContractorView] = scrollPanel?.scrollTop || 0;
+            selectedContractorView = nextView;
+            contractorMarketVisible = false;
+            selectedContractorPanel = nextView === 'dedicated' ? 'daily' : nextView === 'fleet' ? 'vehicle' : 'contract';
+            playUISound('click');
+            renderContractor(dispatchData || {});
+            renderPreviewContextPanel();
+
+            const savedTop = contractorViewScrollTop[nextView] || 0;
+            requestAnimationFrame(() => {
+                const nextPanel = contractorContent.closest('.left-panel');
+                if (nextPanel) nextPanel.scrollTop = savedTop;
+            });
             return;
         }
 
@@ -466,6 +605,19 @@ if (contractorContent) {
             return;
         }
 
+        const selectedPickupDepot = event.target.closest('[data-contractor-pickup-depot]');
+        if (selectedPickupDepot) {
+            const pickupType = selectedPickupDepot.dataset.contractorPickupType || dispatchData?.contractor?.pickupDepotVehicleType;
+            const pickupDepotKey = selectedPickupDepot.dataset.contractorPickupDepot || null;
+            if (pickupType && pickupDepotKey) selectedContractorPickupDepotByType[pickupType] = pickupDepotKey;
+            selectedContractorPanel = 'contract';
+            selectedContractorContractKey = null;
+            playUISound('click');
+            renderContractor(dispatchData || {});
+            renderPreviewContextPanel();
+            return;
+        }
+
         const selectedMarket = event.target.closest('[data-contractor-select-market]');
         if (selectedMarket) {
             playUISound('click');
@@ -484,19 +636,16 @@ if (contractorContent) {
         }
 
         const buyVehicle = event.target.closest('[data-contractor-buy-type]');
-        if (buyVehicle && !buyVehicle.disabled) {
-            playUISound('confirm');
-            post('purchaseContractorVehicle', {
-                vehicleType: buyVehicle.dataset.contractorBuyType,
-                vehicleIndex: Number(buyVehicle.dataset.contractorBuyIndex || 1)
-            });
+        if (buyVehicle) {
+            confirmContractorVehiclePurchase(buyVehicle);
             return;
         }
 
         const spawnVehicle = event.target.closest('[data-contractor-spawn-vehicle]');
-        if (spawnVehicle && !spawnVehicle.disabled) {
-            playUISound('confirm');
-            post('spawnContractorVehicle', { vehicleId: Number(spawnVehicle.dataset.contractorSpawnVehicle || 0) });
+        if (spawnVehicle) {
+            requestVehicleCheckout(spawnVehicle, 'spawnContractorVehicle', {
+                vehicleId: Number(spawnVehicle.dataset.contractorSpawnVehicle || 0)
+            });
             return;
         }
 
@@ -516,7 +665,8 @@ if (contractorContent) {
                 vehicleId: Number(startContract.dataset.contractorStart || 0),
                 priorityKey: startContract.dataset.priority || 'standard',
                 routeIndex: Number(startContract.dataset.routeIndex || 0) || null,
-                dailyRouteKey: startContract.dataset.dailyRouteKey || null
+                dailyRouteKey: startContract.dataset.dailyRouteKey || null,
+                pickupDepotKey: startContract.dataset.pickupDepotKey || null
             });
         }
     });
@@ -549,6 +699,23 @@ document.addEventListener('click', event => {
     if (scaleOption && mini && mini.contains(scaleOption)) {
         playUISound('click');
         setMiniUIScale(scaleOption.dataset.miniScaleTarget, scaleOption.dataset.miniScale, true);
+        return;
+    }
+
+    const wallpaperSelect = event.target.closest('[data-mini-wallpaper-select]');
+    if (wallpaperSelect && mini && mini.contains(wallpaperSelect)) {
+        const input = mini.querySelector('.mini-wallpaper-input');
+        if (!input) return;
+        playUISound('click');
+        input.value = '';
+        input.click();
+        return;
+    }
+
+    const wallpaperReset = event.target.closest('[data-mini-wallpaper-reset]');
+    if (wallpaperReset && mini && mini.contains(wallpaperReset)) {
+        playUISound('confirm');
+        resetMiniCustomWallpaper(true);
         return;
     }
 
@@ -626,6 +793,13 @@ document.addEventListener('click', event => {
         return;
     }
 
+    const openDispatchLog = event.target.closest('[data-mini-open-dispatch]');
+    if (openDispatchLog && mini && mini.contains(openDispatchLog)) {
+        playUISound('click');
+        setMiniPage('dispatch');
+        return;
+    }
+
     const pageButton = event.target.closest('[data-mini-page]');
     if (pageButton && mini && mini.contains(pageButton)) {
         playUISound('click');
@@ -637,6 +811,23 @@ document.addEventListener('click', event => {
     if (homeButton && mini && mini.contains(homeButton)) {
         playUISound('click');
         setMiniPage('home');
+    }
+});
+
+document.addEventListener('change', async event => {
+    const input = event.target.closest('.mini-wallpaper-input');
+    if (!input || !mini || !mini.contains(input)) return;
+
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const imported = await importMiniWallpaper(file);
+    input.value = '';
+    if (imported) {
+        playUISound('confirm');
+    } else {
+        playUISound('error');
+        setMiniWallpaperError();
     }
 });
 
@@ -688,6 +879,7 @@ window.addEventListener('message', event => {
         closeUI();
     }
     if (data.action === 'showFreightDialog') showFreightDialog(data);
+    if (data.action === 'showTrailerInspection') window.showTrailerInspection(data);
     if (data.action === 'showFreightCancelDialog') showFreightCancelDialog(data);
     if (data.action === 'showFreightHandoff') showFreightHandoff(data);
     if (data.action === 'hideFreightDialog') hideFreightDialog();

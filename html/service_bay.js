@@ -66,6 +66,7 @@
     function hideServiceBaySurface() {
         root.classList.add('hidden');
         document.body.classList.remove('service-bay-active');
+        window.stopUISounds?.();
         scheduleCloseCleanup();
     }
 
@@ -156,23 +157,12 @@
         return target > current ? t('action.upgrade', {}, 'Upgrade') : t('action.downgrade', {}, 'Downgrade');
     }
 
-    function optionActionClass(option, level, kind) {
-        if (!level || isCurrentLevel(option, level)) return 'is-current';
-        if (kind === 'appearance') return 'is-change';
-        const current = optionCurrentLevel(option);
-        const target = levelNumber(level);
-        if (target <= 0 || target < current) return 'is-remove';
-        return 'is-upgrade';
-    }
-
-    function renderOptionMeta(option, level, kind) {
+    function renderOptionMeta(option, level) {
         const selectedLabel = level?.label || t('common.unavailable', {}, 'Unavailable');
-        const action = optionActionLabel(option, level, kind);
         return `
             <div class="service-bay-option-meta">
                 <span><small>${safe(t('common.current', {}, 'Current'))}</small><strong>${safe(option.currentLabel || t('common.stock', {}, 'Stock'))}</strong></span>
                 <span><small>${safe(t('serviceBay.meta.selected', {}, 'Selected'))}</small><strong>${safe(selectedLabel)}</strong></span>
-                <span class="${safe(optionActionClass(option, level, kind))}"><small>${safe(t('serviceBay.meta.action', {}, 'Action'))}</small><strong>${safe(action)}</strong></span>
             </div>`;
     }
 
@@ -283,7 +273,7 @@
         return `
             <div class="service-bay-option service-bay-option-cycling ${isCurrent ? 'is-current' : ''}">
                 <div class="service-bay-option-head"><i class="fas ${safe(option.icon || 'fa-wrench')}"></i><div class="service-bay-option-copy"><strong>${safe(option.label)}</strong><p>${safe(description)}</p></div><span class="service-bay-tile-price ${isCurrent || !hasLevels ? 'is-muted' : ''}">${safe(priceLabel)}</span></div>
-                ${hasLevels ? renderOptionMeta(option, selected, kind) : ''}
+                ${hasLevels ? renderOptionMeta(option, selected) : ''}
                 <div class="service-bay-option-footer service-bay-option-footer-cycle">
                     ${hasLevels ? `<div class="service-bay-cycle"><button data-cycle="${safe(option.key)}" data-dir="-1"><i class="fas fa-chevron-left"></i></button><span title="${safe(selectedLabel)}">${safe(selectorLabel(selectedLabel))}</span><button data-cycle="${safe(option.key)}" data-dir="1"><i class="fas fa-chevron-right"></i></button></div>` : `<span class="service-bay-current">${safe(currentLabel)}</span>`}
                     <div class="service-bay-option-actions">
@@ -338,18 +328,24 @@
             ? state.cart.map(item => `<div class="service-bay-cart-item"><span><b>${safe(item.label)}</b><small>${safe(item.detail || (item.remove ? t('serviceBay.cart.removeStock', {}, 'Remove / restore stock') : t('serviceBay.cart.defaultDetail', {}, 'Service bay work')))}</small></span><strong>${money(item.price)}</strong><button data-cart-remove="${safe(cartKey(item))}" title="${safe(t('serviceBay.cart.removeTitle', {}, 'Remove item'))}"><i class="fas fa-xmark"></i></button></div>`).join('')
             : `<div class="service-bay-empty">${safe(t('serviceBay.cart.empty', {}, 'No work order items selected.'))}</div>`;
 
-        return `
-            <div class="service-bay-cart">
-                <div class="service-bay-cart-head"><small>${safe(t('serviceBay.cart.workOrder', {}, 'Work Order'))}</small><span>${safe(itemCountLabel)}</span></div>
-                ${renderInstallProgress()}
-                <div class="service-bay-cart-list">${items}</div>
+        const checkout = itemCount > 0
+            ? `
                 <div class="service-bay-total">
                     <div><span>${safe(t('serviceBay.cart.subtotal', {}, 'Subtotal'))}</span><b>${money(totals.subtotal)}</b></div>
                     <div><span>${safe(t('serviceBay.cart.repDiscount', { percent: pct(totals.discountPercent) }, `Rep discount ${pct(totals.discountPercent)}`))}</span><b>-${money(totals.discount)}</b></div>
                     <div><span>${safe(paymentLabel)}</span><strong>${money(totals.total)}</strong></div>
                 </div>
                 <div class="service-bay-payment"><button class="${state.paymentMethod === 'cash' ? 'active' : ''}" data-payment="cash" ${state.processing ? 'disabled' : ''}><i class="fas fa-money-bill-wave"></i>${safe(t('action.cash', {}, 'Cash'))}</button><button class="${state.paymentMethod === 'bank' ? 'active' : ''}" data-payment="bank" ${state.processing ? 'disabled' : ''}><i class="fas fa-building-columns"></i>${safe(t('action.bank', {}, 'Bank'))}</button></div>
-                <div class="service-bay-pay"><button data-checkout ${state.cart.length && !state.processing ? '' : 'disabled'}><i class="fas fa-credit-card"></i>${safe(state.processing ? t('action.processing', {}, 'Processing') : t('action.payInvoice', {}, 'Pay Invoice'))}</button><button data-clear-cart ${state.cart.length && !state.processing ? '' : 'disabled'}><i class="fas fa-trash-can"></i>${safe(t('action.clear', {}, 'Clear'))}</button></div>
+                <div class="service-bay-pay"><button data-checkout ${state.processing ? 'disabled' : ''}><i class="fas fa-credit-card"></i>${safe(state.processing ? t('action.processing', {}, 'Processing') : t('action.payInvoice', {}, 'Pay Invoice'))}</button><button data-clear-cart ${state.processing ? 'disabled' : ''}><i class="fas fa-trash-can"></i>${safe(t('action.clear', {}, 'Clear'))}</button></div>
+            `
+            : '';
+
+        return `
+            <div class="service-bay-cart">
+                <div class="service-bay-cart-head"><small>${safe(t('serviceBay.cart.workOrder', {}, 'Work Order'))}</small><span>${safe(itemCountLabel)}</span></div>
+                ${renderInstallProgress()}
+                <div class="service-bay-cart-list">${items}</div>
+                ${checkout}
             </div>`;
     }
 

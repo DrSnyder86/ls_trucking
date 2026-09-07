@@ -161,7 +161,7 @@ function setupDispatchSelect(select) {
     syncDispatchSelect(select);
 }
 
-[vehicleSelect, prioritySelect].forEach(setupDispatchSelect);
+[vehicleSelect, prioritySelect, trailerCargoEditorPropSelect].forEach(setupDispatchSelect);
 
 document.addEventListener('click', event => {
     if (openDispatchSelectController?.control.contains(event.target)) return;

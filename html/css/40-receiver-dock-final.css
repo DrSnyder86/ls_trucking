@@ -579,3 +579,174 @@
     -webkit-line-clamp: 4 !important;
 }
 
+/* Flexible current-route message layout */
+.mini.mini-scanner #miniRoutePage {
+    padding-right: 0 !important;
+    overflow: hidden !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-radio-line {
+    flex: 0 0 auto !important;
+    grid-template-columns: 13px minmax(0, 1fr) 12px !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 34px !important;
+    max-height: 70px !important;
+    margin: 0 !important;
+    padding: 7px 9px !important;
+    appearance: none !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 8px !important;
+    font-weight: 900 !important;
+    line-height: 1.16 !important;
+    text-align: left !important;
+    cursor: pointer !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-radio-line:hover,
+.mini.mini-scanner #miniRoutePage .mini-radio-line:focus-visible {
+    border-color: rgba(142,255,145,0.32) !important;
+    outline: none !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-radio-line span {
+    line-height: 1.22 !important;
+    -webkit-line-clamp: 4 !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-radio-open-icon {
+    justify-self: end !important;
+    color: rgba(218,224,214,0.48) !important;
+    font-size: 8px !important;
+    text-shadow: none !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-header {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    min-height: 56px !important;
+}
+
+.mini.mini-scanner #miniRoutePage #miniTitle {
+    white-space: normal !important;
+    text-overflow: clip !important;
+    -webkit-line-clamp: 2 !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    grid-template-rows: none !important;
+    grid-auto-rows: max-content !important;
+    align-content: start !important;
+    gap: 7px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-instruction-line {
+    min-height: 98px !important;
+    padding: 9px 10px 10px !important;
+    overflow: visible !important;
+}
+
+.mini.mini-scanner #miniRoutePage #miniNotice {
+    display: block !important;
+    max-height: none !important;
+    margin-top: 7px !important;
+    color: #f3d27b !important;
+    font-size: 12px !important;
+    font-weight: 850 !important;
+    line-height: 1.28 !important;
+    overflow: visible !important;
+    overflow-wrap: anywhere !important;
+    white-space: normal !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-destination-line {
+    display: block !important;
+    min-height: 72px !important;
+    padding: 9px 10px 10px !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-destination-heading {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    margin-bottom: 5px !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-destination-heading > small {
+    min-width: 0 !important;
+    margin: 0 !important;
+}
+
+.mini.mini-scanner #miniRoutePage #miniDestination {
+    display: block !important;
+    max-width: 100% !important;
+    font-size: 13px !important;
+    line-height: 1.14 !important;
+    overflow-wrap: anywhere !important;
+    white-space: normal !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-destination-address.hidden {
+    display: none !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-expected {
+    flex: 0 0 auto !important;
+    display: inline-flex !important;
+    align-items: baseline !important;
+    gap: 5px !important;
+    visibility: visible !important;
+    width: auto !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: right !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-expected.hidden,
+.mini.mini-scanner #miniRoutePage .mini-alert.hidden {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-expected small {
+    margin: 0 !important;
+    font-size: 7px !important;
+    letter-spacing: 0 !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-expected strong {
+    display: inline !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-alert {
+    min-height: 0 !important;
+    height: auto !important;
+    padding: 8px 9px !important;
+    overflow: visible !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-alert strong {
+    display: block !important;
+    overflow: visible !important;
+    line-height: 1.22 !important;
+    -webkit-line-clamp: unset !important;
+}
+
+.mini.mini-scanner #miniRoutePage .mini-control-strip {
+    flex: 0 0 auto !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+

@@ -49,14 +49,27 @@ function renderRouteHistory(history) {
     routeHistoryList.innerHTML = entries.map(summary => {
         const historyKey = routeHistoryCardKey(summary);
         const isOpen = cardState ? cardState.openKeys.has(historyKey) : false;
+        const routeMeta = [
+            summary.vehicleLabel ? `<span><i class="fas fa-truck"></i>${escapeHTML(summary.vehicleLabel)}</span>` : '',
+            summary.routeLength && summary.routeLength !== 'N/A' ? `<span><i class="fas fa-road"></i>${escapeHTML(summary.routeLength)}</span>` : '',
+            Number(summary.totalStops || 0) > 0 ? `<span><i class="fas fa-location-dot"></i>${escapeHTML(`${summary.totalStops} ${uiText('receiver.detail.stops', {}, 'Stops').toLowerCase()}`)}</span>` : ''
+        ].filter(Boolean).join('');
         return `
             <details class="route-history-card" data-route-history-key="${escapeHTML(historyKey)}" ${isOpen ? 'open' : ''}>
                 <summary>
-                    <div>
-                        <small>${escapeHTML(routeSummarySubtitle(summary))}</small>
+                    <div class="route-history-summary-copy">
+                        <div class="route-history-summary-line">
+                            <span class="route-history-status">${escapeHTML(uiText('common.completed', {}, 'Completed'))}</span>
+                            <small>${escapeHTML([summary.contractId, summary.completedAt].filter(Boolean).join(' / '))}</small>
+                        </div>
                         <strong>${escapeHTML(routeSummaryTitle(summary))}</strong>
+                        <div class="route-history-summary-meta">${routeMeta}</div>
                     </div>
-                    <span>${escapeHTML(formatMoney(summary.payout || 0))}</span>
+                    <div class="route-history-summary-result">
+                        <small>${escapeHTML(uiText('receiver.detail.payout', {}, 'Payout'))}</small>
+                        <strong>${escapeHTML(formatMoney(summary.payout || 0))}</strong>
+                        <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                    </div>
                 </summary>
                 ${renderRouteSummaryPrintout(summary)}
             </details>
@@ -96,26 +109,113 @@ function renderGarage(data) {
 
     garageList.innerHTML = '';
     const garage = data.garage || [];
+    const garageState = data.garageState || {};
+    const validTypes = new Set(['all', 'van', 'boxtruck', 'trailer']);
+    if (!validTypes.has(selectedGarageType)) selectedGarageType = 'all';
 
-    if (garage.length && !garage.some(vehicle => getGarageVehicleKey(vehicle) === selectedGarageKey)) {
-        selectedGarageKey = getGarageVehicleKey(garage[0]);
+    setText('garagePageTitle', uiText('garage.assignedFleet', {}, 'ASSIGNED COMPANY FLEET'));
+    setText('garagePageDescription', uiText('garage.assignedFleetDescription', {}, 'Company assets assigned to this driver profile.'));
+    setText('garageCheckoutLabel', uiText('garage.checkoutStatus', {}, 'CHECKOUT STATUS'));
+
+    const companyVehicleOut = garageState.companyVehicleOut
+        ? garage.find(vehicle => vehicle.garageId === garageState.garageId) || garage.find(vehicle => !vehicle.stored)
+        : null;
+    const checkoutName = companyVehicleOut
+        ? `${garageDisplayLabel(companyVehicleOut.label, companyVehicleOut.type)} / ${companyVehicleOut.plate || uiText('garage.assignedOnCheckout', {}, 'Assigned on checkout')}`
+        : garageState.contractorVehicleOut
+            ? uiText('garage.privateUnitOut', {}, 'Private fleet unit currently checked out')
+            : uiText('garage.noUnitOut', {}, 'No company unit checked out');
+    setText('garageCheckoutName', checkoutName);
+
+    if (garageActions) {
+        garageActions.classList.toggle('has-unit', Boolean(companyVehicleOut));
+        garageActions.classList.toggle('is-blocked', garageState.blocked && !companyVehicleOut);
+    }
+    if (returnGarageBtn) {
+        returnGarageBtn.disabled = !companyVehicleOut || Boolean(data.currentJob);
+        returnGarageBtn.title = data.currentJob
+            ? uiText('garage.finishRouteBeforeReturn', {}, 'Finish or cancel the active route before returning this unit.')
+            : companyVehicleOut
+                ? uiText('action.returnVehicle', {}, 'Return Vehicle')
+                : uiText('garage.noUnitOut', {}, 'No company unit checked out');
+        const returnLabel = returnGarageBtn.querySelector('span');
+        if (returnLabel) returnLabel.textContent = uiText('action.returnVehicle', {}, 'Return Vehicle');
     }
 
-    garage.forEach(vehicle => {
+    if (garageToolbar) {
+        const filters = [
+            ['all', 'fa-layer-group', uiText('garage.filterAll', {}, 'All Units')],
+            ['van', 'fa-van-shuttle', uiText('garage.filterVans', {}, 'Vans')],
+            ['boxtruck', 'fa-truck', uiText('garage.filterBoxTrucks', {}, 'Box Trucks')],
+            ['trailer', 'fa-truck-front', uiText('garage.filterTractors', {}, 'Tractors')]
+        ];
+        garageToolbar.innerHTML = filters.map(([type, icon, label]) => `
+            <button type="button" class="garage-filter ${selectedGarageType === type ? 'active' : ''}" data-garage-filter="${type}" aria-pressed="${selectedGarageType === type}">
+                <i class="fas ${icon}" aria-hidden="true"></i><span>${escapeHTML(label)}</span>
+            </button>
+        `).join('');
+    }
+
+    const visibleGarage = selectedGarageType === 'all'
+        ? garage
+        : garage.filter(vehicle => vehicle.type === selectedGarageType);
+
+    if (visibleGarage.length && !visibleGarage.some(vehicle => getGarageVehicleKey(vehicle) === selectedGarageKey)) {
+        selectedGarageKey = getGarageVehicleKey(visibleGarage[0]);
+    }
+
+    if (garage.length) {
+        const storedCount = garage.filter(vehicle => vehicle.stored).length;
+        const outCount = garage.length - storedCount;
+        const lockedCount = garage.filter(vehicle => playerRank() < Number(vehicle.minRank || 1)).length;
+        const summary = document.createElement('div');
+        summary.className = 'garage-fleet-summary';
+        summary.innerHTML = `
+            <div class="garage-fleet-summary-title">
+                <i class="fas fa-warehouse" aria-hidden="true"></i>
+                <span><small>${uiText('garage.yourFleet', {}, 'Your Fleet')}</small><strong>${uiText('garage.units', { count: garage.length }, `${garage.length} units`)}</strong></span>
+            </div>
+            <div><small>${uiText('common.available', {}, 'Available')}</small><strong>${storedCount}</strong></div>
+            <div><small>${uiText('garage.checkedOut', {}, 'Checked Out')}</small><strong>${outCount}</strong></div>
+            <div><small>${uiText('garage.accessLocked', {}, 'Access Locked')}</small><strong>${lockedCount}</strong></div>
+        `;
+        garageList.appendChild(summary);
+    }
+
+    if (!visibleGarage.length && garage.length) {
+        garageList.insertAdjacentHTML('beforeend', `<div class="empty-card garage-filter-empty">${escapeHTML(uiText('garage.noUnitsInClass', {}, 'No units are configured in this class.'))}</div>`);
+    }
+
+    visibleGarage.forEach(vehicle => {
         const card = document.createElement('div');
         const vehicleKey = getGarageVehicleKey(vehicle);
         card.className = `garage-card ${vehicleKey === selectedGarageKey ? 'selected' : ''}`;
         card.dataset.garageKey = vehicleKey;
-        const status = vehicle.stored ? uiText('common.stored', {}, 'Stored') : uiText('common.out', {}, 'Out');
+        card.dataset.garageType = vehicle.type || '';
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        card.setAttribute('aria-pressed', String(vehicleKey === selectedGarageKey));
+        const status = vehicle.stored ? uiText('common.available', {}, 'Available') : uiText('garage.checkedOut', {}, 'Checked Out');
         const minRank = Number(vehicle.minRank || 1);
         const locked = playerRank() < minRank;
         const image = vehicle.photo || '';
+        const plate = vehicle.plate || uiText('garage.assignedOnCheckout', {}, 'Assigned on checkout');
 
+        const displayLabel = garageDisplayLabel(vehicle.label, vehicle.type);
+        card.setAttribute('aria-label', `${displayLabel}, ${status}`);
         card.innerHTML = `
-            <img src="${image}" alt="${vehicle.label || 'Vehicle'}">
-            <strong>${garageDisplayLabel(vehicle.label, vehicle.type)}</strong>
-            <small>${titleFromType(vehicle.type)} - ${vehicle.plate || 'NO PLATE'} - ${status}</small>
-            <small class="rank-tag ${locked ? 'locked' : ''}">${locked ? uiText('status.requiresRank', { rank: minRank }, `Requires Rank ${minRank}`) : uiText('status.rankPlus', { rank: minRank }, `Rank ${minRank}+`)}</small>
+            <div class="garage-card-media">
+                ${image ? `<img src="${escapeHTML(image)}" alt="${escapeHTML(displayLabel)}">` : '<div class="garage-card-photo-placeholder"><i class="fas fa-truck" aria-hidden="true"></i></div>'}
+                <span class="garage-status-badge ${vehicle.stored ? 'is-stored' : 'is-out'}"><i class="fas ${vehicle.stored ? 'fa-warehouse' : 'fa-road'}" aria-hidden="true"></i>${escapeHTML(status)}</span>
+            </div>
+            <div class="garage-card-copy">
+                <small class="garage-card-type">${escapeHTML(titleFromType(vehicle.type))}</small>
+                <strong>${escapeHTML(displayLabel)}</strong>
+                <div class="garage-card-meta">
+                    <span><i class="fas fa-id-card" aria-hidden="true"></i>${escapeHTML(plate)}</span>
+                    ${locked ? `<span class="garage-card-lock"><i class="fas fa-lock" aria-hidden="true"></i>${escapeHTML(uiText('status.rankPlus', { rank: minRank }, `Rank ${minRank}+`))}</span>` : ''}
+                </div>
+            </div>
         `;
 
         garageList.appendChild(card);
@@ -154,6 +254,15 @@ function restoreDispatchScrollState(state) {
 function contractorTypeLabel(type) {
     if (type === 'trailer') return 'Tractor';
     return titleFromType(type);
+}
+
+function contractorCardPercent(value) {
+    return Math.max(0, Math.min(100, Number(value) || 0));
+}
+
+function renderContractorCardFact(icon, value, className = '') {
+    if (value === undefined || value === null || value === '') return '';
+    return `<span class="${escapeHTML(className)}"><i class="fas ${escapeHTML(icon)}" aria-hidden="true"></i>${escapeHTML(value)}</span>`;
 }
 
 function getContractorScrollState() {
@@ -225,9 +334,18 @@ function renderContractor(data) {
 
     const dailyRoutes = contractor.dailyRoutes || [];
     const vehicles = contractor.vehicles || [];
-    const board = contractor.board || [];
     const market = contractor.market || [];
     const activeOut = vehicles.find(vehicle => vehicle.out);
+    const pickupDepots = contractor.pickupDepots || [];
+    const selectedPickupDepot = getSelectedContractorPickupDepot(contractor);
+    const board = getContractorBoard(contractor);
+    const validContractorViews = ['contracts', 'dedicated', 'fleet'];
+    if (!validContractorViews.includes(selectedContractorView)) selectedContractorView = 'contracts';
+    if (selectedContractorView !== 'fleet') contractorMarketVisible = false;
+    if (selectedContractorView === 'contracts') selectedContractorPanel = 'contract';
+    else if (selectedContractorView === 'dedicated') selectedContractorPanel = 'daily';
+    else if (contractorMarketVisible) selectedContractorPanel = 'market';
+    else selectedContractorPanel = 'vehicle';
     syncContractorSelection(contractor);
 
     const dailyTypes = [];
@@ -273,7 +391,13 @@ function renderContractor(data) {
         const lockedByCooldown = !assigned && contractor.dailyRouteKey && contractor.dailyRouteCanChange === false;
         return `
             <button type="button" class="contractor-option compact ${cardSelected ? 'is-selected' : ''} ${routeActive ? 'is-active-route' : ''} ${route.unlocked ? '' : 'disabled'}" data-contractor-select-daily-route="${escapeHTML(routeKey)}" data-contractor-daily-route-type="${escapeHTML(getContractorDailyRouteType(route))}">
-                <span><strong>${route.label || 'Route Board'}</strong><small>${[route.routeLength, route.destination].filter(Boolean).join(' - ') || route.description || ''}</small></span>
+                <span class="contractor-option-main">
+                    <strong>${escapeHTML(route.label || 'Route Board')}</strong>
+                    <small class="contractor-option-facts">
+                        ${renderContractorCardFact('fa-route', route.routeLength || route.description || 'Route pending')}
+                        ${renderContractorCardFact('fa-location-dot', route.destination)}
+                    </small>
+                </span>
                 <em>${completed ? 'DONE' : routeActive ? 'ACTIVE' : assigned ? 'ASSIGNED' : lockedByCooldown ? 'WEEKLY LOCK' : route.unlocked ? 'VIEW' : `RANK ${route.minRank || contractor.unlockRank}`}</em>
             </button>
         `;
@@ -283,14 +407,48 @@ function renderContractor(data) {
         <div class="contractor-daily-compact">
             <div class="contractor-daily-head">
                 <div>
-                    <small>DEDICATED ROUTE</small>
-                    <strong>${escapeHTML(contractor.dailyRouteLabel || 'Optional Bonus Route')}</strong>
+                    <small>${uiText('contractor.weeklyProgram', {}, 'Weekly Route Program')}</small>
+                    <strong>${uiText('contractor.dedicatedAssignment', {}, 'Dedicated Assignment')}</strong>
                 </div>
                 <em>${escapeHTML(contractor.dailyRouteKey ? contractor.dailyRouteCompleted ? 'Completed Today' : 'Assigned' : 'Not Assigned')}</em>
             </div>
             <div class="contractor-daily-types">${dailyTypeHtml}</div>
             <div class="contractor-daily-list" data-contractor-daily-type="${escapeHTML(selectedContractorDailyType || '')}">${dailyHtml}</div>
         </div>
+    `;
+
+    const pickupSelectorHtml = activeOut && pickupDepots.length ? `
+        <section class="contractor-pickup-selector" aria-label="${escapeHTML(uiText('contractor.pickupTerminal', {}, 'Pickup Terminal'))}">
+            <div class="contractor-pickup-head">
+                <small>${escapeHTML(uiText('contractor.pickupTerminal', {}, 'Pickup Terminal'))}</small>
+                <em>${escapeHTML(activeOut.typeLabel || contractorTypeLabel(activeOut.type))}</em>
+            </div>
+            <div class="contractor-pickup-options">
+                ${pickupDepots.map(depot => {
+                    const selected = depot.key === selectedPickupDepot?.key;
+                    return `
+                        <button type="button" class="${selected ? 'is-selected' : ''}" data-contractor-pickup-depot="${escapeHTML(depot.key || '')}" data-contractor-pickup-type="${escapeHTML(depot.type || activeOut.type || '')}" aria-pressed="${selected}">
+                            <i class="fas fa-warehouse" aria-hidden="true"></i>
+                            <span>
+                                <strong>${escapeHTML(depot.label || 'Freight Terminal')}</strong>
+                                <small>${escapeHTML(depot.area || '')}</small>
+                            </span>
+                            <em>${escapeHTML(uiText('contractor.offerCount', { count: Number(depot.offerCount || 0) }, `${Number(depot.offerCount || 0)} offers`))}</em>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        </section>
+    ` : `
+        <section class="contractor-pickup-selector is-disabled">
+            <div class="contractor-pickup-head">
+                <small>${escapeHTML(uiText('contractor.pickupTerminal', {}, 'Pickup Terminal'))}</small>
+            </div>
+            <button type="button" class="contractor-pickup-empty" data-contractor-view="fleet">
+                <i class="fas fa-truck-arrow-right" aria-hidden="true"></i>
+                <span>${escapeHTML(uiText('contractor.checkoutForOffers', {}, 'Check out a private unit to view matching terminal offers.'))}</span>
+            </button>
+        </section>
     `;
 
     const fleetHtml = vehicles.length ? vehicles.map(vehicle => {
@@ -300,36 +458,79 @@ function renderContractor(data) {
         const imageHtml = image
             ? `<img src="${escapeHTML(image)}" alt="${escapeHTML(vehicle.label || 'Contractor Vehicle')}">`
             : '<div class="contractor-vehicle-photo-placeholder"><i class="fas fa-truck"></i></div>';
+        const fuel = contractorCardPercent(vehicle.fuel);
+        const condition = contractorCardPercent(vehicle.condition);
+        const mileage = Math.max(0, Number(vehicle.mileage) || 0);
+        const mileageLabel = uiText('contractor.saleMileage', {}, 'Recorded mileage');
         return `
         <div class="contractor-vehicle-card ${selected ? 'is-selected' : ''}" data-contractor-select-vehicle="${vehicleKey}">
-            ${imageHtml}
-            <div>
-                <small>${vehicle.typeLabel || contractorTypeLabel(vehicle.type)} - ${vehicle.plate || 'NO PLATE'}</small>
-                <strong>${vehicle.label || 'Contractor Vehicle'}</strong>
-                <span>Fuel ${vehicle.fuel ?? 0}% - Condition ${vehicle.condition ?? 0}% - ${vehicle.out ? 'Out' : 'Stored'}</span>
+            <div class="contractor-vehicle-media">
+                ${imageHtml}
+                <span class="contractor-unit-state ${vehicle.out ? 'is-out' : 'is-stored'}">${vehicle.out ? uiText('common.out', {}, 'Out') : uiText('common.stored', {}, 'Stored')}</span>
+            </div>
+            <div class="contractor-vehicle-copy">
+                <div class="contractor-vehicle-card-head">
+                    <small>${escapeHTML(vehicle.typeLabel || contractorTypeLabel(vehicle.type))}</small>
+                    <span class="contractor-vehicle-mileage" title="${escapeHTML(mileageLabel)}" aria-label="${escapeHTML(`${mileageLabel}: ${mileage.toFixed(1)} mi`)}">
+                        <i class="fas fa-gauge-high" aria-hidden="true"></i>${mileage.toFixed(1)} MI
+                    </span>
+                </div>
+                <strong>${escapeHTML(vehicle.label || 'Contractor Vehicle')}</strong>
+                <div class="contractor-vehicle-plate"><i class="fas fa-id-card" aria-hidden="true"></i>${escapeHTML(vehicle.plate || 'NO PLATE')}</div>
+                <div class="contractor-unit-health">
+                    <span><small>FUEL</small><i><b style="width:${fuel}%"></b></i><em>${fuel}%</em></span>
+                    <span><small>CONDITION</small><i><b style="width:${condition}%"></b></i><em>${condition}%</em></span>
+                </div>
             </div>
         </div>
     `;
     }).join('') : '<div class="empty-card">No private vehicles owned yet.</div>';
 
     const emptyBoardText = activeOut
-        ? `No ${activeOut.typeLabel || contractorTypeLabel(activeOut.type)} contracts are available right now.`
+        ? uiText('contractor.noPickupContracts', {
+            type: activeOut.typeLabel || contractorTypeLabel(activeOut.type),
+            depot: selectedPickupDepot?.label || uiText('contractor.pickupTerminal', {}, 'pickup terminal')
+        }, `No ${activeOut.typeLabel || contractorTypeLabel(activeOut.type)} contracts are available from ${selectedPickupDepot?.label || 'this terminal'} right now.`)
         : 'Spawn a private vehicle to show available contracts for that vehicle type.';
 
     const boardHtml = board.length ? board.map(contract => {
         const contractKey = getContractorContractKey(contract);
         const selected = selectedContractorPanel === 'contract' && selectedContractorContractKey === contractKey;
+        const priorityLabel = contract.daily ? 'Daily Bonus' : contract.priorityShortLabel || contract.priorityLabel || 'Standard';
+        const destinations = (Array.isArray(contract.destinations) ? contract.destinations : [contract.destination])
+            .filter(destination => typeof destination === 'string' && destination.trim());
+        const stopCount = Number(contract.stopCount) || destinations.length;
+        const stopLabel = stopCount ? `${stopCount} stop${stopCount === 1 ? '' : 's'}` : '';
+        const destinationRows = destinations.length
+            ? destinations.map((destination, index) => `
+                <li><b>${index + 1}</b><span>${escapeHTML(destination)}</span></li>
+            `).join('')
+            : `<li><b>1</b><span>${escapeHTML(contract.destination || 'Assigned destination')}</span></li>`;
         return `
         <div class="contractor-contract-card ${contract.canStart ? '' : 'disabled'} ${selected ? 'is-selected' : ''}" data-contractor-select-contract="${escapeHTML(contractKey)}">
-            <div>
-                <small>${contract.typeLabel || contractorTypeLabel(contract.type)} - ${contract.daily ? 'Daily Bonus' : contract.priorityShortLabel || contract.priorityLabel || 'Standard'}${contract.stopCount ? ` - ${contract.stopCount} stop${Number(contract.stopCount) === 1 ? '' : 's'}` : ''}</small>
-                <strong>${contract.routeLabel || 'Private Freight Contract'}</strong>
-                <span>${[contract.routeLength || 'Route length pending', contract.destination, contract.vehicleLabel || 'Spawn matching vehicle first'].filter(Boolean).join(' - ')}</span>
+            <div class="contractor-contract-copy">
+                <div class="contractor-contract-badges">
+                    <span>${escapeHTML(contract.typeLabel || contractorTypeLabel(contract.type))}</span>
+                    <span>${escapeHTML(priorityLabel)}</span>
+                    ${stopLabel ? `<span>${escapeHTML(stopLabel)}</span>` : ''}
+                </div>
+                <strong>${escapeHTML(contract.routeLabel || 'Private Freight Contract')}</strong>
+                <div class="contractor-contract-pickup">
+                    <small>${escapeHTML(uiText('contractor.pickup', {}, 'Pickup'))}</small>
+                    <span><i class="fas fa-warehouse" aria-hidden="true"></i>${escapeHTML(contract.pickupDepotLabel || 'Pickup terminal')}</span>
+                </div>
+            </div>
+            <div class="contractor-contract-distance">
+                <small>${escapeHTML(uiText('contractor.routeLength', {}, 'Route Length'))}</small>
+                <strong>${escapeHTML(contract.routeLength || 'Pending')}</strong>
+            </div>
+            <div class="contractor-contract-destinations">
+                <small>${escapeHTML(uiText('contractor.dropLocations', {}, 'Drop Locations'))}</small>
+                <ol>${destinationRows}</ol>
             </div>
             <div class="contractor-pay">
                 <small>PAYOUT</small>
                 <strong>${formatMoney(contract.payoutMin || 0)}-${formatMoney(contract.payoutMax || 0)}</strong>
-                <span>${contract.xp || 0} XP / ${contract.rep || 0} REP</span>
             </div>
         </div>
     `;
@@ -352,60 +553,136 @@ function renderContractor(data) {
     }).join('') : '<div class="empty-card">No approved contractor vehicles are configured.</div>';
 
     const ownedCount = vehicles.length;
-    const marketSummaryHtml = `
-        <button class="contractor-market-summary" data-contractor-market-toggle>
+    const maxOwnedVehicles = contractor.maxOwnedVehicles || ownedCount;
+    const dailyStatus = contractor.dailyRouteCompleted
+        ? uiText('common.done', {}, 'Done')
+        : contractor.dailyRouteKey
+            ? uiText('status.assigned', {}, 'Assigned')
+            : uiText('common.available', {}, 'Available');
+    const authorityHtml = `
+        <section class="contractor-authority-bar">
+            <div class="contractor-authority-identity">
+                <i class="fas fa-id-card" aria-hidden="true"></i>
+                <span>
+                    <small>${escapeHTML(uiText('contractor.authorityTitle', {}, 'Private Carrier Authority'))}</small>
+                    <strong>${escapeHTML(uiText('contractor.authorityActive', {}, 'Authority Active'))}</strong>
+                </span>
+            </div>
+            <div><small>REP</small><strong>${Number(contractor.rep || 0)}</strong></div>
+            <div><small>DAILY BONUS</small><strong>${formatMoney(contractor.dailyBonus || 0)}</strong></div>
+            <div><small>${escapeHTML(uiText('contractor.fleetUsage', {}, 'Fleet Usage'))}</small><strong>${ownedCount} / ${maxOwnedVehicles}</strong></div>
+        </section>
+    `;
+    const viewTabsHtml = `
+        <div class="contractor-view-tabs" role="tablist" aria-label="${escapeHTML(uiText('contractor.authorityTitle', {}, 'Private Carrier Authority'))}">
+            <button type="button" class="contractor-view-tab is-board ${selectedContractorView === 'contracts' ? 'is-active' : ''}" data-contractor-view="contracts" role="tab" aria-selected="${selectedContractorView === 'contracts'}">
+                <i class="fas fa-file-contract" aria-hidden="true"></i>
+                <span>
+                    <strong>${escapeHTML(uiText('contractor.tabContractBoard', {}, 'Contract Board'))}</strong>
+                    <small>${escapeHTML(uiText('contractor.tabContractBoardHint', {}, 'Terminal offers'))}</small>
+                </span>
+                <em>${board.length}</em>
+            </button>
+            <button type="button" class="contractor-view-tab is-dedicated ${selectedContractorView === 'dedicated' ? 'is-active' : ''}" data-contractor-view="dedicated" role="tab" aria-selected="${selectedContractorView === 'dedicated'}">
+                <i class="fas fa-route" aria-hidden="true"></i>
+                <span>
+                    <strong>${escapeHTML(uiText('contractor.tabDedicatedRoutes', {}, 'Dedicated Routes'))}</strong>
+                    <small>${escapeHTML(uiText('contractor.tabDedicatedRoutesHint', {}, 'Weekly assignment'))}</small>
+                </span>
+                <em title="${escapeHTML(dailyStatus)}" aria-label="${escapeHTML(dailyStatus)}"><i class="fas ${contractor.dailyRouteCompleted ? 'fa-check' : contractor.dailyRouteKey ? 'fa-thumbtack' : 'fa-circle'}" aria-hidden="true"></i></em>
+            </button>
+            <button type="button" class="contractor-view-tab is-fleet ${selectedContractorView === 'fleet' ? 'is-active' : ''}" data-contractor-view="fleet" role="tab" aria-selected="${selectedContractorView === 'fleet'}">
+                <i class="fas fa-truck" aria-hidden="true"></i>
+                <span>
+                    <strong>${escapeHTML(uiText('contractor.tabPrivateFleet', {}, 'Private Fleet'))}</strong>
+                    <small>${escapeHTML(uiText('contractor.tabPrivateFleetHint', {}, 'Owned equipment'))}</small>
+                </span>
+                <em>${ownedCount}/${maxOwnedVehicles}</em>
+            </button>
+        </div>
+    `;
+    const activeUnitHtml = `
+        <button type="button" class="contractor-active-unit ${activeOut ? 'has-unit' : 'is-empty'}" data-contractor-view="fleet">
+            <i class="fas ${activeOut ? 'fa-truck-fast' : 'fa-truck-arrow-right'}" aria-hidden="true"></i>
             <span>
-                <small>CONTRACTOR FLEET DEALER</small>
-                <strong>${market.length} approved units available</strong>
-                <em>${ownedCount} owned / ${contractor.maxOwnedVehicles || ownedCount} fleet slots</em>
+                <small>${escapeHTML(uiText('contractor.activeUnit', {}, 'Active Unit'))}</small>
+                <strong>${escapeHTML(activeOut?.label || uiText('contractor.noActiveUnit', {}, 'No Unit Checked Out'))}</strong>
+                ${activeOut ? `<em>${escapeHTML(activeOut.typeLabel || contractorTypeLabel(activeOut.type))} / ${escapeHTML(activeOut.plate || 'NO PLATE')}</em>` : ''}
             </span>
-            <i class="fas fa-chevron-right"></i>
+            ${activeOut ? '' : `<b>${escapeHTML(uiText('common.select', {}, 'Select'))}</b>`}
         </button>
     `;
-
-    if (contractorMarketVisible) {
-        contractorContent.innerHTML = `
-            <div class="contractor-dealer-page">
-                <button type="button" class="contractor-dealer-back" data-contractor-market-toggle>
-                    <i class="fas fa-chevron-left"></i>
-                    <span>Back to Contractor</span>
-                </button>
-                <div class="contractor-hero compact contractor-dealer-hero">
-                    <small>CONTRACTOR FLEET DEALER</small>
-                    <h2>Approved Contractor Units</h2>
-                    <div class="contractor-metrics">
-                        <div><small>STOCK</small><strong>${market.length}</strong></div>
-                        <div><small>OWNED</small><strong>${ownedCount}</strong></div>
-                        <div><small>SLOTS</small><strong>${contractor.maxOwnedVehicles || ownedCount}</strong></div>
-                        <div><small>AUTHORITY</small><strong>ACTIVE</strong></div>
-                    </div>
+    const contractsViewHtml = `
+        <div class="contractor-contracts-view">
+            <div class="contractor-board-controls">
+                <section class="contractor-operation-setup">
+                    ${activeUnitHtml}
+                    ${pickupSelectorHtml}
+                </section>
+                <div class="contractor-section-heading">
+                    <span>
+                        <small>${escapeHTML(uiText('contractor.tabContractBoard', {}, 'Contract Board'))}</small>
+                        <strong>${escapeHTML(uiText('contractor.availableContracts', {}, 'Available Contracts'))}</strong>
+                    </span>
+                    <em>${escapeHTML(uiText('contractor.offerCount', { count: board.length }, `${board.length} offers`))}</em>
                 </div>
-                <div class="contractor-market">${marketHtml}</div>
             </div>
-        `;
-        restoreContractorScrollState(scrollState, selectedContractorDailyType);
-        return;
-    }
+            <div class="contractor-board">${boardHtml}</div>
+        </div>
+    `;
+    const dedicatedViewHtml = `
+        <div class="contractor-dedicated-view">
+            ${dailySelectorHtml}
+        </div>
+    `;
+    const fleetToolbarHtml = contractorMarketVisible ? `
+        <section class="contractor-fleet-toolbar">
+            <span>
+                <small>${escapeHTML(uiText('contractor.fleetDealer', {}, 'Fleet Dealer'))}</small>
+                <strong>${escapeHTML(uiText('contractor.approvedUnits', {}, 'Approved Units'))}</strong>
+                <em>${escapeHTML(uiText('garage.units', { count: market.length }, `${market.length} units`))}</em>
+            </span>
+            <button type="button" class="contractor-toolbar-action" data-contractor-market-toggle>
+                <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                ${escapeHTML(uiText('contractor.backToPrivateFleet', {}, 'Back to Private Fleet'))}
+            </button>
+        </section>
+    ` : `
+        <section class="contractor-fleet-toolbar">
+            <span>
+                <small>${escapeHTML(uiText('contractor.activeUnit', {}, 'Active Unit'))}</small>
+                <strong>${escapeHTML(activeOut?.label || uiText('contractor.noActiveUnit', {}, 'No Unit Checked Out'))}</strong>
+                <em>${activeOut ? `${escapeHTML(activeOut.typeLabel || contractorTypeLabel(activeOut.type))} / ${escapeHTML(activeOut.plate || 'NO PLATE')}` : `${ownedCount} / ${maxOwnedVehicles}`}</em>
+            </span>
+            <div class="contractor-fleet-toolbar-actions">
+                ${activeOut ? `<button type="button" class="contractor-toolbar-action" data-contractor-store-vehicle><i class="fas fa-warehouse" aria-hidden="true"></i>${escapeHTML(uiText('action.storeUnit', {}, 'Store Unit'))}</button>` : ''}
+                <button type="button" class="contractor-toolbar-action is-primary" data-contractor-market-toggle>
+                    <i class="fas fa-shop" aria-hidden="true"></i>
+                    ${escapeHTML(uiText('contractor.fleetDealer', {}, 'Fleet Dealer'))}
+                </button>
+            </div>
+        </section>
+    `;
+    const fleetViewHtml = `
+        <div class="contractor-fleet-view">
+            ${fleetToolbarHtml}
+            ${contractorMarketVisible
+                ? `<div class="contractor-market">${marketHtml}</div>`
+                : `<div class="contractor-section-heading"><span><small>${escapeHTML(uiText('contractor.tabPrivateFleet', {}, 'Private Fleet'))}</small><strong>${escapeHTML(uiText('contractor.ownedUnits', {}, 'Owned Units'))}</strong></span><em>${escapeHTML(uiText('garage.units', { count: ownedCount }, `${ownedCount} units`))}</em></div><div class="contractor-fleet">${fleetHtml}</div>`}
+        </div>
+    `;
+    const contractorViewHtml = selectedContractorView === 'dedicated'
+        ? dedicatedViewHtml
+        : selectedContractorView === 'fleet'
+            ? fleetViewHtml
+            : contractsViewHtml;
 
     contractorContent.innerHTML = `
-        <div class="contractor-hero compact">
-            <small>PRIVATE CONTRACTOR</small>
-            <h2>${contractor.dailyRouteLabel || 'No Dedicated Route Selected'}</h2>
-            <div class="contractor-metrics">
-                <div><small>REP</small><strong>${contractor.rep || 0}</strong></div>
-                <div><small>DAILY BONUS</small><strong>${formatMoney(contractor.dailyBonus || 0)}</strong></div>
-                <div><small>MIN FUEL</small><strong>${contractor.minFuel || 0}%</strong></div>
-                <div><small>MIN CONDITION</small><strong>${contractor.minCondition || 0}%</strong></div>
-            </div>
+        <div class="contractor-workspace" data-contractor-active-view="${escapeHTML(selectedContractorView)}">
+            ${authorityHtml}
+            ${viewTabsHtml}
+            ${contractorViewHtml}
         </div>
-        ${dailySelectorHtml}
-        <h2 class="subheading">Available Contracts</h2>
-        <div class="contractor-board">${boardHtml}</div>
-        <h2 class="subheading">Private Fleet</h2>
-        ${activeOut ? '<div class="contractor-actions"><button data-contractor-store-vehicle>Store Current Contractor Vehicle</button></div>' : ''}
-        <div class="contractor-fleet">${fleetHtml}</div>
-        <h2 class="subheading">Contractor Fleet Dealer</h2>
-        ${marketSummaryHtml}
     `;
     restoreContractorScrollState(scrollState, selectedContractorDailyType);
 }
@@ -532,27 +809,54 @@ function renderContracts(data) {
         const cardImage = previewImageForVehicle(vehicle, type);
         const priority = getSelectedPriority(type);
         const payoutRange = estimateContractPayoutRange(type, contract, priority);
+        const vehicleRanks = getVehicles(type).map(entry => Number(entry.minRank || 1));
+        const minimumRank = vehicleRanks.length ? Math.max(1, Math.min(...vehicleRanks)) : 1;
+        const available = playerRank() >= minimumRank;
+        const routeCount = Array.isArray(contract.routes) ? contract.routes.length : 0;
+        const cargoLabel = contract.cargo || uiText('empty.noData', {}, 'No data');
+        const freightClass = (contract.tags || [])[0] || uiText('empty.noData', {}, 'No data');
         const card = document.createElement('div');
         card.className = `contract-card ${selectedContract === type ? 'selected' : ''}`;
         card.style.setProperty('--accent', contract.cardColor || meta.accent);
         card.dataset.type = type;
 
         card.innerHTML = `
-            <img class="vehicle-photo-card" src="${cardImage}" alt="${vehicle.label || 'Vehicle'}">
-            <div>
-                <div class="card-title">${contract.label}</div>
-                <div class="card-desc">${contract.description}</div>
-                <div class="tags">
-                    ${(contract.tags || []).map(tag => `<span>${tag}</span>`).join('')}
-                    <span>${priority.shortLabel || priority.label}</span>
+            <div class="contract-card-header">
+                <div class="contract-card-kicker">
+                    <span>${escapeHTML(meta.badge)}</span>
+                    <small>${escapeHTML(uiText('status.rankPlus', { rank: minimumRank }, `Rank ${minimumRank}+`))}</small>
                 </div>
-                <div class="businesses">${(contract.businesses || []).join(' - ')}</div>
+                <div class="contract-card-access ${available ? 'is-available' : 'is-locked'}">
+                    <i class="fas ${available ? 'fa-circle-check' : 'fa-lock'}"></i>
+                    <span>${escapeHTML(available ? uiText('common.available', {}, 'Available') : uiText('status.requiresRank', { rank: minimumRank }, `Requires Rank ${minimumRank}`))}</span>
+                </div>
             </div>
-            <div class="card-stats">
-                <small>PAYOUT</small>
-                <div class="payout">${payoutRange}</div>
-                <small>BEST LOAD</small>
-                <div class="difficulty">${priority.shortLabel || priority.label}</div>
+            <div class="contract-card-body">
+                <div class="contract-card-vehicle">
+                    <img class="vehicle-photo-card" src="${escapeHTML(cardImage)}" alt="${escapeHTML(vehicle.label || 'Vehicle')}">
+                </div>
+                <div class="contract-card-copy">
+                    <div class="card-title">${escapeHTML(contract.label)}</div>
+                    <div class="card-desc">${escapeHTML(contract.description)}</div>
+                </div>
+            </div>
+            <div class="contract-card-specs">
+                <div class="contract-card-spec">
+                    <small><i class="fas fa-box"></i>${escapeHTML(uiText('label.cargo', {}, 'Cargo'))}</small>
+                    <strong>${escapeHTML(cargoLabel)}</strong>
+                </div>
+                <div class="contract-card-spec">
+                    <small><i class="fas fa-route"></i>${escapeHTML(uiText('label.routes', {}, 'Routes'))}</small>
+                    <strong>${escapeHTML(String(routeCount))}</strong>
+                </div>
+                <div class="contract-card-spec">
+                    <small><i class="fas fa-layer-group"></i>${escapeHTML(uiText('label.freightClass', {}, 'Freight Class'))}</small>
+                    <strong>${escapeHTML(freightClass)}</strong>
+                </div>
+                <div class="contract-card-spec contract-card-spec-payout">
+                    <small>${escapeHTML(uiText('receiver.detail.payout', {}, 'Payout'))}</small>
+                    <strong>${payoutRange}</strong>
+                </div>
             </div>
         `;
 
@@ -825,11 +1129,10 @@ function renderSelected(contract, type) {
 
 function openUI(data, options = {}) {
     clearTimeout(dispatchHideTimer);
-    clearTimeout(dispatchParkTimer);
     clearDispatchCleanupTimers();
     dispatchRenderSignatures = {};
     const wasHidden = app.classList.contains('hidden');
-    app.classList.remove('dispatch-closing', 'dispatch-opening', 'dispatch-pre-open', 'dispatch-parked');
+    app.classList.remove('dispatch-closing', 'dispatch-opening', 'dispatch-pre-open');
 
     dispatchData = data;
     configureUILocale(data);
@@ -840,13 +1143,17 @@ function openUI(data, options = {}) {
     clearPreviewRoute();
     if (!options.preserveTab) {
         selectedGarageKey = null;
+        selectedGarageType = 'all';
         contractorMarketVisible = false;
+        selectedContractorView = 'contracts';
+        contractorViewScrollTop = { contracts: 0, dedicated: 0, fleet: 0 };
         selectedContractorPanel = 'vehicle';
         selectedContractorDailyRouteKey = null;
         selectedContractorDailyType = null;
         selectedContractorVehicleId = null;
         selectedContractorContractKey = null;
         selectedContractorMarketKey = null;
+        selectedContractorPickupDepotByType = {};
     }
 
     renderPlayer(data);
@@ -872,7 +1179,7 @@ function openUI(data, options = {}) {
     dispatchRenderChanged(`preview:${activeDispatchTab}`, dispatchTabSignature(data, activeDispatchTab));
 
     if (wasHidden) app.classList.add('dispatch-pre-open');
-    app.classList.remove('hidden', 'dispatch-parked');
+    app.classList.remove('hidden');
 
     if (wasHidden) {
         requestAnimationFrame(() => {
@@ -1011,7 +1318,6 @@ function scheduleDispatchCleanup() {
 
 function closeUI() {
     clearTimeout(dispatchHideTimer);
-    clearTimeout(dispatchParkTimer);
     closeOpenDispatchSelect();
     app.classList.remove('dispatch-pre-open', 'dispatch-opening');
 
@@ -1021,15 +1327,8 @@ function closeUI() {
         document.activeElement.blur();
     }
 
-    app.classList.add('dispatch-closing');
-    dispatchHideTimer = setTimeout(() => {
-        app.classList.add('hidden', 'dispatch-parked');
-        app.classList.remove('dispatch-closing');
-        scheduleDispatchCleanup();
-        dispatchParkTimer = setTimeout(() => {
-            if (app.classList.contains('hidden')) {
-                app.classList.remove('dispatch-parked');
-            }
-        }, DISPATCH_CLEANUP_PARK_MS);
-    }, DISPATCH_ANIMATION_MS);
+    app.classList.add('hidden');
+    app.classList.remove('dispatch-closing');
+    window.stopUISounds?.();
+    scheduleDispatchCleanup();
 }

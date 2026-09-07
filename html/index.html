@@ -42,8 +42,25 @@
                         <div id="page-dispatch" class="tab-page hidden"><h1>CONTRACTS</h1><p>Select a route type and company vehicle.</p><div id="contractList"></div></div>
                         <div id="page-current" class="tab-page hidden"><h1>CURRENT JOB</h1><p>View live route status, paperwork, vehicle, and cargo details.</p><div id="currentJobBox" class="current-job current-job-large hidden"><div><small>CURRENT JOB</small><h2 id="currentJobTitle">No Active Job</h2><p id="currentJobStage">No route assigned.</p><p id="currentJobNotice" class="current-job-notice">No dispatch notice.</p></div><div class="current-grid current-grid-expanded"><div><small>PAYOUT</small><strong id="currentJobPayout">$0</strong></div><div><small>CARGO</small><strong id="currentJobCargo">0 / 0</strong></div><div><small>STOPS</small><strong id="currentJobStops">0 / 0</strong></div><div><small>CONDITION</small><strong id="currentJobCondition">Stable</strong></div><div><small>DESTINATION</small><strong id="currentJobDestination">N/A</strong></div><div><small>ETA</small><strong id="currentJobEta">N/A</strong></div><div><small>VEHICLE</small><strong id="currentJobVehicle">N/A</strong></div><div><small>PLATE</small><strong id="currentJobPlate">N/A</strong></div><div><small>ROUTE LENGTH</small><strong id="currentJobLength">N/A</strong></div></div><div class="current-job-actions"><button id="manifestJobBtn" class="manifest-btn"><i class="fas fa-file-lines"></i><span>Open Manifest</span></button><button id="cancelJobBtn" class="cancel-btn"><i class="fas fa-ban"></i><span>Cancel Job</span></button></div></div><div id="noCurrentJob" class="empty-card">No active job.</div></div>
                         <div id="page-history" class="tab-page hidden"><h1>ROUTE HISTORY</h1><p>Review recent completed freight summaries.</p><div id="routeHistoryList" class="route-history-list"></div></div>
-                        <div id="page-garage" class="tab-page hidden"><h1>COMPANY GARAGE</h1><p>Spawn company vehicles, customize them, use them for jobs, and return them to save mods.</p><div class="garage-actions"><button id="returnGarageBtn">Return Current Company Vehicle</button></div><div id="garageList" class="garage-list"></div></div>
-                        <div id="page-contractor" class="tab-page hidden"><h1>PRIVATE CONTRACTOR</h1><p>Buy a contractor license, manage owned vehicles, and choose daily private freight.</p><div id="contractorContent" class="contractor-content"></div></div>
+                        <div id="page-garage" class="tab-page hidden">
+                            <div class="garage-page-heading">
+                                <div>
+                                    <h1 id="garagePageTitle">ASSIGNED COMPANY FLEET</h1>
+                                    <p id="garagePageDescription">Company assets assigned to this driver profile.</p>
+                                </div>
+                                <span class="garage-page-classification"><i class="fas fa-shield-halved"></i> LSFC ASSET CONTROL</span>
+                            </div>
+                            <div id="garageActions" class="garage-actions">
+                                <div class="garage-checkout-status">
+                                    <i class="fas fa-key"></i>
+                                    <span><small id="garageCheckoutLabel">CHECKOUT STATUS</small><strong id="garageCheckoutName">No company unit checked out</strong></span>
+                                </div>
+                                <button id="returnGarageBtn" type="button"><i class="fas fa-warehouse"></i><span>Return Unit</span></button>
+                            </div>
+                            <div id="garageToolbar" class="garage-toolbar" role="group" aria-label="Fleet class filter"></div>
+                            <div id="garageList" class="garage-list"></div>
+                        </div>
+                        <div id="page-contractor" class="tab-page hidden"><h1>PRIVATE CONTRACTOR</h1><p>Manage private contract offers, dedicated routes, and owned fleet units.</p><div id="contractorContent" class="contractor-content"></div></div>
                         <div id="page-company" class="tab-page hidden"><h1>COMPANY</h1><p>Your trucking career stats.</p><div id="companyDashboard" class="company-dashboard"></div><details class="rank-expander"><summary><span><strong>Ranks</strong><small>View rank ladder</small></span><i class="fas fa-chevron-down"></i></summary><div id="rankList" class="rank-list"></div></details></div>
                     </section>
                     <section class="preview">
@@ -90,7 +107,7 @@
                 <span id="miniDockLastUpdate" class="mini-last-update">LAST UPDATE --:--</span>
             </div>
         </div>
-        <div class="mini-dock-etch" aria-hidden="true">BDG-LSFC-D-1.2</div>
+        <div class="mini-dock-etch" aria-hidden="true">BDG-LSFC-D-1.4</div>
     </div>
     <div id="mini" class="mini mini-scanner hidden">
         <div class="mini-side-buttons mini-side-buttons-left" aria-hidden="true"><span></span><span></span></div>
@@ -114,24 +131,33 @@
         </div>
         <div class="mini-screen">
             <div id="miniHomePage" class="mini-app-page mini-home-page">
-                <div class="mini-home-status">
-                    <small>LOS SANTOS FREIGHT CO DISPATCH</small>
-                    <strong id="miniHomeStatus">Receiver online</strong>
-                    <span id="miniHomeSubstatus">Dispatch standby</span>
-                </div>
+                <button type="button" class="mini-home-status" data-mini-page="route">
+                    <span class="mini-home-route-icon" aria-hidden="true"><i class="fas fa-route"></i></span>
+                    <span class="mini-home-route-copy">
+                        <small id="miniHomeRouteKicker">ROUTE ACTIVE</small>
+                        <strong id="miniHomeStatus">Receiver online</strong>
+                        <span id="miniHomeSubstatus" class="mini-home-substatus">Dispatch standby</span>
+                    </span>
+                    <span class="mini-home-route-meta" aria-hidden="true"><strong id="miniHomeStopCount">0 / 0</strong><i class="fas fa-chevron-right"></i></span>
+                    <span class="mini-home-route-progress" aria-hidden="true"><span id="miniHomeProgressBar"></span></span>
+                </button>
                 <div class="mini-app-grid">
-                    <button class="mini-app-button" data-mini-page="route"><i class="fas fa-route"></i><strong>Current Route</strong><span id="miniAppRouteBadge">STANDBY</span></button>
-                    <button class="mini-app-button" data-mini-page="manifest"><i class="fas fa-file-lines"></i><strong>Manifest</strong><span id="miniAppManifestBadge">NO LOAD</span></button>
-                    <button class="mini-app-button" data-mini-page="load"><i class="fas fa-boxes-stacked"></i><strong>Load</strong><span id="miniAppLoadBadge">IDLE</span></button>
-                    <button class="mini-app-button" data-mini-page="vehicle"><i class="fas fa-truck-fast"></i><strong>Vehicle</strong><span id="miniAppVehicleBadge">NONE</span></button>
-                    <button class="mini-app-button" data-mini-page="dispatch"><i class="fas fa-tower-broadcast"></i><strong>Dispatch Log</strong><span id="miniAppDispatchBadge">RX</span></button>
-                    <button class="mini-app-button" data-mini-page="settings"><i class="fas fa-sliders"></i><strong>Settings</strong><span>LOCAL</span></button>
+                    <button class="mini-app-button" data-mini-page="route"><span class="mini-app-icon"><i class="fas fa-route"></i><span id="miniAppRouteBadge" class="mini-app-state">STANDBY</span></span><strong id="miniAppRouteLabel">Route</strong></button>
+                    <button class="mini-app-button" data-mini-page="manifest"><span class="mini-app-icon"><i class="fas fa-file-lines"></i><span id="miniAppManifestBadge" class="mini-app-state">NO LOAD</span></span><strong id="miniAppManifestLabel">Manifest</strong></button>
+                    <button class="mini-app-button" data-mini-page="load"><span class="mini-app-icon"><i class="fas fa-boxes-stacked"></i><span id="miniAppLoadBadge" class="mini-app-state">IDLE</span></span><strong id="miniAppLoadLabel">Load</strong></button>
+                    <button class="mini-app-button" data-mini-page="vehicle"><span class="mini-app-icon"><i class="fas fa-truck-fast"></i><span id="miniAppVehicleBadge" class="mini-app-state">NONE</span></span><strong id="miniAppVehicleLabel">Vehicle</strong></button>
+                    <button class="mini-app-button" data-mini-page="dispatch"><span class="mini-app-icon"><i class="fas fa-tower-broadcast"></i><span id="miniAppDispatchBadge" class="mini-app-state">RX</span></span><strong id="miniAppDispatchLabel">Radio</strong></button>
+                    <button class="mini-app-button" data-mini-page="settings"><span class="mini-app-icon"><i class="fas fa-sliders"></i></span><strong id="miniAppSettingsLabel">Settings</strong></button>
                 </div>
             </div>
 
             <div id="miniRoutePage" class="mini-app-page mini-sub-page hidden" data-mini-view="route">
                 <div class="mini-page-bar"><button class="mini-page-back" data-mini-home><i class="fas fa-chevron-left"></i></button><strong>Current Route</strong><span id="miniPageRouteState">ACTIVE</span></div>
-                <div id="miniRadioLine" class="mini-radio-line hidden"><i class="fas fa-tower-broadcast"></i><span>Dispatch standing by.</span></div>
+                <button type="button" id="miniRadioLine" class="mini-radio-line hidden" data-mini-open-dispatch aria-label="Dispatch Log">
+                    <i class="fas fa-tower-broadcast"></i>
+                    <span>Dispatch standing by.</span>
+                    <i class="fas fa-chevron-right mini-radio-open-icon"></i>
+                </button>
                 <div class="mini-header">
                     <div class="mini-route-meta">
                         <small class="mini-header-label"><i class="fas fa-route"></i>ROUTE</small>
@@ -141,10 +167,19 @@
                     <div id="miniLastUpdate" class="mini-last-update">LAST UPDATE --:--</div>
                 </div>
                 <div class="mini-body">
-                    <div class="mini-lcd-line mini-stage-line"><small><i class="fas fa-location-arrow"></i>STAGE</small><strong id="miniStage">Waiting</strong></div>
-                    <div class="mini-lcd-line mini-notice-line"><small><i class="fas fa-bullhorn"></i>NOTICE</small><strong id="miniNotice">Follow route instructions.</strong></div>
-                    <div class="mini-lcd-line mini-destination-line"><small><i class="fas fa-location-dot"></i>DESTINATION</small><strong id="miniDestination">N/A</strong><span id="miniDestinationAddress" class="mini-destination-address hidden">N/A</span></div>
-                    <div id="miniExpected" class="mini-expected hidden"><small><i class="fas fa-clock"></i>ETA</small><strong id="miniExpectedText">N/A</strong></div>
+                    <div class="mini-lcd-line mini-instruction-line">
+                        <small id="miniInstructionLabel"><i class="fas fa-location-arrow"></i>CURRENT INSTRUCTION</small>
+                        <strong id="miniStage">Waiting</strong>
+                        <span id="miniNotice">Follow route instructions.</span>
+                    </div>
+                    <div class="mini-lcd-line mini-destination-line">
+                        <div class="mini-destination-heading">
+                            <small id="miniDestinationLabel"><i class="fas fa-location-dot"></i>DESTINATION</small>
+                            <div id="miniExpected" class="mini-expected hidden"><small id="miniExpectedLabel"><i class="fas fa-clock"></i>ETA</small><strong id="miniExpectedText">N/A</strong></div>
+                        </div>
+                        <strong id="miniDestination">N/A</strong>
+                        <span id="miniDestinationAddress" class="mini-destination-address hidden">N/A</span>
+                    </div>
                     <div id="miniAlert" class="mini-alert hidden"><small id="miniAlertLabel"><i class="fas fa-triangle-exclamation"></i>ALERT</small><strong id="miniAlertText">Dispatch update active</strong></div>
                 </div>
                 <div class="mini-control-strip">
@@ -184,7 +219,7 @@
                 <div id="miniSettingsContent" class="mini-page-content"></div>
             </div>
         </div>
-        <div class="mini-device-etch" aria-hidden="true">BDG-LSFC-R-1.2</div>
+        <div class="mini-device-etch" aria-hidden="true">BDG-LSFC-R-1.4</div>
     </div>
 
     <div id="freightDialog" class="freight-dialog hidden">
@@ -221,7 +256,11 @@
             </div>
             <div class="trailer-editor-row">
                 <label for="trailerCargoEditorPropSelect">Prop</label>
-                <select id="trailerCargoEditorPropSelect"></select>
+                <div class="dispatch-select-control trailer-editor-select-control">
+                    <i class="fas fa-box" aria-hidden="true"></i>
+                    <select id="trailerCargoEditorPropSelect" aria-label="Select cargo prop"></select>
+                    <i class="fas fa-chevron-down dispatch-select-chevron" aria-hidden="true"></i>
+                </div>
             </div>
             <div class="trailer-editor-row">
                 <label for="trailerCargoEditorPropModel">Model</label>
@@ -300,9 +339,12 @@
                 <button type="button" data-trailer-editor-action="delete"><i class="fas fa-trash"></i> Delete</button>
                 <button type="button" data-trailer-editor-action="print"><i class="fas fa-terminal"></i> Print Config</button>
             </div>
-            <p>Open with /lstraileredit trailer_key. Left-click drag the camera, mouse wheel zooms, and printed cargoProps are ready to paste into Config.RouteTrailers.</p>
+            <p class="trailer-editor-help"><i class="fas fa-circle-info" aria-hidden="true"></i><span>Edits apply to the selected cargo prop. Print Config outputs a Config.RouteTrailers-ready cargoProps table to F8.</span></p>
             <div class="trailer-editor-watermark">ls_trucking by DrSnyder</div>
         </div>
+    </div>
+    <div id="routeEditor" class="route-editor hidden">
+        <div id="routeEditorPanel" class="route-editor-panel"></div>
     </div>
     <div id="serviceBay" class="service-bay hidden"></div>
     <script src="locales/en.js"></script>
@@ -312,12 +354,14 @@
     <script src="locales/fr.js"></script>
     <script src="locales/nl.js"></script>
     <script src="locales/pt-br.js"></script>
+    <script src="locales/ru.js"></script>
     <script src="locales/tr.js"></script>
     <script src="js/locale.js"></script>
     <script src="js/app-core.js"></script>
     <script src="js/dispatch-select.js"></script>
     <script src="js/freight-dialog.js"></script>
     <script src="js/trailer-editor.js"></script>
+    <script src="js/route-editor.js"></script>
     <script src="js/receiver.js"></script>
     <script src="js/dispatch-history.js"></script>
     <script src="js/dispatch-map.js"></script>
