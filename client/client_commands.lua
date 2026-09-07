@@ -81,6 +81,11 @@ local function RegisterCommandSuggestions()
     AddCommandSuggestion('lstraileredit', 'Admin: open the trailer cargo prop editor.', {
         { name = 'trailerKey', help = 'Config.RouteTrailers key, for example flatbed_crates' }
     })
+    AddCommandSuggestion('lsrouteeditor', 'Admin: create or inspect contract route config.', {
+        { name = 'type', help = 'van, boxtruck, or trailer' },
+        { name = 'pool', help = 'commercial, government, or military' },
+        { name = 'routeIndex', help = 'Optional existing route number' }
+    })
     AddCommandSuggestion('lstrailertest', 'Admin: spawn a configured trailer without starting a contract.', {
         { name = 'trailerKey', help = 'Config.RouteTrailers key, for example flatbed_crates' }
     })
@@ -215,6 +220,17 @@ local function RegisterAdminCommands()
             editor.Open(trailerKey)
         else
             Notify('Trailer cargo editor is unavailable.', 'error')
+        end
+    end, false)
+
+    RegisterCommand('lsrouteeditor', function(_, args)
+        if not HasAdminPermission() then return end
+
+        local editor = LS_Trucking.RouteEditor or {}
+        if editor.Open then
+            editor.Open(args and args[1], args and args[2], args and tonumber(args[3]))
+        else
+            Notify('Route editor is unavailable.', 'error')
         end
     end, false)
 

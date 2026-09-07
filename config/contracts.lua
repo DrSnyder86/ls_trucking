@@ -1,4 +1,22 @@
-Config.ContractsVersion = '1.2.0'
+Config.ContractsVersion = '1.4.0'
+
+-- Shared package and crate terminals. Company routes continue to use their
+-- assigned default below; contractors may choose either terminal before
+-- accepting an offer.
+Config.CargoDepots = {
+    go_postal = {
+        label = 'Go Postal Sorting Center',
+        area = 'Alta St / Downtown Vinewood',
+        pickupPed = { label = 'Go Postal Warehouse Clerk', model = `s_m_m_postal_01`, coords = vector4(125.12, 98.36, 81.84, 157.28), scenario = 'WORLD_HUMAN_CLIPBOARD' },
+        pickup = { label = 'Go Postal Sorting Center', coords = vector3(125.12, 98.36, 81.84) }
+    },
+    post_op = {
+        label = 'Post OP Freight Warehouse',
+        area = 'Elysian Island / Port of Los Santos',
+        pickupPed = { label = 'Post OP Freight Coordinator', model = `s_m_m_dockwork_01`, coords = vector4(-433.43, -2788.9, 6.0, 19.06), scenario = 'WORLD_HUMAN_CLIPBOARD' },
+        pickup = { label = 'Post OP Freight Warehouse', coords = vector3(-433.43, -2788.9, 6.0) }
+    }
+}
 
 Config.Contracts = {
     van = {
@@ -10,16 +28,16 @@ Config.Contracts = {
         tags = { 'Postal Service', 'Local Stops', 'Multi Drop' },
         businesses = { 'Los Santos Delivery', 'GO Postal Express', 'Alpha Mail Couriers' },
         requiredCargo = 4,
-        pickupPed = { label = 'Go Postal Warehouse Clerk', model = `s_m_m_postal_01`, coords = vector4(125.12, 98.36, 81.84, 157.28), scenario = 'WORLD_HUMAN_CLIPBOARD' },
-        pickup = { label = 'Go Postal Sorting Center', coords = vector3(125.12, 98.36, 81.84) },
+        pickupPed = Config.CargoDepots.go_postal.pickupPed,
+        pickup = Config.CargoDepots.go_postal.pickup,
         routes = {
-            { label = 'East Los Santos Parcel Route', routeLength = '3.0 mi', dropoffs = {
+            { label = 'East Los Santos Parcel Route 1', routeLength = '3.0 mi', dropoffs = {
                 { label = 'Digital Den - Mission Row', coords = vector3(392.476837, -831.473450, 29.343481), unload = 1 },
                 { label = 'Ammu-Nation - Legion', coords = vector3(15.732404, -1114.611694, 29.917459), unload = 1 },
                 { label = 'LTD Gasoline - Davis', coords = vector3(-40.582649, -1750.794312, 28.974571), unload = 1 },
                 { label = 'Binco - Strawberry Ave', coords = vector3(70.733727, -1390.371216, 29.333855), unload = 1 }
             } },
-            { label = 'West Side Business Route', routeLength = '3.0 mi', dropoffs = {
+            { label = 'West Side Business Route 1', routeLength = '3.0 mi', dropoffs = {
                 { label = 'Suburban - Del Perro', coords = vector3(-1198.147583, -775.407654, 17.291162), unload = 1 },
                 { label = 'Robs Liquor - Vespucci', coords = vector3(-1222.418701, -913.285583, 12.190260), unload = 1 },
                 { label = 'Binco - South Rockford', coords = vector3(-822.338501, -1072.938477, 11.275532), unload = 1 },
@@ -37,25 +55,25 @@ Config.Contracts = {
                 { label = 'Ammu-Nation - Vespucci Blvd', coords = vector3(845.259888, -1029.429443, 28.194813), unload = 1 },
                 { label = 'Robs Liquor - El Rancho Blvd', coords = vector3(1129.896240, -979.913452, 46.386639), unload = 1 }
             } },
-            { label = 'Sandy Shores Rural Mail Route', routeLength = '5.2 mi', dropoffs = {
-                { label = '24/7 Market - Sandy', coords = vector3(1963.950317, 3739.766846, 32.369686), unload = 1 },
-                { label = 'Yellow Jack Inn', coords = vector3(1989.510620, 3054.332520, 47.426117), unload = 1 },
+            { label = 'Sandy Shores Rural Mail Route 1', routeLength = '5.2 mi', dropoffs = {
+                { label = '24/7 Market - Sandy', coords = vector3(1960.8328, 3753.7419, 32.2582), unload = 1 },                
                 { label = 'Sandy Medical Center', coords = vector3(1816.228760, 3678.325684, 34.442177), unload = 1 },
-                { label = "Sandy Airfield Office", coords = vector3(1759.603027, 3299.130371, 41.179695), unload = 1 }
+                { label = "Sandy Airfield Office", coords = vector3(1758.4517, 3297.7158, 41.1490), unload = 1 },
+                { label = 'Yellow Jack Inn', coords = vector3(1989.510620, 3054.332520, 47.426117), unload = 1 }
             } },
-            { label = 'Grapeseed Farm Deliveries', routeLength = '4.4 mi', dropoffs = {
+            { label = 'Grapeseed Farm Deliveries 1', routeLength = '4.4 mi', dropoffs = {
                 { label = "Millar's Fishery - Grapeseed", coords = vector3(1332.591431, 4324.773438, 38.176300), unload = 1 },
                 { label = 'Binco - Grapeseed', coords = vector3(1699.010864, 4820.926270, 42.040264), unload = 1 },
                 { label = 'LTD Gas- Grapeseed', coords = vector3(1705.598633, 4917.042969, 41.729256), unload = 1 },
                 { label = "O'Neil Farm Supply", coords = vector3(2485.357910, 4954.426758, 45.203793), unload = 1 },              
             } },
-            { label = 'Chumash Coastal Parcel Route', routeLength = '4.8 mi', dropoffs = {
+            { label = 'Chumash Coastal Parcel Route 1', routeLength = '4.8 mi', dropoffs = {
                 { label = '24/7 Market - Chumash', coords = vector3(-3240.021484, 1003.000000, 12.533175), unload = 1 },
                 { label = 'Ammu-Nation - Chumash', coords = vector3(-3169.297363, 1083.295044, 20.838696), unload = 1 },
                 { label = 'Pacific Bluffs Country Club', coords = vector3(-3024.722900, 79.809143, 11.736604), unload = 1 },
                 { label = 'Banham Canyon Mail Drop', coords = vector3(-2720.989746, 1502.013184, 106.600357), unload = 1 }
             } },
-            { label = 'Paleto Postal Run', routeLength = '10.5 mi', dropoffs = {
+            { label = 'Paleto Postal Run 1', routeLength = '10.5 mi', dropoffs = {
                 { label = 'Blaine Co. Savings & Loans', coords = vector3(-109.315414, 6468.653809, 31.683596), unload = 1 },
                 { label = 'Paleto Bay Fire Station', coords = vector3(-381.099640, 6116.862305, 31.610924), unload = 1 },
                 { label = 'Paleto Auto Services', coords = vector3(119.166046, 6626.976562, 32.150269), unload = 1 },
@@ -169,6 +187,62 @@ Config.Contracts = {
                 { label = "Pipeline Inn Service", coords = vector3(-2206.036377, -373.986572, 13.450862), unload = 1 },
                 { label = "Out Of Towners - Del Perro", coords = vector3(-1656.674927, -983.051147, 8.107500), unload = 1 },
             } },
+
+            -- Short variants are appended so existing saved route indexes remain stable.
+            { label = 'East Los Santos Parcel Route 2', routeLength = '2.5 mi', dropoffs = {
+                { label = 'Digital Den - Mission Row', coords = vector3(392.476837, -831.473450, 29.343481), unload = 1 },
+                { label = 'Ammu-Nation - Legion', coords = vector3(15.732404, -1114.611694, 29.917459), unload = 1 },
+                { label = 'LTD Gasoline - Davis', coords = vector3(-40.582649, -1750.794312, 28.974571), unload = 2 }
+            } },
+            { label = 'East Los Santos Parcel Route 3', routeLength = '2.3 mi', dropoffs = {
+                { label = 'Binco - Strawberry Ave', coords = vector3(70.733727, -1390.371216, 29.333855), unload = 2 },
+                { label = 'LTD Gasoline - Davis', coords = vector3(-40.582649, -1750.794312, 28.974571), unload = 2 }
+            } },
+            { label = 'West Side Business Route 2', routeLength = '2.4 mi', dropoffs = {
+                { label = 'Suburban - Del Perro', coords = vector3(-1198.147583, -775.407654, 17.291162), unload = 1 },
+                { label = 'Robs Liquor - Vespucci', coords = vector3(-1222.418701, -913.285583, 12.190260), unload = 1 },
+                { label = 'Binco - South Rockford', coords = vector3(-822.338501, -1072.938477, 11.275532), unload = 2 }
+            } },
+            { label = 'West Side Business Route 3', routeLength = '1.9 mi', dropoffs = {
+                { label = 'Bean Machine', coords = vector3(-848.805176, -589.413696, 29.310863), unload = 2 },
+                { label = 'Binco - South Rockford', coords = vector3(-822.338501, -1072.938477, 11.275532), unload = 2 }
+            } },
+            { label = 'Sandy Shores Rural Mail Route 2', routeLength = '4.8 mi', dropoffs = {
+                { label = '24/7 Market - Sandy', coords = vector3(1960.8328, 3753.7419, 32.2582), unload = 1 },
+                { label = 'Sandy Medical Center', coords = vector3(1816.228760, 3678.325684, 34.442177), unload = 1 },
+                { label = 'Sandy Airfield Office', coords = vector3(1758.4517, 3297.7158, 41.1490), unload = 2 }
+            } },
+            { label = 'Sandy Shores Rural Mail Route 3', routeLength = '4.0 mi', dropoffs = {
+                { label = 'Yellow Jack Inn', coords = vector3(1989.510620, 3054.332520, 47.426117), unload = 2 },
+                { label = 'Sandy Airfield Office', coords = vector3(1758.4517, 3297.7158, 41.1490), unload = 2 }
+            } },
+            { label = 'Grapeseed Farm Deliveries 2', routeLength = '3.8 mi', dropoffs = {
+                { label = "Millar's Fishery - Grapeseed", coords = vector3(1332.591431, 4324.773438, 38.176300), unload = 1 },
+                { label = 'Binco - Grapeseed', coords = vector3(1699.010864, 4820.926270, 42.040264), unload = 1 },
+                { label = 'LTD Gas- Grapeseed', coords = vector3(1705.598633, 4917.042969, 41.729256), unload = 2 }
+            } },
+            { label = 'Grapeseed Farm Deliveries 3', routeLength = '4.6 mi', dropoffs = {
+                { label = "O'Neil Farm Supply", coords = vector3(2485.357910, 4954.426758, 45.203793), unload = 2 },
+                { label = 'LTD Gas- Grapeseed', coords = vector3(1705.598633, 4917.042969, 41.729256), unload = 2 }
+            } },
+            { label = 'Chumash Coastal Parcel Route 2', routeLength = '3.6 mi', dropoffs = {
+                { label = '24/7 Market - Chumash', coords = vector3(-3240.021484, 1003.000000, 12.533175), unload = 1 },
+                { label = 'Ammu-Nation - Chumash', coords = vector3(-3169.297363, 1083.295044, 20.838696), unload = 1 },
+                { label = 'Pacific Bluffs Country Club', coords = vector3(-3024.722900, 79.809143, 11.736604), unload = 2 }
+            } },
+            { label = 'Chumash Coastal Parcel Route 3', routeLength = '3.7 mi', dropoffs = {
+                { label = 'Banham Canyon Mail Drop', coords = vector3(-2720.989746, 1502.013184, 106.600357), unload = 2 },
+                { label = 'Pacific Bluffs Country Club', coords = vector3(-3024.722900, 79.809143, 11.736604), unload = 2 }
+            } },
+            { label = 'Paleto Postal Run 2', routeLength = '9.9 mi', dropoffs = {
+                { label = 'Blaine Co. Savings & Loans', coords = vector3(-109.315414, 6468.653809, 31.683596), unload = 1 },
+                { label = 'Paleto Bay Fire Station', coords = vector3(-381.099640, 6116.862305, 31.610924), unload = 1 },
+                { label = 'Paleto Auto Services', coords = vector3(119.166046, 6626.976562, 32.150269), unload = 2 }
+            } },
+            { label = 'Paleto Postal Run 3', routeLength = '8.7 mi', dropoffs = {
+                { label = 'Clucking Bell Farms Office', coords = vector3(-69.835938, 6253.328613, 31.175774), unload = 2 },
+                { label = 'Paleto Auto Services', coords = vector3(119.166046, 6626.976562, 32.150269), unload = 2 }
+            } },
         }
     },
     boxtruck = {
@@ -180,50 +254,50 @@ Config.Contracts = {
         tags = { 'Warehouse Supply', 'Store Restock', 'Crates' },
         businesses = { 'LAST DROP Warehouse', 'Liberty State Delivery', 'Post OP' },
         requiredCargo = 6,
-        pickupPed = { label = 'Post OP Freight Coordinator', model = `s_m_m_dockwork_01`, coords = vector4(-433.43, -2788.9, 6.0, 19.06), scenario = 'WORLD_HUMAN_CLIPBOARD' },
-        pickup = { label = 'Post OP Freight Warehouse', coords = vector3(-433.43, -2788.9, 6.0) },
+        pickupPed = Config.CargoDepots.post_op.pickupPed,
+        pickup = Config.CargoDepots.post_op.pickup,
         routes = {
-            { label = 'Business District Restock', routeLength = '3.0 mi', dropoffs = {
+            { label = 'Business District Restock 1', routeLength = '3.0 mi', dropoffs = {
                     { label = 'Arcadius Receiver', coords = vector3(-195.910034, -571.435486, 34.683182), unload = 2 },
                     { label = 'Maze Bank Receiving', coords = vector3(-132.772385, -814.108826, 31.920395), unload = 2 },
                     { label = 'Union Depository Service Door', coords = vector3(37.690437, -692.746704, 31.938002), unload = 2 }
                 } },
-                { label = 'Airport Freight Express', routeLength = '2.5 mi', dropoffs = {
+                { label = 'Airport Freight Express 1', routeLength = '2.5 mi', dropoffs = {
                     { label = 'LSIA Cargo Gate A', coords = vector3(-1013.866821, -2856.611084, 14.165094), unload = 2 },
                     { label = 'LSIA Hangar Office', coords = vector3(-1277.512817, -3428.684814, 13.949889), unload = 2 },
                     { label = 'Pegasus Maintenance Hangar', coords = vector3(-1636.761353, -3181.685547, 13.843104), unload = 2 }
                 } },
-                { label = 'Port Priority Freight Run', routeLength = '2.5 mi', dropoffs = {
+                { label = 'Port Priority Freight Run 1', routeLength = '2.5 mi', dropoffs = {
                     { label = 'Jetsam Terminal Dock Office', coords = vector3(798.338257, -2988.722656, 6.075550), unload = 2 },
                     { label = 'Bilgeco Receiving Bay', coords = vector3(1209.085205, -3113.625488, 5.582935), unload = 2 },
                     { label = 'Bilgeco Maintenance Shed', coords = vector3(865.694458, -3203.170166, 5.967897), unload = 2 }
                 } },
-                { label = 'Blaine County Priority Freight', routeLength = '6.8 mi', dropoffs = {
+                { label = 'Blaine County Priority Freight 1', routeLength = '6.8 mi', dropoffs = {
                     { label = 'Harmony Utility Yard', coords = vector3(620.832764, 2800.335938, 42.053699), unload = 2 },
                     { label = 'Sandy Airfield Storage', coords = vector3(1744.324097,3307.367676,40.873077), unload = 2 },
                     { label = 'Grapeseed Farm Co-op', coords = vector3(1711.750854, 4742.249512, 41.963402), unload = 2 }
                 } },
-                { label = 'East City Store Restock', dropoffs = {
+                { label = 'East City Store Restock', routeLength = '4.6 mi', dropoffs = {
                     { label = 'Binco - Textile Drop', coords = vector3(430.506104, -809.204529, 28.965164), unload = 2 },
                     { label = 'LTD Gasoline - Mirror Park', coords = vector3(1163.514404, -313.286804, 68.942574), unload = 2 },
                     { label = '24/7 Market - Clinton Ave', coords = vector3(373.270325, 341.260101, 103.126053), unload = 2 }
                 } },
-                { label = 'Restaurant Supply Route', dropoffs = {
+                { label = 'Restaurant Supply Route', routeLength = '4.4 mi', dropoffs = {
                     { label = 'Burger Shot - Vespucci', coords = vector3(-1200.367188, -886.022217, 13.441433), unload = 2 },
                     { label = 'Snr. Buns - Little Seoul', coords = vector3(-519.964478, -678.224915, 33.738033), unload = 2 },
                     { label = 'Up-n-Atom - Vinewood', coords = vector3(90.507431, 297.611938, 110.194550), unload = 2 }
                 } },
-                { label = 'Downtown Retail Restock', dropoffs = {
+                { label = 'Downtown Retail Restock', routeLength = '3.2 mi', dropoffs = {
                     { label = 'Ammu-Nation - Legion', coords = vector3(-6.116421, -1106.383179, 29.203417), unload = 2 },
                     { label = 'Digital Den - Mission Row', coords = vector3(372.771362, -827.044495, 29.230076), unload = 2 },
                     { label = 'Suburban - Hawick Ave', coords = vector3(118.746887, -237.937347, 53.364349), unload = 2 }
                 } },
-                { label = 'West Coast Retail Run', dropoffs = {
+                { label = 'West Coast Retail Run', routeLength = '4.5 mi', dropoffs = {
                     { label = 'Binco - Vespucci', coords = vector3(-833.222717, -1071.921997, 11.444455), unload = 2 },
                     { label = 'Robs Liquor - Vespucci', coords = vector3(-1217.732910, -916.098694, 11.390692), unload = 2 },
                     { label = 'LTD Gas - Richman', coords = vector3(-1828.923340, 800.790527, 138.573669), unload = 2 }
                 } },
-                { label = 'Route 68 County Restock', routeLength = '5.7 mi', dropoffs = {
+                { label = 'Route 68 County Restock 1', routeLength = '5.7 mi', dropoffs = {
                     { label = '24/7 Loading Door - Harmony', coords = vector3(543.718994, 2658.850342, 42.102001), unload = 2 },
                     { label = 'Route 68 Store - Harmony', coords = vector3(1201.793335, 2654.055176, 37.884415), unload = 2 },
                     { label = "Rex's Diner Supply", coords = vector3(2549.273193, 2581.908203, 37.971207), unload = 2 }
@@ -248,6 +322,50 @@ Config.Contracts = {
                     { label = 'Pala Springs Bike Rentals', coords = vector3(-768.633606, 5597.558105, 33.540520), unload = 2 },               
                     { label = 'Paleto Lumber Storage', coords = vector3(-589.302185, 5348.634277, 70.231682), unload = 2 }
                 } },
+
+                -- Two-stop variants keep six total crates and preserve each source route's planned order.
+                { label = 'Business District Restock 2', routeLength = '2.8 mi', dropoffs = {
+                    { label = 'Arcadius Receiver', coords = vector3(-195.910034, -571.435486, 34.683182), unload = 3 },
+                    { label = 'Maze Bank Receiving', coords = vector3(-132.772385, -814.108826, 31.920395), unload = 3 }
+                } },
+                { label = 'Airport Freight Express 2', routeLength = '2.6 mi', dropoffs = {
+                    { label = 'Pegasus Maintenance Hangar', coords = vector3(-1636.761353, -3181.685547, 13.843104), unload = 3 },
+                    { label = 'LSIA Hangar Office', coords = vector3(-1277.512817, -3428.684814, 13.949889), unload = 3 }
+                } },
+                { label = 'Port Priority Freight Run 2', routeLength = '2.1 mi', dropoffs = {
+                    { label = 'Jetsam Terminal Dock Office', coords = vector3(798.338257, -2988.722656, 6.075550), unload = 3 },
+                    { label = 'Bilgeco Receiving Bay', coords = vector3(1209.085205, -3113.625488, 5.582935), unload = 3 }
+                } },
+                { label = 'Blaine County Priority Freight 2', routeLength = '7.5 mi', dropoffs = {
+                    { label = 'Grapeseed Farm Co-op', coords = vector3(1711.750854, 4742.249512, 41.963402), unload = 3 },
+                    { label = 'Sandy Airfield Storage', coords = vector3(1744.324097,3307.367676,40.873077), unload = 3 }
+                } },
+                { label = 'Route 68 County Restock 2', routeLength = '4.7 mi', dropoffs = {
+                    { label = '24/7 Loading Door - Harmony', coords = vector3(543.718994, 2658.850342, 42.102001), unload = 3 },
+                    { label = 'Route 68 Store - Harmony', coords = vector3(1201.793335, 2654.055176, 37.884415), unload = 3 }
+                } },
+
+                -- Freight routes below reuse box-truck-compatible stops from the van route pool.
+                { label = 'Paleto Lumber Freight Run', routeLength = '10.2 mi', dropoffs = {
+                    { label = 'Chiliad Lumber Depot', coords = vector3(-841.857544, 5400.711426, 34.587448), unload = 3 },
+                    { label = 'Lumber Mill Office', coords = vector3(-567.073547, 5252.993164, 70.487740), unload = 3 }
+                } },
+                { label = 'Grapeseed Agricultural Freight', routeLength = '6.4 mi', dropoffs = {
+                    { label = 'Union Grain Service', coords = vector3(2873.461914, 4421.856934, 48.661907), unload = 3 },
+                    { label = 'Senora Service Station', coords = vector3(2932.933594, 4618.909668, 48.847176), unload = 3 }
+                } },
+                { label = 'Joshua Road Commercial Freight', routeLength = '6.5 mi', dropoffs = {
+                    { label = 'Park View Diner', coords = vector3(2697.807861, 4324.140137, 45.916328), unload = 3 },
+                    { label = 'Globe Oil Service Station', coords = vector3(2507.957275, 4209.833496, 39.806049), unload = 3 }
+                } },
+                { label = 'Route 68 Commercial Restock', routeLength = '5.4 mi', dropoffs = {
+                    { label = 'Bolingbroke Fleet Depot', coords = vector3(1861.587158, 2720.349365, 45.770119), unload = 3 },
+                    { label = 'Binco Receiving', coords = vector3(1190.292358, 2721.373047, 38.038509), unload = 3 }
+                } },
+                { label = 'Baytree Canyon Freight Run', routeLength = '4.4 mi', dropoffs = {
+                    { label = 'Sisyphus Theater', coords = vector3(226.358856, 1150.013916, 225.443848), unload = 3 },
+                    { label = 'Fatal Incursion Loading', coords = vector3(172.319946, 1243.218872, 223.098434), unload = 3 }
+                } },
         }
     },
     trailer = {
@@ -261,6 +379,24 @@ Config.Contracts = {
         requiredCargo = 1,
         pickup = { label = 'Jetsam Terminal Depot', coords = vector3(1025.9, -3184.63, 5.9) },
         routes = {
+            {
+                    label = "STD Contractors - Mile High Site",
+                    routeLength = "2.2 mi",
+                    pickupDepot = "docks",
+                    trailerKey = "flatbed_aircon",
+                    trailerContents = "Commercial Air Conditioners",
+                    trailerDrop = {
+                        label = "Mile High Contractor Office",
+                        coords = vector3(-171.165, -1033.045, 27.274),
+                        radius = 22.0
+                    },
+                    receiverPed = {
+                        label = "Site Supervisor",
+                        model = `s_m_m_gaffer_01`,
+                        coords = vector4(-169.599, -1027.657, 27.274, 160.74),
+                        scenario = "WORLD_HUMAN_CLIPBOARD"
+                    }
+                },
             {
                     label = 'Cypress Flats Freight',
                     pickupDepot = 'harmony',
@@ -485,7 +621,7 @@ Config.Contracts = {
                     routeLength = '7.6 mi',
                     trailerDrop = {
                         label = 'Paleto Lumber Mill',
-                        coords = vector3(-562.61, 5350.38, 70.21),
+                        coords = vector3(-567.33, 5352.41, 70.24),
                         radius = 22.0
                     },
                     receiverPed = {

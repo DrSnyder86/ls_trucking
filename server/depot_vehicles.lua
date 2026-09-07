@@ -88,11 +88,13 @@ local function ReleaseStaleVehicleCheckout(ctx, src)
     local released = false
 
     if checkedOut then
-        if checkedOut.source == 'contractor' then
+        if tostring(checkedOut.source or ''):find('contractor', 1, true) then
             MySQL.update.await('UPDATE trucking_contractor_vehicles SET stored = 1, out_state = 0 WHERE citizenid = ? AND plate = ?', {
                 citizenid,
                 checkedOut.plate
             })
+        elseif checkedOut.garageId and ctx.SetGarageVehicleStored then
+            ctx.SetGarageVehicleStored(citizenid, checkedOut.garageId, true)
         elseif checkedOut.type and checkedOut.index then
             MySQL.update.await('UPDATE trucking_garage SET stored = 1 WHERE citizenid = ? AND vehicle_type = ? AND vehicle_index = ?', {
                 citizenid,
@@ -105,7 +107,10 @@ local function ReleaseStaleVehicleCheckout(ctx, src)
         released = true
     end
 
-    local garageReleased = MySQL.update.await('UPDATE trucking_garage SET stored = 1 WHERE citizenid = ? AND stored = 0', { citizenid }) or 0
+    local garageReleased = ctx.RestoreGarageVehicles
+        and ctx.RestoreGarageVehicles(citizenid)
+        or MySQL.update.await('UPDATE trucking_garage SET stored = 1 WHERE citizenid = ? AND stored = 0', { citizenid })
+        or 0
     local contractorReleased = MySQL.update.await('UPDATE trucking_contractor_vehicles SET stored = 1, out_state = 0 WHERE citizenid = ? AND (stored = 0 OR out_state = 1)', { citizenid }) or 0
 
     if garageReleased > 0 or contractorReleased > 0 then
@@ -125,7 +130,9 @@ function DepotVehicles.RegisterServer(ctx)
         local access, accessMessage = RequireWorkAccess(ctx, src)
         if not access then return { success = false, message = accessMessage } end
         if ctx.ActiveContracts[src] then return { success = false, message = T('garage.active_job_spawn') } end
-        if ctx.CheckedOutVehicles[src] or ctx.ReusableVehicles[src] then return { success = false, message = T('garage.company_checked_out') } end
+        if ctx.CheckedOutVehicles[src] or ctx.ReusableVehicles[src] then
+            return { success = false, code = 'vehicle_checked_out', message = T('garage.company_checked_out') }
+        end
 
         local near, nearMessage = DepotVehicles.RequireNearDepotRequest(ctx, src, T('garage.need_area'))
         if not near then return { success = false, message = nearMessage } end
@@ -143,9 +150,20 @@ function DepotVehicles.RegisterServer(ctx)
         local row = ctx.EnsureGarageVehicle(citizenid, vehicleType, resolvedIndex)
         if not row then return { success = false, message = T('garage.load_failed') } end
 
-        MySQL.update.await('UPDATE trucking_garage SET stored = 0 WHERE citizenid = ? AND vehicle_type = ? AND vehicle_index = ?', { citizenid, vehicleType, resolvedIndex })
+        if ctx.TryCheckoutGarageVehicle and not ctx.TryCheckoutGarageVehicle(citizenid, row.id) then
+            return { success = false, code = 'vehicle_checked_out', message = T('garage.company_checked_out') }
+        end
+
         ctx.TrackCheckedOutVehicle(src, vehicleType, resolvedIndex, row.plate, 'garage')
-        return { success = true, vehicleType = vehicleType, vehicleIndex = resolvedIndex, vehicle = vehicleData, plate = row.plate, props = row.props }
+        return {
+            success = true,
+            garageId = row.garage_id,
+            vehicleType = vehicleType,
+            vehicleIndex = resolvedIndex,
+            vehicle = vehicleData,
+            plate = row.plate,
+            props = row.props
+        }
     end)
 
     lib.callback.register('ls_trucking:server:returnGarageVehicle', function(src, vehicleType, vehicleIndex, plate, props)
@@ -190,7 +208,10 @@ function DepotVehicles.RegisterServer(ctx)
             end
         end
 
-        MySQL.update.await([[UPDATE trucking_garage SET plate = ?, props = ?, stored = 1 WHERE citizenid = ? AND vehicle_type = ? AND vehicle_index = ?]], { canonicalPlate, savedProps, citizenid, vehicleType, vehicleIndex })
+        MySQL.update.await(
+            'UPDATE trucking_garage SET plate = ?, props = ?, stored = 1 WHERE citizenid = ? AND id = ?',
+            { canonicalPlate, savedProps, citizenid, row.id }
+        )
         ctx.ClearVehicleSession(src)
         return { success = true, bonus = bonus }
     end)
@@ -200,7 +221,9 @@ function DepotVehicles.RegisterServer(ctx)
         local access, accessMessage = RequireWorkAccess(ctx, src)
         if not access then return { success = false, message = accessMessage } end
         if ctx.ActiveContracts[src] then return { success = false, message = T('contractor.active_job_spawn') } end
-        if ctx.CheckedOutVehicles[src] or ctx.ReusableVehicles[src] then return { success = false, message = T('contractor.vehicle_checked_out') } end
+        if ctx.CheckedOutVehicles[src] or ctx.ReusableVehicles[src] then
+            return { success = false, code = 'vehicle_checked_out', message = T('contractor.vehicle_checked_out') }
+        end
 
         local near, nearMessage = DepotVehicles.RequireNearDepotRequest(ctx, src, T('contractor.need_pickup_area'))
         if not near then return { success = false, message = nearMessage } end
@@ -214,7 +237,7 @@ function DepotVehicles.RegisterServer(ctx)
 
         local outRow = ctx.GetContractorOutVehicle(citizenid)
         if outRow and tonumber(outRow.id) ~= tonumber(row.id) then
-            return { success = false, message = T('contractor.only_one_out') }
+            return { success = false, code = 'vehicle_checked_out', message = T('contractor.only_one_out') }
         end
 
         local vehicleData = Config.JobVehicles[row.vehicle_type] and Config.JobVehicles[row.vehicle_type][tonumber(row.vehicle_index) or 1]

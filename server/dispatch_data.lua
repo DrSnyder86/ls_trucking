@@ -36,16 +36,41 @@ local function BuildCurrentJob(active)
     }
 end
 
-function DispatchData.BuildGarageList(ctx, citizenid)
+local function IsContractorCheckout(checkout)
+    return checkout and tostring(checkout.source or ''):find('contractor', 1, true) ~= nil
+end
+
+local function ResolveCheckoutGarageId(ctx, checkout)
+    if not checkout or IsContractorCheckout(checkout) then return nil end
+    if checkout.garageId then return checkout.garageId end
+
+    local vehicleData = (Config.JobVehicles or {})[checkout.type]
+        and Config.JobVehicles[checkout.type][tonumber(checkout.index) or 1]
+        or nil
+    if not vehicleData or not ctx.ResolveGarageVehicleId then return nil end
+    return ctx.ResolveGarageVehicleId(checkout.type, vehicleData, checkout.index)
+end
+
+function DispatchData.BuildGarageList(ctx, citizenid, checkout)
     ctx = ctx or {}
     local list = {}
+    local assignments = ctx.GetGarageFleetAssignments and ctx.GetGarageFleetAssignments(citizenid) or {}
+    local checkedOutGarageId = ResolveCheckoutGarageId(ctx, checkout)
 
     -- Keep company garage ordering stable across restarts and config edits.
     for _, vehicleType in ipairs(GarageVehicleTypeOrder) do
         local vehicles = Config.JobVehicles[vehicleType] or {}
         for index, vehicleData in ipairs(vehicles) do
-            local row = ctx.EnsureGarageVehicle and ctx.EnsureGarageVehicle(citizenid, vehicleType, index) or nil
+            local garageId = ctx.ResolveGarageVehicleId
+                and ctx.ResolveGarageVehicleId(vehicleType, vehicleData, index)
+                or ('%s:%s'):format(vehicleType, index)
+            local row = assignments[garageId]
+            if not ctx.GetGarageFleetAssignments and ctx.EnsureGarageVehicle then
+                row = ctx.EnsureGarageVehicle(citizenid, vehicleType, index)
+            end
+
             list[#list + 1] = {
+                garageId = garageId,
                 type = vehicleType,
                 index = index,
                 sortType = GarageVehicleTypeSort[vehicleType] or 99,
@@ -53,8 +78,8 @@ function DispatchData.BuildGarageList(ctx, citizenid)
                 label = vehicleData.label,
                 model = ctx.GetGarageVehicleModel and ctx.GetGarageVehicleModel(vehicleType, vehicleData) or vehicleData.model or vehicleData.truck,
                 plate = row and row.plate or '',
-                stored = row == nil or (ctx.IsDatabaseTrue and ctx.IsDatabaseTrue(row.stored) or row.stored == true or row.stored == 1),
-                props = row and row.props or nil,
+                assigned = row ~= nil,
+                stored = garageId ~= checkedOutGarageId,
                 photo = vehicleData.photo,
                 trailerPhoto = nil,
                 minRank = vehicleData.minRank or 1
@@ -97,6 +122,9 @@ function DispatchData.BuildPayload(ctx, src)
 
     local citizenid = ctx.GetCitizenId(src)
     local playerInfo = access and access.player or ctx.BuildPlayerPayload(src)
+    local checkout = ctx.GetCheckedOutVehicle and ctx.GetCheckedOutVehicle(src) or nil
+    local contractorCheckout = IsContractorCheckout(checkout)
+    local checkoutGarageId = ResolveCheckoutGarageId(ctx, checkout)
 
     return {
         allowed = true,
@@ -108,7 +136,16 @@ function DispatchData.BuildPayload(ctx, src)
         vehicles = Config.JobVehicles,
         priorityLoads = Config.PriorityLoads or {},
         routeTrailers = Config.RouteTrailers or {},
-        garage = DispatchData.BuildGarageList(ctx, citizenid),
+        garage = DispatchData.BuildGarageList(ctx, citizenid, checkout),
+        garageState = {
+            blocked = checkout ~= nil,
+            companyVehicleOut = checkout ~= nil and not contractorCheckout,
+            contractorVehicleOut = contractorCheckout == true,
+            garageId = checkoutGarageId,
+            type = checkout and checkout.type or nil,
+            index = checkout and checkout.index or nil,
+            plate = checkout and checkout.plate or nil
+        },
         contractor = ctx.BuildContractorPayload(src, citizenid, playerInfo),
         companyStats = ctx.BuildCompanyStatsPayload and ctx.BuildCompanyStatsPayload(citizenid) or {},
         currentJob = BuildCurrentJob(ctx.ActiveContracts and ctx.ActiveContracts[src]),

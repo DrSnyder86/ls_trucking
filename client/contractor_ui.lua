@@ -33,7 +33,31 @@ function ContractorUI.RegisterClient(context)
     end)
 
     RegisterNUICallback('purchaseContractorVehicle', function(data, cb)
-        local result = lib.callback.await('ls_trucking:server:purchaseContractorVehicle', false, data and data.vehicleType, data and data.vehicleIndex)
+        local vehicleType = data and tostring(data.vehicleType or '') or ''
+        local vehicleIndex = data and tonumber(data.vehicleIndex) or 0
+        if vehicleType == '' or vehicleIndex <= 0 then cb({ success = false }) return end
+
+        local confirmed = data and data.confirmed == true
+        if not confirmed then
+            local fleetCount = math.max(0, tonumber(data and data.fleetCount) or 0)
+            local fleetMax = math.max(fleetCount, tonumber(data and data.fleetMax) or fleetCount)
+            confirmed = Ctx().ShowFreightConfirm(
+                T('contractor.purchase_confirm_title'),
+                T('contractor.purchase_confirm_body', {
+                    vehicle = data and data.vehicleLabel or 'Contractor Vehicle',
+                    type = data and data.vehicleTypeLabel or vehicleType,
+                    price = math.max(0, math.floor(tonumber(data and data.price) or 0)),
+                    rank = math.max(1, math.floor(tonumber(data and data.minRank) or 1)),
+                    fleet = ('%d / %d'):format(fleetCount, fleetMax)
+                }),
+                T('contractor.purchase_confirm_accept'),
+                T('contractor.purchase_confirm_cancel')
+            )
+        end
+
+        if not confirmed then cb({ success = false, cancelled = true }) return end
+
+        local result = lib.callback.await('ls_trucking:server:purchaseContractorVehicle', false, vehicleType, vehicleIndex)
         Notify(result and result.message or 'Contractor vehicle purchase processed.', result and result.success and 'success' or 'error')
         Ctx().RefreshDispatchUI(650, 2)
         cb(result or { success = false })
@@ -43,16 +67,19 @@ function ContractorUI.RegisterClient(context)
         local vehicleId = data and tonumber(data.vehicleId) or 0
         if vehicleId <= 0 then cb({ success = false }) return end
 
-        local confirmed = Ctx().ShowFreightConfirm(
-            'Sell Contractor Vehicle',
-            ('Original price: $%s\nRecorded mileage: %.1f mi\nEstimated resale value: $%s\n\nThis sale is permanent.'):format(
-                data and data.originalPrice or 0,
-                data and tonumber(data.mileage) or 0,
-                data and data.resalePrice or 0
-            ),
-            'Sell Vehicle',
-            'Keep Vehicle'
-        )
+        local confirmed = data and data.confirmed == true
+        if not confirmed then
+            confirmed = Ctx().ShowFreightConfirm(
+                T('contractor.sale_confirm_title'),
+                T('contractor.sale_confirm_body', {
+                    original = data and data.originalPrice or 0,
+                    mileage = ('%.1f'):format(data and tonumber(data.mileage) or 0),
+                    resale = data and data.resalePrice or 0
+                }),
+                T('contractor.sale_confirm_accept'),
+                T('contractor.sale_confirm_cancel')
+            )
+        end
 
         if not confirmed then cb({ success = false, cancelled = true }) return end
 
@@ -73,7 +100,7 @@ function ContractorUI.RegisterClient(context)
         if not ctx.Progress('Requesting contractor vehicle...', Config.Progress.spawnGarageVehicle, { dict = 'missheistdockssetup1clipboard@base', clip = 'base' }) then cb({ success = false }) return end
 
         local result = lib.callback.await('ls_trucking:server:spawnContractorVehicle', false, data.vehicleId)
-        if (not result or not result.success) and ctx.IsStaleVehicleCheckoutMessage(result and result.message) and ctx.TryReleaseStaleVehicleCheckout() then
+        if (not result or not result.success) and ctx.IsStaleVehicleCheckoutMessage(result) and ctx.TryReleaseStaleVehicleCheckout() then
             result = lib.callback.await('ls_trucking:server:spawnContractorVehicle', false, data.vehicleId)
         end
         if not result or not result.success then Notify(result and result.message or 'Unable to spawn contractor vehicle.', 'error') cb({ success = false }) return end
@@ -117,7 +144,7 @@ function ContractorUI.RegisterClient(context)
         if routeIndex and routeIndex <= 0 then routeIndex = nil end
 
         if not ctx.BeginContractRequest('Private contract request transmitted. Dispatch is validating unit condition, authority, and route availability.') then cb({ success = false }) return end
-        local result = lib.callback.await('ls_trucking:server:createContractorContract', false, vehicleId, data and data.priorityKey or 'standard', routeIndex, state, data and data.dailyRouteKey)
+        local result = lib.callback.await('ls_trucking:server:createContractorContract', false, vehicleId, data and data.priorityKey or 'standard', routeIndex, state, data and data.dailyRouteKey, data and data.pickupDepotKey)
         ctx.ResolveContractRequest(result, result and result.success and ('Dispatch approved %s. Private contract %s confirmed. GPS authorized.'):format(result.contract and result.contract.routeLabel or 'the selected route', result.contractId or 'pending') or nil)
         if not result or not result.success then cb({ success = false }) return end
 

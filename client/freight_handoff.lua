@@ -45,6 +45,7 @@ function FreightHandoff.PlayPedGreeting(ped, scenario)
     local cooldown = math.max(1000, tonumber(handoff.GreetingCooldown) or 15000)
     if now - (pedGreetingTimes[ped] or 0) < cooldown then return end
     pedGreetingTimes[ped] = now
+    local greeting = now
 
     TaskTurnPedToFaceEntity(ped, PlayerPedId(), 750)
 
@@ -61,7 +62,9 @@ function FreightHandoff.PlayPedGreeting(ped, scenario)
 
     if scenario and scenario ~= '' then
         SetTimeout(2200, function()
-            if DoesEntityExist(ped) then TaskStartScenarioInPlace(ped, scenario, 0, true) end
+            if pedGreetingTimes[ped] == greeting and DoesEntityExist(ped) then
+                TaskStartScenarioInPlace(ped, scenario, 0, true)
+            end
         end)
     end
 end

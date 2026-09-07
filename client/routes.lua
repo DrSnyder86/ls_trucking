@@ -77,6 +77,8 @@ local function BuildActiveContract(data, vehicleLabel, trailerHookStage)
         stage = contractType == 'trailer' and trailerHookStage or 'Talk to pickup worker',
         notice = notice,
         pickup = contract.pickup,
+        pickupPed = contract.pickupPed,
+        contractorPickupDepot = contract.contractorPickupDepot,
         dropoffs = contract.dropoffs,
         trailerDrop = contract.trailerDrop,
         receiverPed = contract.receiverPed,

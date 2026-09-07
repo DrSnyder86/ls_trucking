@@ -264,12 +264,11 @@ function ServiceBay.RegisterServer(ctx)
                 row.id
             })
         else
-            MySQL.update.await([[UPDATE trucking_garage SET plate = ?, props = ? WHERE citizenid = ? AND vehicle_type = ? AND vehicle_index = ?]], {
+            MySQL.update.await([[UPDATE trucking_garage SET plate = ?, props = ? WHERE citizenid = ? AND id = ?]], {
                 plate,
                 props,
                 citizenid,
-                tostring((data.vehicle or {}).type or row.vehicle_type or ''),
-                tonumber((data.vehicle or {}).index) or tonumber(row.vehicle_index) or 1
+                row.id
             })
         end
 

@@ -93,41 +93,41 @@
         		 <Item>trailers2</Item>
         		 <Item>trailers3</Item>
         		 <Item>tanker</Item>
-				 <Item>tanker2</Item>
+				     <Item>tanker2</Item>
         		 <Item>trailerlogs</Item>
         		 <Item>tr2</Item>
         		 <Item>trflat</Item>
-      			</trailers>
-      			<additionalTrailers>
-				 <Item>freighttrailer</Item>
+      	</trailers>
+      <additionalTrailers>
+				     <Item>freighttrailer</Item>
         		 <Item>armytanker</Item>
         		 <Item>armytrailer</Item>
         		 <Item>tr4</Item>
         		 <Item>tvtrailer</Item>
-				 <Item>tvtrailer2</Item>
+				     <Item>tvtrailer2</Item>
         		 <Item>trailerlarge</Item>
         		 <Item>trailers4</Item> 
-				 <Item>botdumptr</Item>
+				     <Item>botdumptr</Item>
         		 <Item>boxlongtr</Item>
         		 <Item>docktrailer2</Item>
         		 <Item>drybulktr</Item>
         		 <Item>dumptr</Item>
         		 <Item>fueltr</Item>
-				 <Item>gastr</Item>
+				     <Item>gastr</Item>
         		 <Item>trailerlogs2</Item>
         		 <Item>trailerswb</Item>
         		 <Item>trailerswb2</Item>
         		 <Item>trflat2</Item>
-				 <Item>vtr1</Item>
-        		 <Item>vtrailerdump1</Item>
-        		 <Item>vtrailerdump2</Item>
-        		 <Item>vtrailerdump3</Item>
-        		 <Item>vtrailerlogs1</Item>
-        		 <Item>vtrailers1</Item> 
-				 <Item>vtrailers2</Item>
+				     <Item>vwe_tr1</Item>
+        		 <Item>vwe_trailerdump1</Item>
+        		 <Item>vwe_trailerdump2</Item>
+        		 <Item>vwe_trailerdump3</Item>
+        		 <Item>vwe_trailerlogs1</Item>
+        		 <Item>vwe_trailers1</Item> 
+				     <Item>vwe_trailers2</Item>
         		 <Item>vtrailers3</Item>
-        		 <Item>vwatertanker1</Item>
-      			</additionalTrailers>
+        		 <Item>vwe_watertanker1</Item>
+       </additionalTrailers>
       <drivers>
         <Item>
           <driverName>S_M_M_Trucker_01</driverName>

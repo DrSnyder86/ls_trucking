@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS trucking_history (
 CREATE TABLE IF NOT EXISTS trucking_garage (
     id INT AUTO_INCREMENT PRIMARY KEY,
     citizenid VARCHAR(64) NOT NULL,
+    garage_id VARCHAR(96) NULL DEFAULT NULL,
     vehicle_type VARCHAR(32) NOT NULL,
     vehicle_index INT NOT NULL DEFAULT 1,
     vehicle_label VARCHAR(128) NOT NULL,
@@ -37,7 +38,8 @@ CREATE TABLE IF NOT EXISTS trucking_garage (
     stored TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_trucking_garage_vehicle (citizenid, vehicle_type, vehicle_index)
+    UNIQUE KEY unique_trucking_garage_assignment (citizenid, garage_id),
+    KEY index_trucking_garage_owner (citizenid)
 );
 
 CREATE TABLE IF NOT EXISTS trucking_contractor_profiles (

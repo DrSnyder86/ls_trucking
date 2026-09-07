@@ -226,6 +226,7 @@ function DispatchData.Build()
         requireSameTypeForVehicleReuse = Config.RequireSameTypeForVehicleReuse,
         radioFrequency = Config.RadioFrequency,
         locale = Config.Locale or 'en',
+        vehicleCheckoutDuration = (Config.Progress and Config.Progress.spawnGarageVehicle) or 2500,
         uiSounds = Config.UI or {}
     }
     data.dispatchHome = DispatchData.BuildHomeMap()

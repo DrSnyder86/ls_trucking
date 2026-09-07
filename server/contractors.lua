@@ -169,11 +169,131 @@ local function GetRouteStopCount(contractType, route)
     return 0
 end
 
-local function GetRouteDestination(contractType, route)
-    if not route then return nil end
-    if contractType == 'trailer' and route.trailerDrop then return route.trailerDrop.label end
-    if route.dropoffs and route.dropoffs[1] then return route.dropoffs[1].label end
-    return nil
+function Contractors.GetRouteDestinations(contractType, route)
+    local destinations = {}
+    if not route then return destinations end
+
+    if contractType == 'trailer' then
+        local label = route.trailerDrop and route.trailerDrop.label
+        if label and label ~= '' then destinations[#destinations + 1] = label end
+        return destinations
+    end
+
+    for _, dropoff in ipairs(route.dropoffs or {}) do
+        local label = dropoff and dropoff.label
+        if label and label ~= '' then destinations[#destinations + 1] = label end
+    end
+    return destinations
+end
+
+function Contractors.ResolvePickupDepot(contractType, depotKey)
+    depotKey = type(depotKey) == 'string' and depotKey or nil
+    if not depotKey or depotKey == '' then return nil end
+
+    if contractType == 'trailer' then
+        local depot = Config.TrailerDepots and Config.TrailerDepots[depotKey]
+        if not depot or not depot.pickup then return nil end
+
+        return {
+            key = depotKey,
+            label = depot.label or 'Trailer Pickup Yard',
+            area = depot.area,
+            pickup = {
+                label = depot.label or 'Trailer Pickup Yard',
+                coords = depot.pickup
+            }
+        }
+    end
+
+    local depot = Config.CargoDepots and Config.CargoDepots[depotKey]
+    if not depot or not depot.pickup or not depot.pickup.coords then return nil end
+
+    return {
+        key = depotKey,
+        label = depot.label or depot.pickup.label or 'Cargo Pickup',
+        area = depot.area,
+        pickup = depot.pickup,
+        pickupPed = depot.pickupPed
+    }
+end
+
+function Contractors.GetPickupDepotKeys(contractType)
+    local configured = Contractors.GetConfig().PickupDepots
+    configured = configured and configured[contractType] or nil
+    local keys, seen = {}, {}
+
+    if type(configured) == 'table' then
+        for _, depotKey in ipairs(configured) do
+            if not seen[depotKey] and Contractors.ResolvePickupDepot(contractType, depotKey) then
+                seen[depotKey] = true
+                keys[#keys + 1] = depotKey
+            end
+        end
+        return keys
+    end
+
+    local depots = contractType == 'trailer' and Config.TrailerDepots or Config.CargoDepots
+    for depotKey in pairs(depots or {}) do
+        if Contractors.ResolvePickupDepot(contractType, depotKey) then keys[#keys + 1] = depotKey end
+    end
+    table.sort(keys)
+    return keys
+end
+
+function Contractors.IsPickupDepotAllowed(contractType, depotKey)
+    for _, allowedKey in ipairs(Contractors.GetPickupDepotKeys(contractType)) do
+        if allowedKey == depotKey then return true end
+    end
+    return false
+end
+
+function Contractors.GetDefaultPickupDepotKey(contractType)
+    local defaults = Contractors.GetConfig().DefaultPickupDepots or {}
+    local depotKey = defaults[contractType]
+    if depotKey and Contractors.IsPickupDepotAllowed(contractType, depotKey) then return depotKey end
+    return Contractors.GetPickupDepotKeys(contractType)[1]
+end
+
+function Contractors.RouteMatchesPickupDepot(contractType, route, depotKey)
+    if not route or not Contractors.IsPickupDepotAllowed(contractType, depotKey) then return false end
+    if contractType ~= 'trailer' then return true end
+    return (route.pickupDepot or 'docks') == depotKey
+end
+
+function Contractors.GetAdjustedRouteLength(contractType, route, depotKey)
+    if not route or contractType == 'trailer' then return route and route.routeLength or nil end
+
+    local depot = Contractors.ResolvePickupDepot(contractType, depotKey)
+    local contract = Config.Contracts and Config.Contracts[contractType]
+    local firstStop = route.dropoffs and route.dropoffs[1]
+    local basePickup = contract and contract.pickup and contract.pickup.coords
+    local selectedPickup = depot and depot.pickup and depot.pickup.coords
+    if not basePickup or not selectedPickup or not firstStop or not firstStop.coords then return route.routeLength end
+
+    local baseMiles = type(route.routeLength) == 'number'
+        and route.routeLength
+        or tonumber(tostring(route.routeLength or ''):match('([%d%.]+)'))
+    if not baseMiles then return route.routeLength end
+
+    local stopCoords = firstStop.coords
+    local baseDistance = math.sqrt(((basePickup.x - stopCoords.x) ^ 2) + ((basePickup.y - stopCoords.y) ^ 2))
+    local selectedDistance = math.sqrt(((selectedPickup.x - stopCoords.x) ^ 2) + ((selectedPickup.y - stopCoords.y) ^ 2))
+    local adjustedMiles = math.max(0.1, baseMiles + ((selectedDistance - baseDistance) / 1609.344))
+    return ('%.1f mi'):format(adjustedMiles)
+end
+
+function Contractors.GetPickupDepotOptions(contractType)
+    local options = {}
+    for _, depotKey in ipairs(Contractors.GetPickupDepotKeys(contractType)) do
+        local depot = Contractors.ResolvePickupDepot(contractType, depotKey)
+        options[#options + 1] = {
+            key = depot.key,
+            label = depot.label,
+            area = depot.area,
+            type = contractType
+        }
+    end
+    return options
 end
 
 local function GetDailyRouteIndex(contractType, routeCount)
@@ -204,7 +324,8 @@ local function BuildDailyRouteOption(routeConfig, playerRank, explicitRouteIndex
     priorityKey = priorityKey or 'standard'
 
     local stopCount = GetRouteStopCount(contractType, route)
-    local destination = GetRouteDestination(contractType, route)
+    local destinations = Contractors.GetRouteDestinations(contractType, route)
+    local destination = destinations[1]
     local routeLength = route.routeLength or 'Route length pending'
     local minRank = tonumber(routeConfig.minRank) or tonumber(Contractors.GetConfig().UnlockRank) or 1
     local stopLabel = ('%s stop%s'):format(stopCount, stopCount == 1 and '' or 's')
@@ -414,15 +535,11 @@ local function NextBoardRandom(state, maxValue)
     return state, (state % maxValue) + 1
 end
 
-local function GetBoardRouteIndexes(citizenid, contractType, priorityKey, routeCount, limit, excludedIndex)
-    routeCount = tonumber(routeCount) or 0
-    if routeCount <= 0 then return {} end
-
-    excludedIndex = tonumber(excludedIndex)
-
+local function GetBoardRouteIndexes(citizenid, contractType, priorityKey, routePool, limit, excludedIndex, pickupDepotKey)
     local candidates = {}
-    for index = 1, routeCount do
-        if not excludedIndex or routeCount == 1 or index ~= excludedIndex then
+    for index, route in ipairs(routePool or {}) do
+        if (not excludedIndex or #routePool == 1 or index ~= tonumber(excludedIndex))
+            and Contractors.RouteMatchesPickupDepot(contractType, route, pickupDepotKey) then
             candidates[#candidates + 1] = index
         end
     end
@@ -435,7 +552,7 @@ local function GetBoardRouteIndexes(citizenid, contractType, priorityKey, routeC
         citizenid or 'driver',
         contractType or 'route',
         priorityKey or 'standard',
-        routeCount,
+        pickupDepotKey or 'default',
         refreshBucket
     ))
 
@@ -450,20 +567,23 @@ local function GetBoardRouteIndexes(citizenid, contractType, priorityKey, routeC
     return indexes
 end
 
-local function BuildBoardEntry(contractType, priorityKey, routeIndex, route, contract, priority, payoutData, outVehicle, isDaily)
+local function BuildBoardEntry(contractType, priorityKey, routeIndex, route, contract, priority, payoutData, outVehicle, isDaily, pickupDepotKey)
     local ctx = Ctx()
     priority = priority or { label = 'Standard Commercial Route', shortLabel = 'Standard', minRank = 1, payoutMultiplier = 1.0, xpMultiplier = 1.0, repBonus = 0 }
 
     local payoutMultiplier = (priority.payoutMultiplier or 1.0) * (Contractors.GetConfig().PayoutMultiplier or 1.0)
     local xpMultiplier = (priority.xpMultiplier or 1.0) * (Contractors.GetConfig().XpMultiplier or 1.0)
-    local destination = GetRouteDestination(contractType, route)
+    local destinations = Contractors.GetRouteDestinations(contractType, route)
+    local destination = destinations[1]
     local stopCount = GetRouteStopCount(contractType, route)
     local routeTrailer = contractType == 'trailer' and ctx.ResolveRouteTrailer(route, priority) or nil
     local routeDepot = contractType == 'trailer' and ctx.ResolveTrailerDepot and ctx.ResolveTrailerDepot(route) or nil
-    local mileageBonus, routeMiles, mileageRate = ctx.GetMileagePayout(route.routeLength)
+    local pickupDepot = Contractors.ResolvePickupDepot(contractType, pickupDepotKey)
+    local routeLength = Contractors.GetAdjustedRouteLength(contractType, route, pickupDepotKey)
+    local mileageBonus, routeMiles, mileageRate = ctx.GetMileagePayout(routeLength)
 
     return {
-        key = ('%s:%s:%s:%s'):format(contractType, priorityKey or 'standard', routeIndex, isDaily and 'daily' or 'contract'),
+        key = ('%s:%s:%s:%s:%s'):format(contractType, priorityKey or 'standard', routeIndex, pickupDepotKey or 'default', isDaily and 'daily' or 'contract'),
         type = contractType,
         typeLabel = TypeLabel(contractType),
         priorityKey = priorityKey or 'standard',
@@ -471,14 +591,18 @@ local function BuildBoardEntry(contractType, priorityKey, routeIndex, route, con
         priorityShortLabel = priority.shortLabel or priority.label or 'Standard',
         routeIndex = routeIndex,
         routeLabel = route.label or contract.label,
-        routeLength = route.routeLength,
+        routeLength = routeLength,
         destination = destination,
+        destinations = destinations,
         stopCount = stopCount,
         trailerKey = routeTrailer and routeTrailer.key or nil,
         trailerLabel = routeTrailer and routeTrailer.label or nil,
         trailerPhoto = routeTrailer and routeTrailer.photo or nil,
         trailerContents = routeTrailer and routeTrailer.contents or nil,
         trailerDepotLabel = routeDepot and routeDepot.label or nil,
+        pickupDepotKey = pickupDepot and pickupDepot.key or nil,
+        pickupDepotLabel = pickupDepot and pickupDepot.label or (routeDepot and routeDepot.label) or nil,
+        pickupDepotArea = pickupDepot and pickupDepot.area or nil,
         vehicleId = outVehicle and outVehicle.id or nil,
         vehicleLabel = outVehicle and outVehicle.label or nil,
         canStart = outVehicle ~= nil,
@@ -493,7 +617,7 @@ local function BuildBoardEntry(contractType, priorityKey, routeIndex, route, con
     }
 end
 
-local function BuildBoard(citizenid, playerRank, profile, vehicles)
+local function BuildBoard(citizenid, playerRank, profile, vehicles, pickupDepotKey)
     local ctx = Ctx()
     local routeOption = GetSelectedDailyRoute(profile)
     local outByType = {}
@@ -506,7 +630,7 @@ local function BuildBoard(citizenid, playerRank, profile, vehicles)
     end
 
     local board = {}
-    if not activeOutVehicle then return board end
+    if not activeOutVehicle or not Contractors.IsPickupDepotAllowed(activeOutVehicle.type, pickupDepotKey) then return board end
 
     local boardLimit = tonumber(Contractors.GetConfig().ContractBoardRoutesPerType) or 5
     local dateKey = GetDateKey()
@@ -519,8 +643,11 @@ local function BuildBoard(citizenid, playerRank, profile, vehicles)
         local routeIndex = tonumber(routeOption.routeIndex)
         local route = routePool and routeIndex and routePool[routeIndex] or nil
         local payoutData = dailyContractType and Config.Payouts[dailyContractType] or nil
-        if contract and payoutData and route and ctx.CheckRankRequirement(playerRank, routeOption.minRank) and ctx.CheckRankRequirement(playerRank, priority.minRank) then
-            board[#board + 1] = BuildBoardEntry(dailyContractType, priorityKey, routeIndex, route, contract, priority, payoutData, outByType[dailyContractType], true)
+        if contract and payoutData and route
+            and Contractors.RouteMatchesPickupDepot(dailyContractType, route, pickupDepotKey)
+            and ctx.CheckRankRequirement(playerRank, routeOption.minRank)
+            and ctx.CheckRankRequirement(playerRank, priority.minRank) then
+            board[#board + 1] = BuildBoardEntry(dailyContractType, priorityKey, routeIndex, route, contract, priority, payoutData, outByType[dailyContractType], true, pickupDepotKey)
             board[#board].dailyRouteKey = routeOption.key
         end
     end
@@ -541,7 +668,7 @@ local function BuildBoard(citizenid, playerRank, profile, vehicles)
             return false
         end
 
-        local routeIndexes = GetBoardRouteIndexes(citizenid, contractType, resolvedPriorityKey, #routePool, 1)
+        local routeIndexes = GetBoardRouteIndexes(citizenid, contractType, resolvedPriorityKey, routePool, 1, nil, pickupDepotKey)
         local routeIndex = routeIndexes[1]
         local route = routeIndex and routePool[routeIndex] or nil
         if not route then return false end
@@ -555,7 +682,8 @@ local function BuildBoard(citizenid, playerRank, profile, vehicles)
             priority,
             payoutData,
             outByType[contractType],
-            false
+            false,
+            pickupDepotKey
         )
         return true
     end
@@ -568,15 +696,35 @@ local function BuildBoard(citizenid, playerRank, profile, vehicles)
     if contract and payoutData and routePool and #routePool > 0 and ctx.CheckRankRequirement(playerRank, priority.minRank) then
         local excludedRouteIndex = routeOption and not dailyCompleted and dailyContractType == contractType and tonumber(routeOption.routeIndex) or nil
         local remainingBoardSlots = math.max(0, boardLimit - #board)
-        for _, routeIndex in ipairs(GetBoardRouteIndexes(citizenid, contractType, priorityKey, #routePool, remainingBoardSlots, excludedRouteIndex)) do
+        for _, routeIndex in ipairs(GetBoardRouteIndexes(citizenid, contractType, priorityKey, routePool, remainingBoardSlots, excludedRouteIndex, pickupDepotKey)) do
             local route = routePool[routeIndex]
             if route then
-                board[#board + 1] = BuildBoardEntry(contractType, priorityKey, routeIndex, route, contract, priority, payoutData, outByType[contractType], false)
+                board[#board + 1] = BuildBoardEntry(contractType, priorityKey, routeIndex, route, contract, priority, payoutData, outByType[contractType], false, pickupDepotKey)
             end
         end
     end
 
     return board
+end
+
+local function BuildPickupBoards(citizenid, playerRank, profile, vehicles)
+    local activeOutVehicle = nil
+    for _, vehicle in ipairs(vehicles or {}) do
+        if vehicle.out then activeOutVehicle = vehicle break end
+    end
+    if not activeOutVehicle then return {}, {}, nil, nil end
+
+    local depots = Contractors.GetPickupDepotOptions(activeOutVehicle.type)
+    local boards = {}
+    for _, depot in ipairs(depots) do
+        local board = BuildBoard(citizenid, playerRank, profile, vehicles, depot.key)
+        boards[depot.key] = board
+        depot.offerCount = #board
+    end
+
+    local defaultDepotKey = Contractors.GetDefaultPickupDepotKey(activeOutVehicle.type)
+    if not defaultDepotKey and depots[1] then defaultDepotKey = depots[1].key end
+    return depots, boards, defaultDepotKey, activeOutVehicle.type
 end
 
 function Contractors.BuildPayload(src, citizenid, playerInfo)
@@ -591,6 +739,7 @@ function Contractors.BuildPayload(src, citizenid, playerInfo)
     local vehicles = NormalizeVehicles(vehicleRows)
     local dailyOption = GetSelectedDailyRoute(profile)
     local canChange, changeAt, remaining = GetDailyRouteChangeStatus(profile)
+    local pickupDepots, boardsByDepot, defaultPickupDepotKey, pickupDepotVehicleType = BuildPickupBoards(citizenid, playerRank, profile, vehicles)
 
     return {
         enabled = true,
@@ -615,7 +764,11 @@ function Contractors.BuildPayload(src, citizenid, playerInfo)
         dailyRoutes = BuildDailyRouteOptions(playerRank),
         vehicles = vehicles,
         market = BuildVehicleMarket(citizenid, playerRank, vehicleRows),
-        board = BuildBoard(citizenid, playerRank, profile, vehicles),
+        pickupDepots = pickupDepots,
+        boardsByDepot = boardsByDepot,
+        defaultPickupDepotKey = defaultPickupDepotKey,
+        pickupDepotVehicleType = pickupDepotVehicleType,
+        board = defaultPickupDepotKey and boardsByDepot[defaultPickupDepotKey] or {},
         maxOwnedVehicles = tonumber(cfg.MaxOwnedVehicles) or 6
     }
 end
@@ -810,7 +963,7 @@ function Contractors.RegisterServer(context)
         }
     end)
 
-    lib.callback.register('ls_trucking:server:createContractorContract', function(src, vehicleId, priorityKey, requestedRouteIndex, state, requestedDailyRouteKey)
+    lib.callback.register('ls_trucking:server:createContractorContract', function(src, vehicleId, priorityKey, requestedRouteIndex, state, requestedDailyRouteKey, requestedPickupDepotKey)
         if not ctx.CheckRateLimit(src, 'createContractorContract', ctx.GetSecurityCooldown('Contract', 2000)) then return ctx.RateLimitResponse() end
         local access, accessMessage = RequireWorkAccess(ctx, src)
         if not access then return { success = false, message = accessMessage } end
@@ -856,6 +1009,8 @@ function Contractors.RegisterServer(context)
         local routeOption = nil
         local resolvedPriorityKey = priorityKey or 'standard'
         local resolvedRouteIndex = tonumber(requestedRouteIndex)
+        local pickupDepotKey = type(requestedPickupDepotKey) == 'string' and requestedPickupDepotKey or nil
+        if pickupDepotKey == '' then pickupDepotKey = nil end
 
         if selectedDailyRouteKey then
             routeOption = GetSelectedDailyRoute(profile)
@@ -876,20 +1031,42 @@ function Contractors.RegisterServer(context)
             startDailyRoute = true
         end
 
-        local routePool = ctx.GetRoutePool(routeContractType, resolvedPriorityKey)
+        if pickupDepotKey and not Contractors.IsPickupDepotAllowed(routeContractType, pickupDepotKey) then
+            return { success = false, message = T('contractor.pickup_depot_unavailable') }
+        end
+        pickupDepotKey = pickupDepotKey or Contractors.GetDefaultPickupDepotKey(routeContractType)
+        if not pickupDepotKey then
+            return { success = false, message = T('contractor.pickup_depot_unavailable') }
+        end
+
+        local routePool, _, normalizedPriorityKey = ctx.GetRoutePool(routeContractType, resolvedPriorityKey)
+        resolvedPriorityKey = normalizedPriorityKey or resolvedPriorityKey
         resolvedRouteIndex = resolvedRouteIndex and math.floor(resolvedRouteIndex) or nil
         if not resolvedRouteIndex and routePool and #routePool > 0 then
-            local indexes = GetBoardRouteIndexes(citizenid, routeContractType, resolvedPriorityKey, #routePool, 1)
-            resolvedRouteIndex = indexes[1] or math.random(1, #routePool)
+            local indexes = GetBoardRouteIndexes(citizenid, routeContractType, resolvedPriorityKey, routePool, 1, nil, pickupDepotKey)
+            resolvedRouteIndex = indexes[1]
         end
         if not routePool or not resolvedRouteIndex or not routePool[resolvedRouteIndex] then
             return { success = false, message = T('contractor.route_unavailable') }
+        end
+
+        local selectedRoute = routePool[resolvedRouteIndex]
+        if not Contractors.RouteMatchesPickupDepot(routeContractType, selectedRoute, pickupDepotKey) then
+            return { success = false, message = T('contractor.pickup_depot_route_mismatch') }
+        end
+
+        local pickupDepot = Contractors.ResolvePickupDepot(routeContractType, pickupDepotKey)
+        if not pickupDepot then
+            return { success = false, message = T('contractor.pickup_depot_unavailable') }
         end
 
         return ctx.CreateContractForPlayer(src, row.vehicle_type, tonumber(row.vehicle_index) or 1, true, row.plate, resolvedPriorityKey, resolvedRouteIndex, {
             contractor = true,
             contractorVehicleId = row.id,
             dailyRouteKey = startDailyRoute and selectedDailyRouteKey or nil,
+            pickupDepotKey = pickupDepotKey,
+            pickupDepot = pickupDepot,
+            routeLength = Contractors.GetAdjustedRouteLength(routeContractType, selectedRoute, pickupDepotKey),
             reuseCandidate = {
                 type = row.vehicle_type,
                 index = tonumber(row.vehicle_index) or 1,

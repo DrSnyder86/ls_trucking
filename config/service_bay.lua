@@ -10,8 +10,8 @@ Config.ServiceBay = {
     RequireJob = true,
     Marker = {
         type = 1,
-        zOffset = -0.95,
-        size = vector3(6.0, 6.0, 0.24),
+        zOffset = -1.30,
+        size = vector3(6.0, 6.0, 0.54),
         color = { r = 245, g = 190, b = 40, a = 110 }
     },
     Blip = {

@@ -445,9 +445,23 @@ function DepotVehicles.SpawnGarageVehicle(data)
 
     if not SpawnBaseVehicle(vehicleData.model or vehicleData.truck, s, plate, vehicleData, data.props, vehicleData.fuel) then return false end
 
-    local vehicleState = { type = vehicleType, index = data.vehicleIndex, plate = NormalizePlateText(plate), label = vehicleData.label, vehicleLabel = vehicleData.label }
+    local vehicleState = {
+        garageId = data.garageId,
+        type = vehicleType,
+        index = data.vehicleIndex,
+        plate = NormalizePlateText(plate),
+        label = vehicleData.label,
+        vehicleLabel = vehicleData.label
+    }
     SetValue('SetGarageVehicle', vehicleState)
-    SetValue('SetReusableVehicle', { type = vehicleType, index = data.vehicleIndex, plate = NormalizePlateText(plate), label = vehicleData.label, vehicleLabel = vehicleData.label })
+    SetValue('SetReusableVehicle', {
+        garageId = data.garageId,
+        type = vehicleType,
+        index = data.vehicleIndex,
+        plate = NormalizePlateText(plate),
+        label = vehicleData.label,
+        vehicleLabel = vehicleData.label
+    })
     if ctx.AddVehicleCargoTarget then ctx.AddVehicleCargoTarget() end
     Notify(('Company vehicle spawned: %s. Customize it, use it for jobs, then return it to the dispatcher.'):format(vehicleData.label), 'success')
     return true

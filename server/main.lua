@@ -6,6 +6,7 @@ local PlayerDutyStates = {}
 local RouteSummary = LS_Trucking and LS_Trucking.RouteSummary or {}
 local Ids = LS_Trucking and LS_Trucking.Ids or {}
 local FrameworkBridge = LS_Trucking and LS_Trucking.Framework or {}
+local CompanyGarage = LS_Trucking and LS_Trucking.CompanyGarage or {}
 local Contractors = LS_Trucking and LS_Trucking.Contractors or {}
 local DepotVehicles = LS_Trucking and LS_Trucking.DepotVehicles or {}
 local Cargo = LS_Trucking and LS_Trucking.Cargo or {}
@@ -223,6 +224,7 @@ CreateThread(function()
     if settings.Enabled ~= false then
         RunNamedVersionCheck('Main', Config.ConfigVersion or '0.0.0', settings.ConfigRawVersionUrl, { 'config_version', 'configVersion', 'ConfigVersion', 'Config.ConfigVersion' }, settings)
         RunNamedVersionCheck('Contracts', Config.ContractsVersion or '0.0.0', settings.ContractsRawVersionUrl, { 'contracts_version', 'contractsVersion', 'ContractsVersion', 'Config.ContractsVersion' }, settings)
+        RunNamedVersionCheck('Vehicles', Config.VehicleConfigVersion or '0.0.0', settings.VehicleConfigRawVersionUrl, { 'vehicle_config_version', 'vehicleConfigVersion', 'VehicleConfigVersion', 'Config.VehicleConfigVersion' }, settings)
     end
 end)
 
@@ -380,6 +382,7 @@ local function EnsureBaseTables()
         CREATE TABLE IF NOT EXISTS trucking_garage (
             id INT AUTO_INCREMENT PRIMARY KEY,
             citizenid VARCHAR(64) NOT NULL,
+            garage_id VARCHAR(96) NULL DEFAULT NULL,
             vehicle_type VARCHAR(32) NOT NULL,
             vehicle_index INT NOT NULL DEFAULT 1,
             vehicle_label VARCHAR(128) NOT NULL,
@@ -389,7 +392,8 @@ local function EnsureBaseTables()
             stored TINYINT(1) NOT NULL DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            UNIQUE KEY unique_trucking_garage_vehicle (citizenid, vehicle_type, vehicle_index)
+            UNIQUE KEY unique_trucking_garage_assignment (citizenid, garage_id),
+            KEY index_trucking_garage_owner (citizenid)
         )
     ]])
 
@@ -452,6 +456,30 @@ local function EnsureDatabaseColumn(tableName, columnName, definition)
     return true
 end
 
+local function DatabaseIndexExists(tableName, indexName)
+    local row = MySQL.single.await([[
+        SELECT COUNT(*) AS count
+        FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = ?
+            AND INDEX_NAME = ?
+    ]], { tableName, indexName }) or {}
+
+    return (tonumber(row.count) or 0) > 0
+end
+
+local function DropDatabaseIndex(tableName, indexName)
+    if not DatabaseIndexExists(tableName, indexName) then return false end
+    MySQL.query.await(('ALTER TABLE `%s` DROP INDEX `%s`'):format(tableName, indexName))
+    return true
+end
+
+local function EnsureDatabaseIndex(tableName, indexName, definition)
+    if DatabaseIndexExists(tableName, indexName) then return false end
+    MySQL.query.await(('ALTER TABLE `%s` ADD %s'):format(tableName, definition))
+    return true
+end
+
 local function RestoreVehicleStorageStateOnStartup()
     local restoredCompanyVehicles = MySQL.update.await('UPDATE trucking_garage SET stored = 1 WHERE stored = 0') or 0
     local restoredContractorVehicles = MySQL.update.await('UPDATE trucking_contractor_vehicles SET stored = 1, out_state = 0 WHERE stored = 0 OR out_state = 1') or 0
@@ -476,7 +504,11 @@ local function EnsureDatabaseMigrations()
         EnsureDatabaseColumn('player_trucking', 'driver_name', 'VARCHAR(96) NULL DEFAULT NULL')
         EnsureDatabaseColumn('player_trucking', 'total_routes_cancelled', 'INT NOT NULL DEFAULT 0')
         EnsureDatabaseColumn('player_trucking', 'completed_route_streak', 'INT NOT NULL DEFAULT 0')
+        EnsureDatabaseColumn('trucking_garage', 'garage_id', 'VARCHAR(96) NULL DEFAULT NULL AFTER `citizenid`')
         EnsureDatabaseColumn('trucking_garage', 'stored', 'TINYINT(1) NOT NULL DEFAULT 1')
+        DropDatabaseIndex('trucking_garage', 'unique_trucking_garage_vehicle')
+        EnsureDatabaseIndex('trucking_garage', 'unique_trucking_garage_assignment', 'UNIQUE KEY `unique_trucking_garage_assignment` (`citizenid`, `garage_id`)')
+        EnsureDatabaseIndex('trucking_garage', 'index_trucking_garage_owner', 'KEY `index_trucking_garage_owner` (`citizenid`)')
         EnsureDatabaseColumn('trucking_contractor_profiles', 'license_purchased_at', 'TIMESTAMP NULL DEFAULT NULL')
         EnsureDatabaseColumn('trucking_contractor_profiles', 'contractor_rep', 'INT NOT NULL DEFAULT 0')
         EnsureDatabaseColumn('trucking_contractor_profiles', 'daily_route_key', 'VARCHAR(64) NULL DEFAULT NULL')
@@ -491,6 +523,10 @@ local function EnsureDatabaseMigrations()
         EnsureDatabaseColumn('trucking_contractor_vehicles', 'mileage', 'FLOAT NOT NULL DEFAULT 0')
         EnsureDatabaseColumn('trucking_contractor_vehicles', 'stored', 'TINYINT(1) NOT NULL DEFAULT 1')
         EnsureDatabaseColumn('trucking_contractor_vehicles', 'out_state', 'TINYINT(1) NOT NULL DEFAULT 0')
+        if CompanyGarage.ValidateConfig then
+            local validGarageConfig, garageConfigError = CompanyGarage.ValidateConfig()
+            if not validGarageConfig then error(garageConfigError) end
+        end
         RestoreVehicleStorageStateOnStartup()
         DatabaseMigrationsReady = true
     end)
@@ -569,13 +605,33 @@ local function TrackCheckedOutVehicle(src, vehicleType, vehicleIndex, plate, sou
     local canonicalPlate = CanonicalPlateText(plate)
     if canonicalPlate == '' then return end
 
+    sourceLabel = sourceLabel or 'company'
+    local citizenid = GetCitizenId(src)
+    local isContractor = tostring(sourceLabel):find('contractor', 1, true) ~= nil
+    local garageId = nil
+
+    if not isContractor and CompanyGarage.ResolveVehicleId then
+        local vehicleData = (Config.JobVehicles or {})[vehicleType]
+            and Config.JobVehicles[vehicleType][tonumber(vehicleIndex) or 1]
+            or nil
+        if vehicleData then
+            garageId = CompanyGarage.ResolveVehicleId(vehicleType, vehicleData, vehicleIndex)
+        end
+    end
+
     CheckedOutVehicles[src] = {
+        citizenid = citizenid,
         type = vehicleType,
         index = tonumber(vehicleIndex) or 1,
+        garageId = garageId,
         plate = canonicalPlate,
-        source = sourceLabel or 'company',
+        source = sourceLabel,
         bonusPaid = false
     }
+
+    if garageId and CompanyGarage.SetStored then
+        CompanyGarage.SetStored(citizenid, garageId, false)
+    end
 
     if Config.Keys and Config.Keys.OwnerOnly ~= false then
         TriggerClientEvent('ls_trucking:client:syncVehicleKeyOwner', -1, canonicalPlate, src, sourceLabel or 'company')
@@ -635,6 +691,7 @@ local function RequireServerNear(src, coords, distance, message)
 end
 
 local function GetContractPickupCoords(active)
+    if active and active.pickup and active.pickup.coords then return active.pickup.coords end
     local contract = active and Config.Contracts and Config.Contracts[active.type]
     return contract and contract.pickup and contract.pickup.coords or nil
 end
@@ -1902,34 +1959,19 @@ local function GenerateUniqueVehiclePlate(prefix)
     return CanonicalPlateText(Ids.GeneratePlate(prefix))
 end
 
+if CompanyGarage.ConfigureServer then
+    CompanyGarage.ConfigureServer({
+        CanonicalPlateText = CanonicalPlateText,
+        GenerateUniqueVehiclePlate = GenerateUniqueVehiclePlate,
+        GetGarageVehicleModel = GetGarageVehicleModel,
+        SanitizeVehicleProps = SanitizeVehicleProps,
+        StoredVehiclePlateConflict = StoredVehiclePlateConflict
+    })
+end
+
 local function EnsureGarageVehicle(citizenid, vehicleType, vehicleIndex)
-    local vehicleData = Config.JobVehicles[vehicleType] and Config.JobVehicles[vehicleType][vehicleIndex]
-    if not vehicleData then return nil end
-    local row = MySQL.single.await('SELECT * FROM trucking_garage WHERE citizenid = ? AND vehicle_type = ? AND vehicle_index = ?', { citizenid, vehicleType, vehicleIndex })
-    if not row then
-        MySQL.insert.await([[INSERT INTO trucking_garage (citizenid, vehicle_type, vehicle_index, vehicle_label, vehicle_model, plate, props, stored) VALUES (?, ?, ?, ?, ?, ?, NULL, 1)]], {
-            citizenid, vehicleType, vehicleIndex, vehicleData.label, GetGarageVehicleModel(vehicleType, vehicleData), GenerateUniqueVehiclePlate(vehicleData.platePrefix)
-        })
-        row = MySQL.single.await('SELECT * FROM trucking_garage WHERE citizenid = ? AND vehicle_type = ? AND vehicle_index = ?', { citizenid, vehicleType, vehicleIndex })
-    end
-    if row then
-        local canonicalPlate = CanonicalPlateText(row.plate)
-        local needsRepair = canonicalPlate == '' or canonicalPlate ~= tostring(row.plate or '') or StoredVehiclePlateConflict(canonicalPlate, row.id, 0)
-
-        if needsRepair then
-            local repairedPlate = canonicalPlate ~= '' and not StoredVehiclePlateConflict(canonicalPlate, row.id, 0)
-                and canonicalPlate
-                or GenerateUniqueVehiclePlate(vehicleData.platePrefix)
-            local repairedProps = row.props
-            local sanitizedProps, propsError = SanitizeVehicleProps(row.props, repairedPlate)
-            if not propsError then repairedProps = sanitizedProps end
-
-            MySQL.update.await('UPDATE trucking_garage SET plate = ?, props = ? WHERE id = ?', { repairedPlate, repairedProps, row.id })
-            row.plate = repairedPlate
-            row.props = repairedProps
-        end
-    end
-    return row
+    if not CompanyGarage.EnsureVehicle then return nil end
+    return CompanyGarage.EnsureVehicle(citizenid, vehicleType, vehicleIndex)
 end
 
 lib.callback.register('ls_trucking:server:canUseReceiver', function(src)
@@ -2013,6 +2055,9 @@ DispatchDataServerContext = {
     BuildContractorPayload = Contractors.BuildPayload,
     BuildCompanyStatsPayload = BuildCompanyStatsPayload,
     EnsureGarageVehicle = EnsureGarageVehicle,
+    GetGarageFleetAssignments = CompanyGarage.GetFleetAssignments,
+    ResolveGarageVehicleId = CompanyGarage.ResolveVehicleId,
+    GetCheckedOutVehicle = function(src) return CheckedOutVehicles[src] or ReusableVehicles[src] end,
     RequireServerNear = RequireServerNear,
     GetDistanceLimit = GetDistanceLimit,
     GetGarageVehicleModel = GetGarageVehicleModel,
@@ -2055,6 +2100,9 @@ DepotVehicleServerContext = {
     CheckRankRequirement = CheckRankRequirement,
     GetCitizenId = GetCitizenId,
     EnsureGarageVehicle = EnsureGarageVehicle,
+    TryCheckoutGarageVehicle = CompanyGarage.TryCheckout,
+    SetGarageVehicleStored = CompanyGarage.SetStored,
+    RestoreGarageVehicles = CompanyGarage.RestoreAll,
     RequireServerNear = RequireServerNear,
     GetDistanceLimit = GetDistanceLimit,
     TrackCheckedOutVehicle = TrackCheckedOutVehicle,
@@ -2193,6 +2241,13 @@ CreateContractForPlayer = function(src, contractType, vehicleIndex, reuseVehicle
     local route, routeIndex = PickRoute(contractType, resolvedPriorityKey, requestedRouteIndex)
     if not route then return { success = false, message = T('error.no_route_configured') } end
 
+    if options.routeLength and options.routeLength ~= route.routeLength then
+        local runtimeRoute = {}
+        for key, value in pairs(route) do runtimeRoute[key] = value end
+        runtimeRoute.routeLength = options.routeLength
+        route = runtimeRoute
+    end
+
     local randomEvent = PickRandomDeliveryEvent(contractType, resolvedPriorityKey)
     local estimatedSeconds = GetEstimatedSeconds(contractType, resolvedPriorityKey, route)
 
@@ -2201,6 +2256,18 @@ CreateContractForPlayer = function(src, contractType, vehicleIndex, reuseVehicle
     end
 
     local publicContract = GetPublicContractData(contractType, route, priority, resolvedPriorityKey)
+    if options.contractor and options.pickupDepot then
+        local pickupDepot = options.pickupDepot
+        if contractType ~= 'trailer' then
+            publicContract.pickup = pickupDepot.pickup
+            publicContract.pickupPed = pickupDepot.pickupPed
+        end
+        publicContract.contractorPickupDepot = {
+            key = pickupDepot.key,
+            label = pickupDepot.label,
+            area = pickupDepot.area
+        }
+    end
     publicContract.estimatedSeconds = estimatedSeconds
     publicContract.estimatedTime = FormatSeconds(estimatedSeconds)
     publicContract.randomEvent = PublicRandomEvent(randomEvent)
@@ -2289,8 +2356,11 @@ CreateContractForPlayer = function(src, contractType, vehicleIndex, reuseVehicle
         randomEvent = randomEvent,
         routeTrailer = publicContract.routeTrailer,
         trailerDepot = publicContract.trailerDepot,
+        pickup = publicContract.pickup,
+        pickupPed = publicContract.pickupPed,
         pickupLabel = publicContract.pickup and publicContract.pickup.label or nil,
         pickupDepotLabel = publicContract.trailerDepot and publicContract.trailerDepot.label or (publicContract.pickup and publicContract.pickup.label) or nil,
+        pickupDepotKey = options.pickupDepotKey,
         trailerLabel = publicContract.routeTrailer and publicContract.routeTrailer.label or nil,
         trailerDamagePercent = 0.0,
         safeSpeed = publicContract.routeTrailer and publicContract.routeTrailer.safeSpeed or (Config.SpeedRisk and Config.SpeedRisk.DefaultSafeSpeed) or 75.0,
@@ -2499,11 +2569,12 @@ local function ConfirmTrailerDropState(src, active, trailerNetId)
     return true
 end
 
-lib.callback.register('ls_trucking:server:markTrailerHooked', function(src)
+lib.callback.register('ls_trucking:server:markTrailerHooked', function(src, contractId)
     if not CheckRateLimit(src, 'markTrailerHooked', GetSecurityCooldown('Trailer', 1000)) then return RateLimitResponse() end
     local a = ActiveContracts[src]
     if not a then return { success = false, message = T('error.no_active_contract') } end
     if a.type ~= 'trailer' then return { success = false, message = T('trailer.not_contract') } end
+    if type(contractId) ~= 'string' or contractId ~= a.id then return { success = false, message = T('error.no_active_contract') } end
     if a.trailerHooked then return { success = true, alreadyHooked = true } end
 
     local near, nearMessage = RequireServerNear(src, a.trailerDepot and a.trailerDepot.pickup, GetDistanceLimit('TrailerPickup', 120.0), T('trailer.need_depot'))
@@ -2582,6 +2653,26 @@ end)
 
 AddEventHandler('playerDropped', function()
     local src = source
+    local checkedOut = CheckedOutVehicles[src] or ReusableVehicles[src]
+    if checkedOut then
+        local citizenid = checkedOut.citizenid or GetCitizenId(src)
+        local sourceLabel = tostring(checkedOut.source or '')
+
+        if sourceLabel:find('contractor', 1, true) then
+            MySQL.update.await(
+                'UPDATE trucking_contractor_vehicles SET stored = 1, out_state = 0 WHERE citizenid = ? AND plate = ?',
+                { citizenid, checkedOut.plate }
+            )
+        elseif checkedOut.garageId and CompanyGarage.SetStored then
+            CompanyGarage.SetStored(citizenid, checkedOut.garageId, true)
+        elseif checkedOut.type and checkedOut.index then
+            MySQL.update.await(
+                'UPDATE trucking_garage SET stored = 1 WHERE citizenid = ? AND vehicle_type = ? AND vehicle_index = ?',
+                { citizenid, checkedOut.type, tonumber(checkedOut.index) or 1 }
+            )
+        end
+    end
+
     CleanupContractCargo(src)
     ActiveContracts[src] = nil
     ClearVehicleSession(src)

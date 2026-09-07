@@ -1,10 +1,12 @@
-Config.VehicleConfigVersion = '1.2.0'
+Config.VehicleConfigVersion = '1.4.0'
 
--- Company garage vehicles and contractor fleet vehicles
+-- Company garage vehicles and contractor fleet vehicles.
+-- Keep garageId unique and unchanged after release; it preserves each driver's saved plate and upgrades if this list is reordered.
 Config.JobVehicles = {
     van = {
         {
             label = 'DECLASSE Burrito',
+            garageId = 'company_van_burrito2',
             minRank = 1,
             contractor = { enabled = true, price = 85000, minRank = 5 },
             model = 'burrito2',
@@ -19,6 +21,7 @@ Config.JobVehicles = {
         },
         {
             label = 'BRAVADO Rumpo',
+            garageId = 'company_van_rumpo',
             minRank = 1,
             contractor = { enabled = true, price = 85000, minRank = 5 },
             model = 'rumpo',
@@ -34,6 +37,7 @@ Config.JobVehicles = {
         },
         {
             label = 'VAPID Speedo',
+            garageId = 'company_van_speedo',
             minRank = 1,
             contractor = { enabled = true, price = 85000, minRank = 5 },
             model = 'speedo',
@@ -98,6 +102,7 @@ Config.JobVehicles = {
         -- }, 
         {
             label = 'BRUTE Pony',
+            garageId = 'company_van_pony',
             minRank = 1,
             contractor = { enabled = true, price = 85000, minRank = 5 },
             model = 'pony',
@@ -114,6 +119,7 @@ Config.JobVehicles = {
         }, 
         {
             label = 'BRUTE Pony',
+            garageId = 'company_van_pony2',
             minRank = 1,
             contractor = { enabled = true, price = 85000, minRank = 5 },
             model = 'pony2',
@@ -194,6 +200,7 @@ Config.JobVehicles = {
         -- }, 
         {
             label = 'BRAVADO Rumpo Priority',
+            garageId = 'company_van_rumpo2',
             minRank = 2,
             contractor = { enabled = true, price = 85000, minRank = 5 },
             model = 'rumpo2',
@@ -208,6 +215,7 @@ Config.JobVehicles = {
         },      
         {
             label = 'VAPID Speedo Priority',
+            garageId = 'company_van_speedo4',
             minRank = 2,
             contractor = { enabled = true, price = 85000, minRank = 5 },
             model = 'speedo4',
@@ -223,6 +231,7 @@ Config.JobVehicles = {
         },
         {
             label = 'VAPID Speedo Priority 2',
+            garageId = 'company_van_speedo5',
             minRank = 2,
             contractor = { enabled = true, price = 85000, minRank = 5 },
             model = 'speedo5',
@@ -329,6 +338,7 @@ Config.JobVehicles = {
     boxtruck = {
         {
             label = 'MAIBATSU Mule',
+            garageId = 'company_boxtruck_mule2',
             minRank = 3,
             contractor = { enabled = true, price = 165000, minRank = 5 },
             model = 'mule2',
@@ -386,6 +396,7 @@ Config.JobVehicles = {
         -- },
         {
             label = 'VAPID Benson',
+            garageId = 'company_boxtruck_benson',
             minRank = 3,
             contractor = { enabled = true, price = 165000, minRank = 5 },
             model = 'benson',
@@ -410,6 +421,7 @@ Config.JobVehicles = {
         },
         {
             label = 'MTL Pounder',
+            garageId = 'company_boxtruck_pounder',
             minRank = 3,
             contractor = { enabled = true, price = 165000, minRank = 5 },
             model = 'pounder',
@@ -564,6 +576,7 @@ Config.JobVehicles = {
         -- },
         {
             label = 'MAIBATSU Mule Priority',
+            garageId = 'company_boxtruck_mule4',
             minRank = 4,
             contractor = { enabled = true, price = 165000, minRank = 5 },
             model = 'mule4',
@@ -579,6 +592,7 @@ Config.JobVehicles = {
         },
         {
             label = 'VAPID Benson Priority',
+            garageId = 'company_boxtruck_benson2',
             minRank = 4,
             contractor = { enabled = true, price = 165000, minRank = 5 },
             model = 'benson2',
@@ -620,6 +634,7 @@ Config.JobVehicles = {
         -- },
         {
             label = 'MTL Pounder Priority',
+            garageId = 'company_boxtruck_pounder2',
             minRank = 4,
             contractor = { enabled = true, price = 165000, minRank = 5 },
             model = 'pounder2',
@@ -638,6 +653,7 @@ Config.JobVehicles = {
     trailer = {
         {
             label = 'JOBUILT Hauler',
+            garageId = 'company_tractor_hauler',
             minRank = 4,
             contractor = { enabled = true, price = 260000, minRank = 5 },
             model = 'hauler',
@@ -649,19 +665,19 @@ Config.JobVehicles = {
                 [1] = false,
             },
         },
-        {
-            label = 'JOBUILT Hauler 270',
-            minRank = 4,
-            contractor = { enabled = true, price = 260000, minRank = 5 },
-            model = 'hauler3',
-            photo = '../images/photos/vehicles/hauler3.webp',
-            platePrefix = 'LST',
-            truckLivery = 0,
-            fuel = 100,
-            truckExtras = {
-                [1] = false,
-            },
-        },
+        -- {
+        --     label = 'JOBUILT Hauler 270',
+        --     minRank = 4,
+        --     contractor = { enabled = true, price = 260000, minRank = 5 },
+        --     model = 'hauler3',
+        --     photo = '../images/photos/vehicles/hauler3.webp',
+        --     platePrefix = 'LST',
+        --     truckLivery = 0,
+        --     fuel = 100,
+        --     truckExtras = {
+        --         [1] = false,
+        --     },
+        -- },
         -- {
         --     label = 'MTL Voyager SA',
         --     minRank = 4,
@@ -690,6 +706,7 @@ Config.JobVehicles = {
         -- },
         {
             label = 'JOBUILT Phantom',
+            garageId = 'company_tractor_phantom',
             minRank = 4,
             contractor = { enabled = true, price = 260000, minRank = 5 },
             model = 'phantom',
@@ -706,6 +723,7 @@ Config.JobVehicles = {
         },
         {
             label = 'MTL Packer',
+            garageId = 'company_tractor_packer',
             minRank = 4,
             contractor = { enabled = true, price = 260000, minRank = 5 },
             model = 'packer',
@@ -719,6 +737,7 @@ Config.JobVehicles = {
         },
         {
             label = 'JOBUILT Hauler Priority',
+            garageId = 'company_tractor_hauler2',
             minRank = 5,
             contractor = { enabled = true, price = 260000, minRank = 5 },
             model = 'hauler2',
@@ -733,6 +752,7 @@ Config.JobVehicles = {
         },
         {
             label = 'JOBUILT Phantom Priority',
+            garageId = 'company_tractor_phantom3',
             minRank = 5,
             contractor = { enabled = true, price = 260000, minRank = 5 },
             model = 'phantom3',
@@ -747,6 +767,7 @@ Config.JobVehicles = {
         },
         {
             label = 'HVY Barracks',
+            garageId = 'company_tractor_barracks2',
             minRank = 5,
             contractor = { enabled = true, price = 260000, minRank = 5 },
             model = 'barracks2',

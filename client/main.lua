@@ -383,6 +383,7 @@ local freightDialogPromise = nil
 local freightDialogReturnFocus = false
 
 local function ShowFreightDialog(header, lines, closeLabel)
+    LS_Trucking.TrailerInspection.Close()
     if type(lines) == 'table' then
         lines = table.concat(lines, '\n')
     end
@@ -401,6 +402,7 @@ local function ShowFreightDialog(header, lines, closeLabel)
 end
 
 local function ShowFreightConfirm(header, lines, confirmLabel, cancelLabel)
+    LS_Trucking.TrailerInspection.Close()
     if type(lines) == 'table' then
         lines = table.concat(lines, '\n')
     end
@@ -431,6 +433,7 @@ local function ShowFreightConfirm(header, lines, confirmLabel, cancelLabel)
 end
 
 local function ShowFreightHandoff(mode, pedLabel, manifest)
+    LS_Trucking.TrailerInspection.Close()
     if freightDialogPromise then
         freightDialogPromise:resolve({ confirmed = false })
         freightDialogPromise = nil
@@ -456,6 +459,7 @@ local function ShowFreightHandoff(mode, pedLabel, manifest)
 end
 
 local function ShowFreightCancelDialog(repLoss, reasons)
+    LS_Trucking.TrailerInspection.Close()
     if freightDialogPromise then
         freightDialogPromise:resolve({ confirmed = false })
         freightDialogPromise = nil
@@ -1278,15 +1282,7 @@ local function AddSphereZone(name, coords, radius, options)
 end
 
 local function IsCargoDoorOpen()
-    if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then return false end
-
-    for _, doorIndex in ipairs({ 5, 2, 3 }) do
-        if IsVehicleDoorDamaged(spawnedVehicle, doorIndex) or GetVehicleDoorAngleRatio(spawnedVehicle, doorIndex) > 0.1 then
-            return true
-        end
-    end
-
-    return false
+    return LS_Trucking.CargoAccess and LS_Trucking.CargoAccess.HasOpenDoor(spawnedVehicle) or false
 end
 
 function LS_Trucking.BoxTruckTrolley.GetConfig()
@@ -1516,8 +1512,11 @@ function LS_Trucking.BoxTruckTrolley.Take()
     if carryingCargo then Notify(T('boxtruck_trolley.clear_cargo_first'), 'error') return end
     if not activeContract.loaded or not activeContract.verifiedCargo then Notify(T('boxtruck_trolley.verify_load_first'), 'error') return end
     if not IsCargoDoorOpen() then Notify(T('boxtruck_trolley.open_doors_take'), 'error') return end
+    if not LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle) then Notify(T('cargo.rear_access_required'), 'error') return end
 
     if not Progress(T('boxtruck_trolley.progress_take'), Config.Progress.grabCargo or 1800, { dict = 'pickup_object', clip = 'pickup_low' }) then return end
+    if not IsCargoDoorOpen() then Notify(T('boxtruck_trolley.open_doors_take'), 'error') return end
+    if not LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle) then Notify(T('cargo.rear_access_required'), 'error') return end
 
     if not LS_Trucking.BoxTruckTrolley.SpawnAttached() then return end
     activeContract.notice = T('boxtruck_trolley.notice_ready')
@@ -1529,8 +1528,11 @@ function LS_Trucking.BoxTruckTrolley.Store()
     if not LS_Trucking.BoxTruckTrolley.IsOut() then return end
     if LS_Trucking.BoxTruckTrolley.HasCargo() or carryingCargo then Notify(T('boxtruck_trolley.unload_before_store'), 'error') return end
     if not IsCargoDoorOpen() then Notify(T('boxtruck_trolley.open_doors_store'), 'error') return end
+    if not LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle) then Notify(T('cargo.rear_access_required'), 'error') return end
 
     if not Progress(T('boxtruck_trolley.progress_store'), Config.Progress.loadCargo or 1800, { dict = 'pickup_object', clip = 'pickup_low' }) then return end
+    if not IsCargoDoorOpen() then Notify(T('boxtruck_trolley.open_doors_store'), 'error') return end
+    if not LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle) then Notify(T('cargo.rear_access_required'), 'error') return end
 
     LS_Trucking.BoxTruckTrolley.Cleanup(true)
     ClearPedTasks(PlayerPedId())
@@ -1548,8 +1550,11 @@ function LS_Trucking.BoxTruckTrolley.LoadCargo()
     if carryingCargo then Notify(T('boxtruck_trolley.deliver_current_first'), 'error') return end
     if not LS_Trucking.CanGrabNextStopCargo(true) then return end
     if not IsCargoDoorOpen() then Notify(T('boxtruck_trolley.open_doors_load'), 'error') return end
+    if not LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle) then Notify(T('cargo.rear_access_required'), 'error') return end
 
     if not Progress(T('boxtruck_trolley.progress_load'), Config.Progress.grabCargo or 1800) then return end
+    if not IsCargoDoorOpen() then Notify(T('boxtruck_trolley.open_doors_load'), 'error') return end
+    if not LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle) then Notify(T('cargo.rear_access_required'), 'error') return end
 
     local result = lib.callback.await('ls_trucking:server:grabCargoFromVehicle', false)
     if not result or not result.success then Notify(result and result.message or T('boxtruck_trolley.load_failed'), 'error') return end
@@ -2432,17 +2437,17 @@ local function MarkTrailerHookedAuto()
         activeContract.stage = reconnecting and 'Secure trailer attachment' or 'Complete load checklist'
 
         if reconnecting then
-            activeContract.notice = 'Trailer recoupled. Target the rear of the truck and redo Secure Load Attached before continuing.'
+            activeContract.notice = T('inspection.reconnect')
             SetActiveDestination('Rear of truck')
-            Notify('Trailer recoupled. Redo Secure Load Attached before continuing.', 'warning')
+            Notify(T('inspection.reconnect'), 'warning')
             DispatchChatter('Trailer telemetry restored. Repeat the secure attachment check before continuing the route.', 'warning', 'trailerConnect', { notify = false })
         else
             activeContract.loaded = false
             if (Config.LoadVerificationMode or 'receiver') == 'receiver' then
-                activeContract.notice = 'Trailer is hooked. Target the rear of the truck and trailer to complete the physical checks, then submit the checklist through the receiver.'
+                activeContract.notice = T('inspection.intro')
                 SetActiveDestination('Rear of truck')
             else
-                activeContract.notice = 'Trailer is hooked. Target the rear of the truck to complete the connection and load security checklist.'
+                activeContract.notice = T('inspection.intro')
                 SetActiveDestination('Load checklist')
             end
 
@@ -2497,9 +2502,9 @@ CreateThread(function()
                     if connectionWasSecure then
                         activeContract.trailerConnectionLost = activeContract.trailerHooked == true
                         activeContract.stage = 'Reconnect trailer'
-                        activeContract.notice = 'Trailer connection lost. Reattach the assigned trailer and redo Secure Load Attached.'
+                        activeContract.notice = T('inspection.reconnect')
                         SetActiveDestination('Assigned trailer')
-                        Notify('Trailer disconnected. Reattach it and redo Secure Load Attached.', 'warning')
+                        Notify(T('inspection.reconnect'), 'warning')
                         DispatchChatter('Trailer connection lost. Reconnect the assigned trailer and repeat the secure attachment check.', 'warning', 'trailerDisconnect', { notify = false })
                         UpdateMiniUI()
                     elseif not activeContract.trailerHooked then
@@ -2621,10 +2626,13 @@ end)
 local function LoadCargoIntoVehicle()
     if not activeContract then return end
     if activeContract.type == 'trailer' then Notify('Trailer hauling does not use cargo boxes.', 'error') return end
-    if not IsCargoDoorOpen() then Notify('Open the vehicle trunk or rear cargo door before loading cargo.', 'error') return end
-    if not carryingCargo then Notify('You need to carry a route item first.', 'error') return end
     if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then Notify('Your job vehicle is missing.', 'error') return end
+    if not IsCargoDoorOpen() then Notify('Open the vehicle trunk or rear cargo door before loading cargo.', 'error') return end
+    if not LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle) then Notify(T('cargo.rear_access_required'), 'error') return end
+    if not carryingCargo then Notify('You need to carry a route item first.', 'error') return end
     if not Progress('Positioning cargo at open trunk...', Config.Progress.loadCargo, { dict = 'anim@heists@box_carry@', clip = 'idle' }) then return end
+    if not IsCargoDoorOpen() then Notify('Keep the rear cargo doors open until loading is complete.', 'error') return end
+    if not LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle) then Notify(T('cargo.rear_access_required'), 'error') return end
     local result = lib.callback.await('ls_trucking:server:loadCargoOne', false)
     if not result or not result.success then Notify(result and result.message or 'Could not load cargo.', 'error') return end
     PlayCargoLoadTransition()
@@ -2733,262 +2741,28 @@ local function GrabCargoFromVehicle()
     if not activeContract then return end
     if LS_Trucking.BoxTruckTrolley.ShouldUse() then Notify(T('boxtruck_trolley.use_trolley'), 'inform') return end
     if not LS_Trucking.CanGrabNextStopCargo(true) then return end
+    if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then Notify('Your job vehicle is missing.', 'error') return end
     if not IsCargoDoorOpen() then Notify('Open the vehicle trunk or rear cargo door before grabbing cargo.', 'error') return end
+    if not LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle) then Notify(T('cargo.rear_access_required'), 'error') return end
     if carryingCargo then Notify('You are already carrying cargo.', 'error') return end
-    if not Progress('Reaching into open trunk...', Config.Progress.grabCargo, { dict = 'pickup_object', clip = 'pickup_low' }) then return end
+    if not Progress('Retrieving cargo from the vehicle...', Config.Progress.grabCargo, {
+            dict = 'anim@heists@load_box',
+            clip = 'load_box_1',
+            flag = 48
+        }) then return end
+    if not IsCargoDoorOpen() then Notify('Keep the rear cargo doors open until cargo is removed.', 'error') return end
+    if not LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle) then Notify(T('cargo.rear_access_required'), 'error') return end
     local result = lib.callback.await('ls_trucking:server:grabCargoFromVehicle', false)
     if not result or not result.success then Notify(result and result.message or 'Could not grab cargo.', 'error') return end
     activeContract.currentCarryCargoType = result.cargoType
-    PlayCargoPickupTransition(activeContract.type, result.cargoType)
+    if CarryCargoProp(activeContract.type, result.cargoType, false) then StartCargoCarryAnim() end
     activeContract.notice = 'Carry the package to the current dropoff target.'
     Notify(('Grabbed %s. Take it to the dropoff target.'):format(result.label), 'success')
     UpdateMiniUI()
 end
 
 
-local function GetChecklistStatusText()
-    local checklist = activeContract.loadChecklist or { truckSecure = false, trailerSecure = false }
-    local trailerLabel = activeContract.trailerLabel or 'Assigned Trailer'
-    local receiverMode = (Config.LoadVerificationMode or 'receiver') == 'receiver'
-
-    local truckStatus = checklist.truckSecure and 'Complete' or 'Pending'
-    local trailerStatus = checklist.trailerSecure and 'Complete' or 'Pending'
-    local readyStatus = (checklist.truckSecure and checklist.trailerSecure) and 'Ready for dispatch confirmation' or 'Incomplete'
-
-    return table.concat({
-        ('**Assigned Trailer:** %s'):format(trailerLabel),
-        '',
-        '**Load Checklist**',
-        ('- Truck Connection Secured: %s'):format(truckStatus),
-        ('- Trailer Load Secured: %s'):format(trailerStatus),
-        ('- Dispatch Status: %s'):format(readyStatus),
-        '',
-        '**Required Steps**',
-        '1. Target the rear of the truck and secure the load connection.',
-        '2. Target the rear of the trailer and confirm the load is secure.',
-        receiverMode and '3. Submit the completed checklist to dispatch.' or '3. Return to the rear of the truck and complete the checklist.'
-    }, '\n\n')
-end
-
-local function ShowTrailerLoadChecklist()
-    if not activeContract or activeContract.type ~= 'trailer' then
-        Notify('You do not have a trailer hauling contract.', 'error')
-        return
-    end
-
-    ShowFreightDialog('Trailer Load Checklist', GetChecklistStatusText(), 'Close Checklist')
-end
-
 local AddTrailerLoadTarget
-
-local function SecureTruckLoadConnection(fromReceiver)
-    fromReceiver = fromReceiver == true
-    if not activeContract or activeContract.type ~= 'trailer' then
-        Notify('You do not have a trailer hauling contract.', 'error')
-        return
-    end
-
-    local reconnecting = activeContract.trailerHooked == true and activeContract.trailerConnectionLost == true
-
-    if activeContract.trailerHooked and not reconnecting then
-        Notify('This trailer load is already cleared for delivery.', 'inform')
-        return
-    end
-
-    if not IsAssignedTrailerAttached() then
-        Notify('Hook up the assigned trailer before securing the load connection.', 'error')
-        return
-    end
-
-    activeContract.loadChecklist = activeContract.loadChecklist or { truckSecure = false, trailerSecure = false }
-
-    if activeContract.loadChecklist.truckSecure then
-        Notify('Truck connection is already secured.', 'inform')
-        return
-    end
-
-    if fromReceiver then
-        DispatchChatter('Running air and electrical connection check. Hold for telemetry.', 'inform', 'trailerConnect', { notify = false })
-        local exchange = Config.DispatchExchange or {}
-        if exchange.Enabled ~= false then
-            Wait(math.max(0, tonumber(exchange.ChecklistStepDelay) or 700))
-        end
-    elseif not Progress('Securing truck load connection...', Config.Progress.secureTruckLoad or 3000, {
-            dict = 'mini@repair',
-            clip = 'fixing_a_ped'
-        }) then
-        return false
-    end
-
-    activeContract.loadChecklist.truckSecure = true
-    PlayUISound('trailerConnect')
-
-    if reconnecting then
-        activeContract.trailerConnectionLost = false
-        activeContract.trailerAttached = true
-        activeContract.loaded = true
-        activeContract.stage = 'Deliver trailer'
-        activeContract.notice = (Config.TrailerDropMarker or {}).Enabled ~= false
-            and 'Trailer connection re-secured. Place the trailer inside the receiving marker, detach it, and wait for yard acceptance.'
-            or 'Trailer connection re-secured. Drive to the receiving yard and detach the trailer in the drop zone.'
-        SetActiveDestination(activeContract.trailerDrop.label, activeContract.trailerDrop.coords)
-        Notify('Trailer connection re-secured. Route clearance restored.', 'success')
-        DispatchChatter('Secure attachment verified. Trailer route clearance restored.', 'success', 'secure', { notify = false })
-        UpdateMiniUI()
-        return true
-    end
-
-    activeContract.stage = 'Complete load checklist'
-    activeContract.notice = 'Truck connection secured. Target the rear of the trailer and confirm the load is secure.'
-    SetActiveDestination('Rear of trailer')
-    AddTrailerLoadTarget()
-
-    if fromReceiver then
-        DispatchChatter('Connection telemetry confirmed. Air and electrical lines are secure.', 'success', 'secure', { notify = false })
-    else
-        Notify('Truck connection secured.', 'success')
-    end
-    UpdateMiniUI()
-    return true
-end
-
-local function SecureTrailerLoad(fromReceiver)
-    fromReceiver = fromReceiver == true
-    if not activeContract or activeContract.type ~= 'trailer' then
-        Notify('You do not have a trailer hauling contract.', 'error')
-        return
-    end
-
-    if activeContract.trailerHooked then
-        Notify('This trailer load is already cleared for delivery.', 'inform')
-        return
-    end
-
-    if not IsAssignedTrailerAttached() then
-        Notify('Hook up the assigned trailer before confirming the trailer load.', 'error')
-        return
-    end
-
-    activeContract.loadChecklist = activeContract.loadChecklist or { truckSecure = false, trailerSecure = false }
-
-    if activeContract.loadChecklist.trailerSecure then
-        Notify('Trailer load is already confirmed secure.', 'inform')
-        return
-    end
-
-    if fromReceiver then
-        DispatchChatter('Checking trailer load security and stability sensors.', 'inform', 'secure', { notify = false })
-        local exchange = Config.DispatchExchange or {}
-        if exchange.Enabled ~= false then
-            Wait(math.max(0, tonumber(exchange.ChecklistStepDelay) or 700))
-        end
-    elseif not Progress('Confirming trailer load secure...', Config.Progress.secureTrailerLoad or 3000, {
-            dict = 'mini@repair',
-            clip = 'fixing_a_ped'
-        }) then
-        return false
-    end
-
-    activeContract.loadChecklist.trailerSecure = true
-    PlayUISound('secure')
-    activeContract.stage = 'Complete load checklist'
-    if (Config.LoadVerificationMode or 'receiver') == 'receiver' then
-        activeContract.notice = 'Trailer load confirmed secure. Submit the completed checklist from the receiver Load page.'
-        SetActiveDestination('Submit load checklist')
-    else
-        activeContract.notice = 'Trailer load confirmed secure. Return to the rear of the truck to complete the load checklist.'
-        SetActiveDestination('Rear of truck')
-    end
-
-    if fromReceiver then
-        DispatchChatter('Trailer load security confirmed. Checklist is ready for dispatch submission.', 'success', 'secure', { notify = false })
-    else
-        Notify('Trailer load confirmed secure.', 'success')
-    end
-    UpdateMiniUI()
-    return true
-end
-
-local function CompleteTrailerLoadChecklist(fromReceiver)
-    fromReceiver = fromReceiver == true
-    if not activeContract or activeContract.type ~= 'trailer' then
-        Notify('You do not have a trailer hauling contract.', 'error')
-        return
-    end
-
-    if activeContract.trailerHooked then
-        Notify('This trailer load is already cleared for delivery.', 'inform')
-        return
-    end
-
-    if not IsAssignedTrailerAttached() then
-        Notify('Hook up the assigned trailer before completing the checklist.', 'error')
-        return
-    end
-
-    local checklist = activeContract.loadChecklist or { truckSecure = false, trailerSecure = false }
-
-    if not checklist.truckSecure or not checklist.trailerSecure then
-        ShowTrailerLoadChecklist()
-        Notify('Complete both checklist items before dispatch clears the route.', 'error')
-        return
-    end
-
-    if fromReceiver then
-        DispatchChatter('Submitting completed trailer load checklist to dispatch. Awaiting route clearance.', 'inform', 'secure', { direction = 'tx', notify = false })
-        local exchange = Config.DispatchExchange or {}
-        if exchange.Enabled ~= false then
-            Wait(math.max(0, tonumber(exchange.RequestDelay) or 1250))
-        end
-    else
-        local confirmed = ShowFreightConfirm(
-            'Complete Load Checklist',
-            GetChecklistStatusText() .. '\n\nConfirm this load is secured and ready for dispatch?',
-            'Confirm Dispatch',
-            'Go Back'
-        )
-
-        if not confirmed then return false end
-
-        if not Progress('Submitting load checklist...', Config.Progress.completeLoadChecklist or 2500, {
-                dict = 'missheistdockssetup1clipboard@base',
-                clip = 'base'
-            }, {
-                model = `p_amb_clipboard_01`,
-                bone = 18905,
-                pos = vec3(0.10, 0.02, 0.08),
-                rot = vec3(-80.0, 0.0, 0.0)
-            }) then
-            return false
-        end
-    end
-
-    local result = lib.callback.await('ls_trucking:server:markTrailerHooked', false)
-    if not result or not result.success then
-        Notify(result and result.message or 'Could not clear trailer load for dispatch.', 'error')
-        if fromReceiver then
-            DispatchChatter(('Checklist verification failed. %s'):format(result and result.message or 'Dispatch could not clear the trailer.'), 'error', 'alert', { notify = false })
-        end
-        return false
-    end
-
-    activeContract.trailerAttached = true
-    activeContract.trailerHooked = true
-    activeContract.loaded = true
-    activeContract.stage = 'Deliver trailer'
-    activeContract.notice = (Config.TrailerDropMarker or {}).Enabled ~= false
-        and 'Checklist complete. Place the trailer inside the receiving marker, detach it, and wait for yard acceptance.'
-        or 'Checklist complete. Drive to the receiving yard and detach the trailer in the drop zone.'
-    SetExpectedCompletionTime()
-    SetActiveDestination(activeContract.trailerDrop.label, activeContract.trailerDrop.coords)
-
-    CreateRouteBlip(activeContract.trailerDrop.coords, activeContract.trailerDrop.label, 'trailer')
-    CreateRouteAreaBlip(activeContract.trailerDrop.coords, activeContract.trailerDrop.radius, 'TrailerDrop')
-    if not fromReceiver then Notify('Load checklist complete. Delivery waypoint assigned.', 'success') end
-    DispatchChatter(fromReceiver and 'Dispatch verified checklist. Trailer route confirmed. GPS activated.' or 'Checklist received. Trailer load released to receiver.', 'inform', 'secure', { notify = false })
-    UpdateMiniUI()
-    return true
-end
 
 local function IsAtRearOfEntity(entity, coords, minRearOffset)
     if not entity or entity == 0 or not DoesEntityExist(entity) then return false end
@@ -3001,71 +2775,39 @@ end
 local function AddVehicleCargoTarget()
     if vehicleTargetAdded then return end
     if not spawnedVehicle or not DoesEntityExist(spawnedVehicle) then return end
+    local cargoInteractionDistance = LS_Trucking.CargoAccess.GetSearchRadius(spawnedVehicle)
     AddTargetEntity(spawnedVehicle, {
-        { name = 'ls_trucking_load_cargo_one', label = T('interactions.load_carried_cargo'), icon = 'fa-solid fa-box', distance = 3.0, canInteract = function() return activeContract ~= nil and activeContract.type ~= 'trailer' and carryingCargo and not activeContract.loaded and not activeContract.cargoReady and not (LS_Trucking.AssistedCargoLoading and LS_Trucking.AssistedCargoLoading.IsEnabled()) end, onSelect = LoadCargoIntoVehicle },
+        { name = 'ls_trucking_load_cargo_one', label = T('interactions.load_carried_cargo'), icon = 'fa-solid fa-box', distance = cargoInteractionDistance, canInteract = function(entity, distance, coords) return activeContract ~= nil and activeContract.type ~= 'trailer' and carryingCargo and not activeContract.loaded and not activeContract.cargoReady and not (LS_Trucking.AssistedCargoLoading and LS_Trucking.AssistedCargoLoading.IsEnabled()) and LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle, coords) end, onSelect = LoadCargoIntoVehicle },
         { name = 'ls_trucking_verify_loaded_cargo', label = T('interactions.verify_loaded_cargo'), icon = 'fa-solid fa-clipboard-check', distance = 3.0, canInteract = function() return (Config.LoadVerificationMode or 'receiver') == 'target' and activeContract ~= nil and activeContract.type ~= 'trailer' and activeContract.cargoReady and not activeContract.verifiedCargo and not carryingCargo end, onSelect = VerifyLoadedCargo },
-        { name = 'ls_trucking_grab_boxtruck_trolley', label = T('boxtruck_trolley.target_take'), icon = 'fa-solid fa-dolly', distance = 3.0, canInteract = function(entity, distance, coords)
+        { name = 'ls_trucking_grab_boxtruck_trolley', label = T('boxtruck_trolley.target_take'), icon = 'fa-solid fa-dolly', distance = cargoInteractionDistance, canInteract = function(entity, distance, coords)
             return LS_Trucking.BoxTruckTrolley.ShouldUse()
                 and activeContract.loaded
                 and activeContract.verifiedCargo
                 and not carryingCargo
                 and not LS_Trucking.BoxTruckTrolley.IsOut()
-                and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
+                and LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle, coords)
         end, onSelect = LS_Trucking.BoxTruckTrolley.Take },
-        { name = 'ls_trucking_load_trolley_crate', label = T('boxtruck_trolley.target_load'), icon = 'fa-solid fa-boxes-stacked', distance = 3.0, canInteract = function(entity, distance, coords)
+        { name = 'ls_trucking_load_trolley_crate', label = T('boxtruck_trolley.target_load'), icon = 'fa-solid fa-boxes-stacked', distance = cargoInteractionDistance, canInteract = function(entity, distance, coords)
             return LS_Trucking.BoxTruckTrolley.ShouldUse()
                 and activeContract.loaded
                 and activeContract.verifiedCargo
                 and LS_Trucking.BoxTruckTrolley.IsOut()
                 and not LS_Trucking.BoxTruckTrolley.HasCargo()
                 and not carryingCargo
-                and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
+                and LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle, coords)
         end, onSelect = LS_Trucking.BoxTruckTrolley.LoadCargo },
-        { name = 'ls_trucking_store_boxtruck_trolley', label = T('boxtruck_trolley.target_store'), icon = 'fa-solid fa-dolly-flatbed', distance = 3.0, canInteract = function(entity, distance, coords)
+        { name = 'ls_trucking_store_boxtruck_trolley', label = T('boxtruck_trolley.target_store'), icon = 'fa-solid fa-dolly-flatbed', distance = cargoInteractionDistance, canInteract = function(entity, distance, coords)
             return LS_Trucking.BoxTruckTrolley.ShouldUse()
                 and LS_Trucking.BoxTruckTrolley.IsOut()
                 and not LS_Trucking.BoxTruckTrolley.HasCargo()
                 and not carryingCargo
-                and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
+                and LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle, coords)
         end, onSelect = LS_Trucking.BoxTruckTrolley.Store },
-        { name = 'ls_trucking_grab_cargo_one', label = T('interactions.grab_delivery_cargo'), icon = 'fa-solid fa-box-open', distance = 3.0, canInteract = function() return activeContract ~= nil and activeContract.loaded and activeContract.verifiedCargo and activeContract.type ~= 'trailer' and not carryingCargo and not LS_Trucking.BoxTruckTrolley.ShouldUse() end, onSelect = GrabCargoFromVehicle },
-        { name = 'ls_trucking_view_load_checklist', label = T('interactions.view_load_checklist'), icon = 'fa-solid fa-clipboard-list', distance = 3.0, canInteract = function(entity, distance, coords)
-            return activeContract ~= nil
-                and activeContract.type == 'trailer'
-                and activeContract.trailerAttached
-                and not activeContract.trailerHooked
+        { name = 'ls_trucking_grab_cargo_one', label = T('interactions.grab_delivery_cargo'), icon = 'fa-solid fa-box-open', distance = cargoInteractionDistance, canInteract = function(entity, distance, coords) return activeContract ~= nil and activeContract.loaded and activeContract.verifiedCargo and activeContract.type ~= 'trailer' and not carryingCargo and not LS_Trucking.BoxTruckTrolley.ShouldUse() and LS_Trucking.CargoAccess.IsNearRearDoor(spawnedVehicle, coords) end, onSelect = GrabCargoFromVehicle },
+        { name = 'ls_trucking_inspect_trailer', label = T('inspection.target'), icon = 'fa-solid fa-clipboard-check', distance = 3.0, canInteract = function(entity, distance, coords)
+            return LS_Trucking.TrailerInspection.CanInspect()
                 and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
-        end, onSelect = ShowTrailerLoadChecklist },
-        { name = 'ls_trucking_secure_truck_load', label = T('interactions.secure_load_attached'), icon = 'fa-solid fa-link', distance = 3.0, canInteract = function(entity, distance, coords)
-            return activeContract ~= nil
-                and activeContract.type == 'trailer'
-                and activeContract.trailerAttached
-                and (not activeContract.trailerHooked or activeContract.trailerConnectionLost)
-                and IsAssignedTrailerAttached()
-                and not (activeContract.loadChecklist and activeContract.loadChecklist.truckSecure)
-                and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
-        end, onSelect = SecureTruckLoadConnection },
-        { name = 'ls_trucking_secure_trailer_load_from_truck', label = T('interactions.confirm_trailer_load_secure'), icon = 'fa-solid fa-shield-alt', distance = 3.0, canInteract = function(entity, distance, coords)
-            local checklist = activeContract and activeContract.loadChecklist or {}
-
-            return activeContract ~= nil
-                and activeContract.type == 'trailer'
-                and activeContract.trailerAttached
-                and not activeContract.trailerHooked
-                and IsAssignedTrailerAttached()
-                and checklist.truckSecure == true
-                and not checklist.trailerSecure
-                and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
-        end, onSelect = SecureTrailerLoad },
-        { name = 'ls_trucking_complete_load_checklist', label = T('interactions.complete_load_checklist'), icon = 'fa-solid fa-clipboard-check', distance = 3.0, canInteract = function(entity, distance, coords)
-            return (Config.LoadVerificationMode or 'receiver') == 'target'
-                and activeContract ~= nil
-                and activeContract.type == 'trailer'
-                and activeContract.trailerAttached
-                and not activeContract.trailerHooked
-                and IsAssignedTrailerAttached()
-                and IsAtRearOfEntity(spawnedVehicle, coords, -0.5)
-        end, onSelect = CompleteTrailerLoadChecklist },
+        end, onSelect = LS_Trucking.TrailerInspection.Open },
         { name = 'ls_trucking_disconnect_contract_trailer', label = T('interactions.disconnect_contract_trailer'), icon = 'fa-solid fa-link-slash', distance = 3.0, canInteract = function(entity, distance, coords)
             return LS_Trucking.TrailerDropMarker
                 and LS_Trucking.TrailerDropMarker.CanDisconnectTrailer
@@ -3086,24 +2828,44 @@ AddTrailerLoadTarget = function()
 
     AddTargetEntity(spawnedTrailer, {
         {
-            name = 'ls_trucking_secure_trailer_load',
-            label = T('interactions.confirm_load_secure'),
-            icon = 'fa-solid fa-shield-alt',
+            name = 'ls_trucking_inspect_trailer',
+            label = T('inspection.target'),
+            icon = 'fa-solid fa-clipboard-check',
             distance = 3.5,
-            canInteract = function(entity, distance, coords)
-                return activeContract ~= nil
-                    and activeContract.type == 'trailer'
-                    and activeContract.trailerAttached
-                    and not activeContract.trailerHooked
-                    and IsAssignedTrailerAttached()
-                    and not (activeContract.loadChecklist and activeContract.loadChecklist.trailerSecure)
+            canInteract = function()
+                return LS_Trucking.TrailerInspection.CanInspect()
             end,
-            onSelect = SecureTrailerLoad
+            onSelect = LS_Trucking.TrailerInspection.Open
         }
     })
 
     trailerTargetAdded = true
 end
+
+LS_Trucking.TrailerInspection.ConfigureClient({
+    GetActiveContract = function() return activeContract end,
+    GetVehicle = function() return spawnedVehicle end,
+    GetTrailer = function() return spawnedTrailer end,
+    IsAssignedTrailerAttached = IsAssignedTrailerAttached,
+    Progress = Progress,
+    Notify = Notify,
+    PlayUISound = PlayUISound,
+    UpdateMiniUI = UpdateMiniUI,
+    DispatchChatter = DispatchChatter,
+    SetActiveDestination = SetActiveDestination,
+    SetExpectedCompletionTime = SetExpectedCompletionTime,
+    CreateRouteBlip = CreateRouteBlip,
+    CreateRouteAreaBlip = CreateRouteAreaBlip,
+    TakeFocus = function()
+        SetKeepInput(false)
+        SetNuiFocus(true, true)
+    end,
+    ReleaseFocus = function()
+        local focused = tabletOpen == true or fullReceiverVisible == true
+        SetNuiFocus(focused, focused)
+        SetKeepInput(fullReceiverVisible and not dispatchUIVisible)
+    end
+})
 
 if DepotVehicles.ConfigureClient then
     DepotVehicles.ConfigureClient({
@@ -3354,7 +3116,9 @@ local function HandleReceiverPedInteraction(ped, pedLabel, scenario)
 end
 
 local function AddPickupPedTarget(ped, contractType)
-    local pedData = Config.Contracts and Config.Contracts[contractType] and Config.Contracts[contractType].pickupPed or {}
+    local pedData = activeContract and activeContract.pickupPed
+        or Config.Contracts and Config.Contracts[contractType] and Config.Contracts[contractType].pickupPed
+        or {}
     local pedLabel = pedData.label or 'Pickup Worker'
     local handoff = Config.FreightHandoff or {}
     local handoffRequired = handoff.Enabled ~= false and handoff.RequirePickupSignature ~= false
@@ -3405,66 +3169,33 @@ local function AddReceiverPedTarget(ped, contractType, routeIndex)
 end
 
 local function CleanupActiveContractPeds(delay)
-    local pedsToClean = {}
-
     for key, ped in pairs(activeContractPedKeys) do
-        pedsToClean[key] = ped
-    end
-
-    if not next(pedsToClean) then return end
-
-    local function removePeds()
-        for key, ped in pairs(pedsToClean) do
-            if ped and DoesEntityExist(ped) then
-                RemoveTargetEntity(ped)
-                DeleteEntity(ped)
-            end
-            LS_Trucking.FreightHandoff.ClearPed(ped)
-
-            if spawnedPeds[key] == ped then
-                spawnedPeds[key] = nil
-            end
-
-            if activeContractPedKeys[key] == ped then
-                activeContractPedKeys[key] = nil
-            end
+        if ped and DoesEntityExist(ped) then RemoveTargetEntity(ped) end
+        if delay == false then
+            LS_Trucking.ContractPeds.Delete(ped)
+        else
+            LS_Trucking.ContractPeds.Retire(ped)
         end
+        if spawnedPeds[key] == ped then spawnedPeds[key] = nil end
+        activeContractPedKeys[key] = nil
     end
-
-    LS_Trucking.ActivePedCleanupToken = (LS_Trucking.ActivePedCleanupToken or 0) + 1
-    local cleanupToken = LS_Trucking.ActivePedCleanupToken
-
-    if delay then
-        LS_Trucking.ActivePedCleanupPending = true
-        local cleanupDelay = type(delay) == 'number' and delay or (tonumber(Config.TrailerDespawnAfterDelivery) or 10000)
-        SetTimeout(cleanupDelay, function()
-            if cleanupToken ~= LS_Trucking.ActivePedCleanupToken then return end
-            removePeds()
-            LS_Trucking.ActivePedCleanupPending = false
-        end)
-    else
-        LS_Trucking.ActivePedCleanupPending = false
-        removePeds()
-    end
+    if delay == false then LS_Trucking.ContractPeds.ClearRetired() end
 end
 
 local function SetupActiveContractPeds()
     if not activeContract or not Config.UsePed then
-        if next(activeContractPedKeys) and LS_Trucking.ActivePedCleanupPending ~= true then CleanupActiveContractPeds() end
+        if next(activeContractPedKeys) then CleanupActiveContractPeds() end
         return
     end
 
-    if LS_Trucking.ActivePedCleanupPending == true then
-        LS_Trucking.ActivePedCleanupToken = (LS_Trucking.ActivePedCleanupToken or 0) + 1
-        LS_Trucking.ActivePedCleanupPending = false
-    end
 
     local key, pedData
     if activeContract.type == 'van' or activeContract.type == 'boxtruck' then
         local contract = Config.Contracts and Config.Contracts[activeContract.type]
-        if contract and contract.pickupPed then
+        local pickupPed = activeContract.pickupPed or (contract and contract.pickupPed)
+        if pickupPed and LS_Trucking.ContractPeds.ShouldSpawnPickup(activeContract) then
             key = ('active_pickup_%s'):format(activeContract.type)
-            pedData = contract.pickupPed
+            pedData = pickupPed
         end
     elseif activeContract.type == 'trailer' and activeContract.receiverPed then
         key = ('active_receiver_%s_%s'):format(activeContract.type, activeContract.routeIndex or 1)
@@ -3489,8 +3220,17 @@ local function SetupActiveContractPeds()
     if distance <= math.max(10.0, tonumber(pedConfig.SpawnDistance) or 100.0) then
         if existingPed and DoesEntityExist(existingPed) then return end
 
-        local ped = SpawnStaticPed(key, pedData)
+        local contractAtSpawn = activeContract
+        local ped = LS_Trucking.ContractPeds.Reclaim(key, pedData) or SpawnStaticPed(key, pedData)
+        if ped then spawnedPeds[key] = ped end
         if ped then
+            LS_Trucking.ContractPeds.Track(ped, key, pedData)
+            if activeContract ~= contractAtSpawn
+                or (activeContract.type ~= 'trailer' and not LS_Trucking.ContractPeds.ShouldSpawnPickup(activeContract)) then
+                spawnedPeds[key] = nil
+                LS_Trucking.ContractPeds.Retire(ped)
+                return
+            end
             activeContractPedKeys[key] = ped
             if activeContract.type == 'trailer' then
                 AddReceiverPedTarget(ped, activeContract.type, activeContract.routeIndex or 1)
@@ -3898,6 +3638,7 @@ RegisterNetEvent('ls_trucking:client:toggleMiniUI', ToggleReceiverDock)
 RegisterNetEvent('ls_trucking:client:cancelActiveContract', CancelActiveContract)
 
 RegisterNUICallback('freightDialogClose', function(_, cb)
+    if LS_Trucking.TrailerInspection.IsOpen() then LS_Trucking.TrailerInspection.Close() cb(true) return end
     local returnFocus = freightDialogReturnFocus == true
     freightDialogReturnFocus = false
     SetNuiFocus(returnFocus, returnFocus)
@@ -4065,7 +3806,7 @@ RegisterNUICallback('receiverLoadAction', function(data, cb)
     if action == 'verify_cargo' then
         success = VerifyLoadedCargo(true) == true
     elseif action == 'submit_checklist' then
-        success = CompleteTrailerLoadChecklist(true) == true
+        success = LS_Trucking.TrailerInspection.Submit(true) == true
     else
         Notify('Unknown receiver load action.', 'error')
     end
@@ -4175,7 +3916,9 @@ RegisterNUICallback('openActiveManifest', function(_, cb)
     cb(true)
 end)
 
-function LS_Trucking.IsStaleVehicleCheckoutMessage(message)
+function LS_Trucking.IsStaleVehicleCheckoutMessage(result)
+    if type(result) == 'table' and result.code == 'vehicle_checked_out' then return true end
+    local message = type(result) == 'table' and result.message or result
     message = tostring(message or ''):lower()
     return message:find('vehicle checked out', 1, true) ~= nil
         or message:find('vehicle out', 1, true) ~= nil
@@ -4206,7 +3949,7 @@ RegisterNUICallback('spawnGarageVehicle', function(data, cb)
     if not RequireNearDepotRequestArea('You need to be closer to the company garage area to request a vehicle.') then cb({ success = false }) return end
     if not Progress('Requesting company vehicle...', Config.Progress.spawnGarageVehicle, { dict = 'missheistdockssetup1clipboard@base', clip = 'base' }) then cb({ success = false }) return end
     local result = lib.callback.await('ls_trucking:server:spawnGarageVehicle', false, data.vehicleType, data.vehicleIndex)
-    if (not result or not result.success) and LS_Trucking.IsStaleVehicleCheckoutMessage(result and result.message) and LS_Trucking.TryReleaseStaleVehicleCheckout() then
+    if (not result or not result.success) and LS_Trucking.IsStaleVehicleCheckoutMessage(result) and LS_Trucking.TryReleaseStaleVehicleCheckout() then
         result = lib.callback.await('ls_trucking:server:spawnGarageVehicle', false, data.vehicleType, data.vehicleIndex)
     end
     if not result or not result.success then Notify(result and result.message or 'Unable to spawn garage vehicle.', 'error') cb({ success = false }) return end
