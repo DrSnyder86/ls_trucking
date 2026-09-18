@@ -1351,9 +1351,9 @@ function renderMiniSettingsPage(contract = {}) {
 
     content.innerHTML = [
         miniPanel('Receiver Settings', [
-            miniInfoRow('Receiver Model', 'BDG-LSFC-R-1.1', 'fa-microchip'),
-            miniInfoRow('Dock Model', 'BDG-LSFC-D-1.1', 'fa-window-restore'),
-            miniInfoRow('Firmware', 'BDG-FW 1.1.4', 'fa-code-branch'),
+            miniInfoRow('Receiver Model', 'BDG-LSFC-R-1.4', 'fa-microchip'),
+            miniInfoRow('Dock Model', 'BDG-LSFC-D-1.4', 'fa-window-restore'),
+            miniInfoRow('Firmware', 'BDG-FW 1.4.1', 'fa-code-branch'),
             miniInfoRow('Frequency', formatMiniFrequency(contract.radioFrequency || dispatchData?.radioFrequency || dispatchData?.config?.radioFrequency || '68.9'), 'fa-wave-square'),
             miniInfoRow('Telemetry', contract.signalLabel || 'Dispatch signal locked', 'fa-satellite-dish'),
             `

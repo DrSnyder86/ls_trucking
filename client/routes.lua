@@ -2,6 +2,7 @@ LS_Trucking = LS_Trucking or {}
 
 local Routes = {}
 local clientContext = {}
+local completionRequestActive = false
 
 local function Ctx()
     return clientContext or {}
@@ -289,20 +290,14 @@ function Routes.CancelActiveContract(options)
     return true
 end
 
-function Routes.CompleteRoute()
+local function ContractIdsMatch(left, right)
+    return left ~= nil and right ~= nil and tostring(left) == tostring(right)
+end
+
+local function FinishCompletedRoute(completedContract)
     local activeContract = GetActiveContract()
-    if not activeContract then return end
-
-    Call('SetLastCompletedCargoCondition', {
-        label = activeContract.cargoConditionLabel,
-        note = activeContract.cargoConditionNote
-    })
-
-    local result = lib.callback.await('ls_trucking:server:completeRoute', false, activeContract.contractId)
-    if not result or not result.success then
-        Notify(result and result.message or 'Unable to complete route.', 'error')
-        return
-    end
+    if not activeContract then return false end
+    if completedContract and not ContractIdsMatch(activeContract.contractId, completedContract.contractId) then return false end
 
     if activeContract.contractor then
         Call('SetReusableVehicle', nil)
@@ -320,13 +315,70 @@ function Routes.CompleteRoute()
     activeContract.notice = activeContract.contractor and 'Route closed out. Store your contractor vehicle when ready.' or 'Return the vehicle to the dispatcher or start another job with the same vehicle.'
     Call('SetActiveDestination', activeContract.contractor and 'Store contractor vehicle' or 'Return vehicle or start another job', Config.Depot.vehicleReturn)
     Call('UpdateMiniUI')
+
+    -- Clear the route before secondary cleanup so an entity cleanup failure cannot strand a paid contract.
+    SetActiveContract(nil)
     Call('ResetAssistedCargoLoading')
     Call('ClearRouteBlip')
     Call('RemoveAllZones')
     Call('CleanupActiveContractPeds', true)
     Call('CleanupBoxTruckTrolley')
-    SetActiveContract(nil)
     SetTimeout(5000, function() Call('UpdateMiniUI') end)
+    return true
+end
+
+function Routes.HandleServerCompletion(data)
+    if not data or not data.contractId then return false end
+
+    completionRequestActive = false
+    return FinishCompletedRoute(data)
+end
+
+function Routes.CompleteRoute(options)
+    options = options or {}
+    if completionRequestActive then return false end
+
+    local activeContract = GetActiveContract()
+    if not activeContract then return false end
+
+    local contractId = activeContract.contractId
+    local attempts = math.max(1, math.min(tonumber(options.attempts) or 1, 3))
+    local retryDelay = math.max(2100, tonumber(options.retryDelay) or 2200)
+
+    Call('SetLastCompletedCargoCondition', {
+        label = activeContract.cargoConditionLabel,
+        note = activeContract.cargoConditionNote
+    })
+
+    completionRequestActive = true
+    local result
+
+    for attempt = 1, attempts do
+        local currentContract = GetActiveContract()
+        if not currentContract or not ContractIdsMatch(currentContract.contractId, contractId) then
+            completionRequestActive = false
+            return true
+        end
+
+        result = lib.callback.await('ls_trucking:server:completeRoute', false, contractId)
+
+        currentContract = GetActiveContract()
+        if not currentContract or not ContractIdsMatch(currentContract.contractId, contractId) then
+            completionRequestActive = false
+            return true
+        end
+
+        if result and result.success then break end
+        if attempt < attempts then Wait(retryDelay) end
+    end
+
+    completionRequestActive = false
+    if not result or not result.success then
+        Notify(result and result.message or 'Unable to complete route.', 'error')
+        return false
+    end
+
+    return FinishCompletedRoute(activeContract)
 end
 
 function Routes.ConfigureClient(context)

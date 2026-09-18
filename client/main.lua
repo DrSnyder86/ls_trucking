@@ -1576,12 +1576,14 @@ end
 
 function LS_Trucking.BoxTruckTrolley.HandleDeliveryResult(result)
     activeContract.loadedCargo = result.loaded
+    activeContract.deliveredCargo = result.delivered or activeContract.deliveredCargo or 0
     activeContract.currentStop = result.currentStop
+    activeContract.totalStops = result.totalStops or activeContract.totalStops
     activeContract.deliveredAtStop = result.deliveredAtStop or 0
 
     if result.routeComplete then
         LS_Trucking.BoxTruckTrolley.Cleanup(true)
-        CompleteRoute()
+        CompleteRoute({ attempts = 3 })
         return
     end
 
@@ -3355,8 +3357,8 @@ if Routes.ConfigureClient then
     })
 end
 
-function CompleteRoute()
-    if Routes.CompleteRoute then Routes.CompleteRoute() end
+function CompleteRoute(options)
+    return Routes.CompleteRoute and Routes.CompleteRoute(options) or false
 end
 
 local function CancelActiveContract()
@@ -4010,6 +4012,8 @@ RegisterNetEvent('ls_trucking:client:routePaid', function(data)
     if data and lastCompletedCargoCondition then
         data.cargoCondition = lastCompletedCargoCondition
     end
+
+    if Routes.HandleServerCompletion then Routes.HandleServerCompletion(data) end
 
     -- Save the latest route summary so it can be reviewed later without forcing a modal.
     RouteHistory.Save(data)

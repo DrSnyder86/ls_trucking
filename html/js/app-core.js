@@ -87,6 +87,13 @@ let miniReceiverScale = 1;
 let miniDockScale = 1;
 let miniCustomWallpaper = '';
 
+function formatRouteStopProgress(currentValue, totalValue) {
+    const total = Math.max(0, Math.floor(Number(totalValue) || 0));
+    const current = total > 0 ? Math.min(total, Math.max(0, Math.floor(Number(currentValue) || 0))) : 0;
+
+    return `${current} / ${total}`;
+}
+
 function normalizeMiniScale(value) {
     if (value === null || value === undefined || value === '') return 1;
     const parsed = Number(value);

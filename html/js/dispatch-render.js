@@ -94,7 +94,7 @@ function renderCurrentJob(data) {
     if (notice) notice.innerText = job.notice || uiText('label.followDispatch', {}, 'Follow current dispatch instructions.');
     document.getElementById('currentJobPayout').innerText = formatMoney(job.payout);
     document.getElementById('currentJobCargo').innerText = `${job.loadedCargo || 0} / ${job.requiredCargo || 0}`;
-    document.getElementById('currentJobStops').innerText = `${job.currentStop || 0} / ${job.totalStops || 0}`;
+    document.getElementById('currentJobStops').innerText = formatRouteStopProgress(job.currentStop, job.totalStops);
     const currentJobCondition = document.getElementById('currentJobCondition');
     if (currentJobCondition) currentJobCondition.innerText = job.cargoConditionLabel || uiText('common.stable', {}, 'Stable');
     setText('currentJobDestination', job.destination || 'N/A');

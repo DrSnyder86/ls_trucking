@@ -595,7 +595,7 @@ function renderMiniHome(contract = {}) {
     setText('miniHomeRouteKicker', routeKicker);
     setText('miniHomeStatus', routeTitle);
     setText('miniHomeSubstatus', routeStage);
-    setText('miniHomeStopCount', active && totalStops > 0 ? `${Math.min(currentStop, totalStops)} / ${totalStops}` : '--');
+    setText('miniHomeStopCount', active && totalStops > 0 ? formatRouteStopProgress(currentStop, totalStops) : '--');
     if (routeWidget) {
         routeWidget.dataset.tone = active ? 'active' : 'standby';
         routeWidget.setAttribute('aria-label', `${routeKicker}: ${routeTitle}. ${routeStage}`);
@@ -717,7 +717,7 @@ function renderMiniLoadPage(contract = {}) {
     const rows = [
         miniInfoRow(uiText('label.cargo', {}, 'Cargo'), contract.cargo || uiText('label.cargo', {}, 'Cargo'), 'fa-box'),
         miniInfoRow(uiText('receiver.detail.loaded', {}, 'Loaded'), `${loadProgress.loaded} / ${loadProgress.total}`, 'fa-boxes-stacked'),
-        miniInfoRow(uiText('receiver.detail.stops', {}, 'Stops'), `${contract.currentStop || 0} / ${contract.totalStops || 0}`, 'fa-map-pin'),
+        miniInfoRow(uiText('receiver.detail.stops', {}, 'Stops'), formatRouteStopProgress(contract.currentStop, contract.totalStops), 'fa-map-pin'),
         miniInfoRow(uiText('receiver.detail.condition', {}, 'Condition'), loadStatus, 'fa-shield-halved'),
         miniInfoRow(uiText('receiver.detail.conditionNotes', {}, 'Condition Notes'), contract.cargoConditionNote, 'fa-clipboard-list')
     ];
@@ -962,7 +962,7 @@ function renderMiniSettingsPage(contract = {}) {
         miniPanel(uiText('receiver.detail.receiverSettings', {}, 'Receiver Settings'), [
             miniInfoRow(uiText('receiver.detail.receiverModel', {}, 'Receiver Model'), 'BDG-LSFC-R-1.4', 'fa-microchip'),
             miniInfoRow(uiText('receiver.detail.dockModel', {}, 'Dock Model'), 'BDG-LSFC-D-1.4', 'fa-window-restore'),
-            miniInfoRow(uiText('receiver.detail.firmware', {}, 'Firmware'), 'BDG-FW 1.4.0', 'fa-code-branch'),
+            miniInfoRow(uiText('receiver.detail.firmware', {}, 'Firmware'), 'BDG-FW 1.4.1', 'fa-code-branch'),
             `
                 <div class="mini-settings-toggle-row">
                     <button class="mini-wide-action mini-settings-toggle mini-movement-toggle ${miniMovementUnlocked ? 'is-enabled' : ''}" data-mini-movement-toggle>
@@ -1249,7 +1249,7 @@ function updateMiniLiveFields(contract = {}) {
 
     const loadProgress = miniLoadProgress(contract);
     setText('miniCargoLoaded', `${loadProgress.loaded} / ${loadProgress.total}`);
-    setText('miniProgress', `${contract.currentStop || 0} / ${contract.totalStops || 0}`);
+    setText('miniProgress', formatRouteStopProgress(contract.currentStop, contract.totalStops));
     setText('miniCargo', contract.cargo || 'Cargo');
 
     const miniCargoCondition = document.getElementById('miniCargoCondition');

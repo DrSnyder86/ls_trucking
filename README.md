@@ -1,7 +1,7 @@
 # Los Santos Freight Co. Trucking
 
 **Resource:** `ls_trucking`  
-**Version:** `1.4.0`  
+**Version:** `1.4.1`<br>
 **Author:** DrSnyder  
 **Game:** FiveM 
 **Dispatch command:** `/trucking`  
@@ -616,7 +616,7 @@ Receiver details:
 
 - Model label: `BDG-LSFC-R-1.4`.
 - Dock model label: `BDG-LSFC-D-1.4`.
-- Firmware label: `BDG-FW 1.4.0`.
+- Firmware label: `BDG-FW 1.4.1`.
 - TX/RX indicators react to updates and route messages.
 - GPS lock and signal bars update based on route/dispatch state.
 - The home screen provides compact Route, Manifest, Load, Vehicle, Radio, and Settings shortcuts with live status lamps integrated into the app icons.
